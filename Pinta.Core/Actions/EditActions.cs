@@ -321,7 +321,7 @@ public sealed class EditActions
 				Resources.Icons.EditSelectionFill,
 				Translations.GetString ("Fill Selection"),
 				old,
-				doc.Layers.CurrentUserLayerIndex
+				doc.Layers.CurrentUserLayer
 			)
 		);
 	}
@@ -366,8 +366,8 @@ public sealed class EditActions
 
 		doc.History.PushNewItem (
 			sender switch {
-				string and "Cut" => new SimpleHistoryItem (Resources.StandardIcons.EditCut, Translations.GetString ("Cut"), old, doc.Layers.CurrentUserLayerIndex),
-				_ => new SimpleHistoryItem (Resources.Icons.EditSelectionErase, Translations.GetString ("Erase Selection"), old, doc.Layers.CurrentUserLayerIndex),
+				string and "Cut" => new SimpleHistoryItem (Resources.StandardIcons.EditCut, Translations.GetString ("Cut"), old, doc.Layers.CurrentUserLayer),
+				_ => new SimpleHistoryItem (Resources.Icons.EditSelectionErase, Translations.GetString ("Erase Selection"), old, doc.Layers.CurrentUserLayer),
 			}
 		);
 	}

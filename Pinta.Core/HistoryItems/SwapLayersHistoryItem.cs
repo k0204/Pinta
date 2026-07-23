@@ -24,21 +24,17 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-using System;
-
 namespace Pinta.Core;
 
-// These are actions that can be undone by simply repeating
-// the action: invert colors, rotate 180 degrees, etc
 public sealed class SwapLayersHistoryItem : BaseHistoryItem
 {
-	private readonly int layer_index_1;
-	private readonly int layer_index_2;
+	private readonly UserLayer layer1;
+	private readonly UserLayer layer2;
 
-	public SwapLayersHistoryItem (string icon, string text, int layer1, int layer2) : base (icon, text)
+	public SwapLayersHistoryItem (string icon, string text, UserLayer layer1, UserLayer layer2) : base (icon, text)
 	{
-		layer_index_1 = layer1;
-		layer_index_2 = layer2;
+		this.layer1 = layer1;
+		this.layer2 = layer2;
 	}
 
 	public override void Undo ()
@@ -54,23 +50,6 @@ public sealed class SwapLayersHistoryItem : BaseHistoryItem
 	private void Swap ()
 	{
 		var doc = PintaCore.Workspace.ActiveDocument;
-
-		int selected = doc.Layers.CurrentUserLayerIndex;
-
-		int l1 = Math.Min (layer_index_1, layer_index_2);
-		int l2 = Math.Max (layer_index_1, layer_index_2);
-
-		UserLayer layer1 = doc.Layers[l1];
-		UserLayer layer2 = doc.Layers[l2];
-
-		// Note we shift one layer at a time to ensure the document doesn't temporarily
-		// end up in an invalid state with no layers.
-		doc.Layers.DeleteLayer (l1);
-		doc.Layers.Insert (layer1, l2 - 1);
-
-		doc.Layers.DeleteLayer (l2);
-		doc.Layers.Insert (layer2, l1);
-
-		doc.Layers.SetCurrentUserLayer (selected);
+		doc.Layers.SwapLayers (layer1, layer2);
 	}
 }

@@ -31,7 +31,7 @@ namespace Pinta.Core;
 public sealed class InvertHistoryItem : BaseHistoryItem
 {
 	private readonly InvertType type;
-	private readonly int layer_index;
+	private readonly UserLayer? layer;
 
 	public InvertHistoryItem (InvertType type)
 	{
@@ -66,10 +66,10 @@ public sealed class InvertHistoryItem : BaseHistoryItem
 		}
 	}
 
-	public InvertHistoryItem (InvertType type, int layerIndex)
+	public InvertHistoryItem (InvertType type, UserLayer layer)
 	{
 		this.type = type;
-		layer_index = layerIndex;
+		this.layer = layer;
 
 		switch (type) {
 			case InvertType.FlipLayerHorizontal:
@@ -107,11 +107,11 @@ public sealed class InvertHistoryItem : BaseHistoryItem
 				doc.RotateImageCW ();
 				break;
 			case InvertType.FlipLayerHorizontal:
-				doc.Layers[layer_index].FlipHorizontal ();
+				layer!.FlipHorizontal ();
 				PintaCore.Workspace.Invalidate ();
 				break;
 			case InvertType.FlipLayerVertical:
-				doc.Layers[layer_index].FlipVertical ();
+				layer!.FlipVertical ();
 				PintaCore.Workspace.Invalidate ();
 				break;
 		}
@@ -141,11 +141,11 @@ public sealed class InvertHistoryItem : BaseHistoryItem
 				doc.RotateImageCCW ();
 				break;
 			case InvertType.FlipLayerHorizontal:
-				doc.Layers[layer_index].FlipHorizontal ();
+				layer!.FlipHorizontal ();
 				PintaCore.Workspace.Invalidate ();
 				break;
 			case InvertType.FlipLayerVertical:
-				doc.Layers[layer_index].FlipVertical ();
+				layer!.FlipVertical ();
 				PintaCore.Workspace.Invalidate ();
 				break;
 		}

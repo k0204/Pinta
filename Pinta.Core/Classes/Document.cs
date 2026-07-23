@@ -239,7 +239,7 @@ public sealed class Document
 	// Flip image horizontally
 	public void FlipImageHorizontal ()
 	{
-		foreach (var layer in Layers.UserLayers)
+		foreach (var layer in Layers.AllLayers)
 			layer.FlipHorizontal ();
 
 		Workspace.Invalidate ();
@@ -248,7 +248,7 @@ public sealed class Document
 	// Flip image vertically
 	public void FlipImageVertical ()
 	{
-		foreach (var layer in Layers.UserLayers)
+		foreach (var layer in Layers.AllLayers)
 			layer.FlipVertical ();
 
 		Workspace.Invalidate ();
@@ -333,7 +333,7 @@ public sealed class Document
 
 		ImageSize = newSize;
 
-		foreach (var layer in Layers.UserLayers)
+		foreach (var layer in Layers.AllLayers)
 			layer.ResizeCanvas (newSize, anchor);
 
 		hist.FinishSnapshotOfImage ();
@@ -365,7 +365,7 @@ public sealed class Document
 
 		ImageSize = newSize;
 
-		foreach (var layer in Layers.UserLayers)
+		foreach (var layer in Layers.AllLayers)
 			layer.Resize (newSize, resamplingMode);
 
 		hist.FinishSnapshotOfImage ();
@@ -401,7 +401,7 @@ public sealed class Document
 	{
 		Size new_size = Layer.RotateDimensions (ImageSize, angle);
 
-		foreach (var layer in Layers.UserLayers)
+		foreach (var layer in Layers.AllLayers)
 			layer.Rotate (angle, ImageSize, new_size);
 
 		ImageSize = new_size;

@@ -666,8 +666,7 @@ public sealed class TextTool : BaseTool
 		palette.PrimaryColorChanged += HandlePintaCorePalettePrimaryColorChanged;
 		palette.SecondaryColorChanged += HandlePintaCorePalettePrimaryColorChanged;
 
-		workspace.LayerAdded += HandleSelectedLayerChanged;
-		workspace.LayerRemoved += HandleSelectedLayerChanged;
+		workspace.LayerTreeChanged += HandleSelectedLayerChanged;
 		workspace.SelectedLayerChanged += HandleSelectedLayerChanged;
 
 		// We always start off not in edit mode
@@ -688,8 +687,7 @@ public sealed class TextTool : BaseTool
 		palette.PrimaryColorChanged -= HandlePintaCorePalettePrimaryColorChanged;
 		palette.SecondaryColorChanged -= HandlePintaCorePalettePrimaryColorChanged;
 
-		workspace.LayerAdded -= HandleSelectedLayerChanged;
-		workspace.LayerRemoved -= HandleSelectedLayerChanged;
+		workspace.LayerTreeChanged -= HandleSelectedLayerChanged;
 		workspace.SelectedLayerChanged -= HandleSelectedLayerChanged;
 
 		StopEditing (false);
@@ -750,7 +748,7 @@ public sealed class TextTool : BaseTool
 
 		if (ctrl_key) {
 			//Go through every UserLayer.
-			foreach (UserLayer ul in document.Layers.UserLayers) {
+			foreach (UserLayer ul in document.Layers.AllLayers) {
 				//Check each UserLayer's editable text boundaries to see if they contain the mouse position.
 				if (!ul.TextBounds.Contains (pt))
 					continue;
@@ -857,7 +855,7 @@ public sealed class TextTool : BaseTool
 
 		if (ctrl_key && workspace.HasOpenDocuments) {
 			//Go through every UserLayer.
-			foreach (UserLayer ul in document.Layers.UserLayers) {
+			foreach (UserLayer ul in document.Layers.AllLayers) {
 				if (!ul.TextBounds.Contains (last_mouse_position)) continue; //Check each UserLayer's editable text boundaries to see if they contain the mouse position.
 				newCursor = DefaultCursor; //The mouse is over editable text.
 			}

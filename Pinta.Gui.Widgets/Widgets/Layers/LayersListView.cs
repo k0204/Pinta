@@ -26,8 +26,8 @@
 // THE SOFTWARE.
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
-using System.Linq;
 using Pinta.Core;
 
 namespace Pinta.Gui.Widgets;
@@ -40,6 +40,8 @@ public sealed partial class LayersListView
 	private Gtk.ListView list_view;
 	private Document? active_document;
 	private bool changing_selection = false;
+	private LayersListViewItemWidget? drop_hint_widget;
+	private readonly List<LayersListViewItemWidget> row_widgets = [];
 
 	public static new LayersListView New ()
 		=> NewWithProperties ([]);
@@ -85,12 +87,17 @@ public sealed partial class LayersListView
 		PintaCore.Workspace.ActiveDocumentChanged += HandleActiveDocumentChanged;
 	}
 
-	private static void HandleFactorySetup (
+	private void HandleFactorySetup (
 		Gtk.SignalListItemFactory factory,
 		Gtk.SignalListItemFactory.SetupSignalArgs args)
 	{
 		var item = (Gtk.ListItem) args.Object;
-		item.SetChild (LayersListViewItemWidget.New ());
+		LayersListViewItemWidget widget = LayersListViewItemWidget.New ();
+		widget.LayerDragEnded += HandleLayerDragEnded;
+		widget.LayerDragUpdated += HandleLayerDragUpdated;
+		widget.LayerDragCanceled += HandleLayerDragCanceled;
+		row_widgets.Add (widget);
+		item.SetChild (widget);
 	}
 
 	private static void HandleFactoryBind (
@@ -119,11 +126,10 @@ public sealed partial class LayersListView
 			changing_selection = true;
 
 			int model_idx = (int) selection_model.Selected;
-			int doc_idx = active_document.Layers.Count () - 1 - model_idx;
+			LayersListViewItem entry = (LayersListViewItem) list_model.GetObject ((uint) model_idx)!;
 
-			if (active_document.Layers.CurrentUserLayerIndex != doc_idx) {
-				active_document.Layers.SetCurrentUserLayer (doc_idx);
-			}
+			if (entry.UserLayer is not null && active_document.Layers.CurrentUserLayer != entry.UserLayer)
+				active_document.Layers.SetCurrentUserLayer (entry.UserLayer);
 		} finally {
 			changing_selection = false;
 		}
@@ -151,8 +157,7 @@ public sealed partial class LayersListView
 			active_document.History.HistoryItemAdded -= HandleHistoryChanged;
 			active_document.History.ActionUndone -= HandleHistoryChanged;
 			active_document.History.ActionRedone -= HandleHistoryChanged;
-			active_document.Layers.LayerAdded -= HandleLayerAdded;
-			active_document.Layers.LayerRemoved -= HandleLayerRemoved;
+			active_document.Layers.LayerTreeChanged -= HandleLayerTreeChanged;
 			active_document.Layers.SelectedLayerChanged -= HandleSelectedLayerChanged;
 			active_document.Layers.LayerPropertyChanged -= HandleLayerPropertyChanged;
 		}
@@ -164,19 +169,18 @@ public sealed partial class LayersListView
 		if (doc is null)
 			return;
 
-		foreach (var layer in doc.Layers.UserLayers.Reverse ())
-			list_model.Append (LayersListViewItem.New (doc, layer));
+		foreach (var entry in EnumerateVisibleLayers (doc.Layers.RootLayers))
+			list_model.Append (LayersListViewItem.New (doc, entry.Layer, entry.Depth));
 
 		// Update our selection to match the document's active layer.
-		int currentModelIndex = doc.Layers.Count () - 1 - doc.Layers.CurrentUserLayerIndex;
+		int currentModelIndex = FindModelIndex (doc.Layers.CurrentUserLayer);
 		selection_model.SelectItem ((uint) currentModelIndex, unselectRest: true);
 		list_view.ScrollToSelectedItem (selection_model);
 
 		doc.History.HistoryItemAdded += HandleHistoryChanged;
 		doc.History.ActionUndone += HandleHistoryChanged;
 		doc.History.ActionRedone += HandleHistoryChanged;
-		doc.Layers.LayerAdded += HandleLayerAdded;
-		doc.Layers.LayerRemoved += HandleLayerRemoved;
+		doc.Layers.LayerTreeChanged += HandleLayerTreeChanged;
 		doc.Layers.SelectedLayerChanged += HandleSelectedLayerChanged;
 		doc.Layers.LayerPropertyChanged += HandleLayerPropertyChanged;
 	}
@@ -193,29 +197,19 @@ public sealed partial class LayersListView
 		}
 	}
 
-	private void HandleLayerAdded (object? sender, IndexEventArgs e)
+	private void HandleLayerTreeChanged (object? sender, EventArgs e)
 	{
 		ArgumentNullException.ThrowIfNull (active_document);
 
-		int index = active_document.Layers.Count () - 1 - e.Index;
-		list_model.Insert ((uint) index, LayersListViewItem.New (active_document, active_document.Layers[e.Index]));
-		list_view.ScrollToSelectedItem (selection_model);
-	}
-
-	private void HandleLayerRemoved (object? sender, IndexEventArgs e)
-	{
-		ArgumentNullException.ThrowIfNull (active_document);
-
-		// Note: don't need to subtract 1 because the layer has already been removed from the document.
-		list_model.Remove ((uint) (active_document.Layers.Count () - e.Index));
-		list_view.ScrollToSelectedItem (selection_model);
+		RebuildModel ();
+		HandleSelectedLayerChanged (sender, e);
 	}
 
 	private void HandleSelectedLayerChanged (object? sender, EventArgs e)
 	{
 		ArgumentNullException.ThrowIfNull (active_document);
 
-		int index = active_document.Layers.Count () - 1 - active_document.Layers.CurrentUserLayerIndex;
+		int index = FindModelIndex (active_document.Layers.CurrentUserLayer);
 		selection_model.SelectItem ((uint) index, unselectRest: true);
 		list_view.ScrollToSelectedItem (selection_model);
 	}
@@ -225,4 +219,224 @@ public sealed partial class LayersListView
 		// Treat the same as an undo event, and update the widgets.
 		HandleHistoryChanged (sender, e);
 	}
+
+	private void HandleLayerDragUpdated (object? sender, LayerDragEventArgs args)
+	{
+		if (sender is not LayersListViewItemWidget source)
+			return;
+
+		if (!TryGetDropTarget (source, args.EndPoint, out LayerDropTarget target)) {
+			ClearDropHint ();
+			return;
+		}
+
+		SetDropHint (target.Widget, target.Hint);
+	}
+
+	private void HandleLayerDragCanceled (object? sender, EventArgs args)
+	{
+		ClearDropHint ();
+	}
+
+	private void HandleLayerDragEnded (object? sender, LayerDragEventArgs args)
+	{
+		ClearDropHint ();
+
+		if (active_document is null || sender is not LayersListViewItemWidget source || source.UserLayer is null)
+			return;
+
+		UserLayer layer = source.UserLayer;
+
+		if (!TryGetDropTarget (source, args.EndPoint, out LayerDropTarget target))
+			return;
+
+		LayerPosition oldPosition = active_document.Layers.GetPosition (layer);
+		try {
+			active_document.Layers.MoveLayer (layer, target.Position);
+		} catch (ArgumentException) {
+			return;
+		} catch (InvalidOperationException) {
+			return;
+		}
+
+		if (target.Position.Parent is not null) {
+			target.Position.Parent.Expanded = true;
+			active_document.Layers.NotifyLayerTreeChanged ();
+		}
+
+		LayerPosition newPosition = active_document.Layers.GetPosition (layer);
+		if (oldPosition == newPosition)
+			return;
+
+		active_document.History.PushNewItem (new MoveLayerHistoryItem (
+			Resources.StandardIcons.LayerMoveUp,
+			Translations.GetString ("Move Layer"),
+			layer,
+			oldPosition,
+			newPosition));
+	}
+
+	private bool TryGetDropTarget (
+		LayersListViewItemWidget source,
+		PointD sourcePoint,
+		out LayerDropTarget target)
+	{
+		target = default;
+
+		if (active_document is null || source.UserLayer is null)
+			return false;
+
+		if (!source.TranslateCoordinates (this, sourcePoint, out PointD dropPoint))
+			return false;
+
+		List<RowBounds> rows = GetVisibleRows ();
+		if (rows.Count == 0)
+			return false;
+
+		UserLayer layer = source.UserLayer;
+
+		if (dropPoint.Y < rows[0].Top) {
+			target = new LayerDropTarget (rows[0].Widget, new LayerPosition (null, 0), LayerDropHint.Before);
+			return true;
+		}
+
+		RowBounds last = rows[^1];
+		if (dropPoint.Y >= last.Bottom) {
+			target = new LayerDropTarget (last.Widget, new LayerPosition (null, active_document.Layers.RootLayers.Count), LayerDropHint.After);
+			return true;
+		}
+
+		foreach (RowBounds row in rows) {
+			if (dropPoint.Y < row.Top || dropPoint.Y >= row.Bottom)
+				continue;
+
+			if (row.Widget.UserLayer is not UserLayer targetLayer || layer == targetLayer)
+				return false;
+
+			double relativeY = dropPoint.Y - row.Top;
+			double height = row.Bottom - row.Top;
+
+			if (relativeY < height / 4d) {
+				target = new LayerDropTarget (
+					row.Widget,
+					GetSiblingDropPosition (row.Widget, targetLayer, after: false, dropPoint.X),
+					LayerDropHint.Before);
+				return true;
+			}
+
+			if (relativeY > height * 3d / 4d) {
+				target = new LayerDropTarget (
+					row.Widget,
+					GetSiblingDropPosition (row.Widget, targetLayer, after: true, dropPoint.X),
+					LayerDropHint.After);
+				return true;
+			}
+
+			target = new LayerDropTarget (
+				row.Widget,
+				new LayerPosition (targetLayer, targetLayer.Children.Count),
+				LayerDropHint.Into);
+			return true;
+		}
+
+		return false;
+	}
+
+	private LayerPosition GetSiblingDropPosition (
+		LayersListViewItemWidget widget,
+		UserLayer targetLayer,
+		bool after,
+		double dropX)
+	{
+		ArgumentNullException.ThrowIfNull (active_document);
+
+		int desiredDepth = Math.Clamp ((int) (dropX / 24d), 0, widget.Depth);
+		UserLayer insertionTarget = targetLayer;
+		for (int depth = widget.Depth; depth > desiredDepth && insertionTarget.Parent is not null; --depth)
+			insertionTarget = insertionTarget.Parent;
+
+		LayerPosition position = active_document.Layers.GetPosition (insertionTarget);
+		return after ? position with { Index = position.Index + 1 } : position;
+	}
+
+	private List<RowBounds> GetVisibleRows ()
+	{
+		List<RowBounds> rows = [];
+		foreach (LayersListViewItemWidget widget in row_widgets) {
+			if (widget.UserLayer is null)
+				continue;
+
+			if (!widget.TranslateCoordinates (this, PointD.Zero, out PointD rowPoint))
+				continue;
+
+			int height = widget.GetHeight ();
+			if (height <= 0)
+				continue;
+
+			rows.Add (new RowBounds (widget, rowPoint.Y, rowPoint.Y + height));
+		}
+
+		rows.Sort ((a, b) => a.Top.CompareTo (b.Top));
+		return rows;
+	}
+
+	private void SetDropHint (
+		LayersListViewItemWidget widget,
+		LayerDropHint hint)
+	{
+		if (drop_hint_widget != widget)
+			ClearDropHint ();
+
+		drop_hint_widget = widget;
+		widget.SetDropHint (hint);
+	}
+
+	private void ClearDropHint ()
+	{
+		drop_hint_widget?.SetDropHint (LayerDropHint.None);
+		drop_hint_widget = null;
+	}
+
+	private void RebuildModel ()
+	{
+		ArgumentNullException.ThrowIfNull (active_document);
+
+		list_model.RemoveMultiple (0, list_model.GetNItems ());
+		foreach (var entry in EnumerateVisibleLayers (active_document.Layers.RootLayers))
+			list_model.Append (LayersListViewItem.New (active_document, entry.Layer, entry.Depth));
+	}
+
+	private int FindModelIndex (UserLayer layer)
+	{
+		for (uint i = 0; i < list_model.GetNItems (); ++i) {
+			LayersListViewItem entry = (LayersListViewItem) list_model.GetObject (i)!;
+			if (entry.UserLayer == layer)
+				return (int) i;
+		}
+
+		return 0;
+	}
+
+	private static IEnumerable<(UserLayer Layer, int Depth)> EnumerateVisibleLayers (IEnumerable<UserLayer> layers, int depth = 0)
+	{
+		foreach (UserLayer layer in layers) {
+			yield return (layer, depth);
+
+			if (!layer.HasChildren || !layer.Expanded)
+				continue;
+
+			foreach (var child in EnumerateVisibleLayers (layer.Children, depth + 1))
+				yield return child;
+		}
+	}
+
+	private readonly record struct LayerDropTarget (
+		LayersListViewItemWidget Widget,
+		LayerPosition Position,
+		LayerDropHint Hint);
+
+	private readonly record struct RowBounds (
+		LayersListViewItemWidget Widget,
+		double Top,
+		double Bottom);
 }

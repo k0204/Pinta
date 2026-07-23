@@ -39,7 +39,7 @@ public sealed class MovePixelsHistoryItem : BaseHistoryItem
 	private DocumentSelection? old_selection;
 	private Matrix old_transform = CairoExtensions.CreateIdentityMatrix ();
 	private ImageSurface? old_surface;
-	private int layer_index;
+	private UserLayer? layer;
 	private bool lifted;            // Whether this item has lift
 	private bool is_lifted;         // Track state of undo/redo lift
 
@@ -72,10 +72,10 @@ public sealed class MovePixelsHistoryItem : BaseHistoryItem
 
 		if (lifted) {
 			// Grab the original surface
-			ImageSurface surf = doc.Layers[layer_index].Surface;
+			ImageSurface surf = layer!.Surface; // NRT - Set when the operation lifts pixels
 
 			// Undo to the "old" surface
-			doc.Layers[layer_index].Surface = old_surface!; // NRT - Set in TakeSnapshot
+			layer.Surface = old_surface!; // NRT - Set in TakeSnapshot
 
 			// Store the original surface for Redo
 			old_surface = surf;
@@ -95,7 +95,7 @@ public sealed class MovePixelsHistoryItem : BaseHistoryItem
 		is_lifted = true;
 
 		if (lift) {
-			layer_index = doc.Layers.CurrentUserLayerIndex;
+			layer = doc.Layers.CurrentUserLayer;
 			old_surface = doc.Layers.CurrentUserLayer.Surface.Clone ();
 		}
 

@@ -32,15 +32,13 @@ public sealed class SimpleHistoryItem : BaseHistoryItem
 {
 	private readonly SurfaceDiff? surface_diff;
 	ImageSurface? old_surface;
-	int layer_index;
+	UserLayer? layer;
 
-	public SimpleHistoryItem (string icon, string text, ImageSurface oldSurface, int layerIndex) : base (icon, text)
+	public SimpleHistoryItem (string icon, string text, ImageSurface oldSurface, UserLayer layer) : base (icon, text)
 	{
-		var doc = PintaCore.Workspace.ActiveDocument;
+		this.layer = layer;
 
-		layer_index = layerIndex;
-
-		surface_diff = SurfaceDiff.Create (oldSurface, doc.Layers[layer_index].Surface);
+		surface_diff = SurfaceDiff.Create (oldSurface, layer.Surface);
 
 		// If the diff was too big, store the original surface, else, dispose it
 		if (surface_diff == null)
@@ -63,17 +61,15 @@ public sealed class SimpleHistoryItem : BaseHistoryItem
 
 	private void Swap ()
 	{
-		var doc = PintaCore.Workspace.ActiveDocument;
-
 		// Grab the original surface
-		ImageSurface surf = doc.Layers[layer_index].Surface;
+		ImageSurface surf = layer!.Surface; // NRT - Set by the layer constructor or snapshot method
 
 		if (surface_diff != null) {
 			surface_diff.ApplyAndSwap (surf);
 			PintaCore.Workspace.Invalidate (surface_diff.GetBounds ());
 		} else {
 			// Undo to the "old" surface
-			doc.Layers[layer_index].Surface = old_surface!; // NRT - Will be not-null if surface_diff is null
+			layer.Surface = old_surface!; // NRT - Will be not-null if surface_diff is null
 
 			// Store the original surface for Redo
 			old_surface = surf;
@@ -82,19 +78,9 @@ public sealed class SimpleHistoryItem : BaseHistoryItem
 		}
 	}
 
-	public void TakeSnapshotOfLayer (int layerIndex)
-	{
-		var doc = PintaCore.Workspace.ActiveDocument;
-
-		layer_index = layerIndex;
-		old_surface = doc.Layers[layerIndex].Surface.Clone ();
-	}
-
 	public void TakeSnapshotOfLayer (UserLayer layer)
 	{
-		var doc = PintaCore.Workspace.ActiveDocument;
-
-		layer_index = doc.Layers.IndexOf (layer);
+		this.layer = layer;
 		old_surface = layer.Surface.Clone ();
 	}
 }

@@ -1,21 +1,21 @@
-// 
+//
 // DeleteLayerHistoryItem.cs
-//  
+//
 // Author:
 //       Jonathan Pobst <monkey@jpobst.com>
-// 
+//
 // Copyright (c) 2010 Jonathan Pobst
-// 
+//
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
 // in the Software without restriction, including without limitation the rights
 // to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 // copies of the Software, and to permit persons to whom the Software is
 // furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in
 // all copies or substantial portions of the Software.
-// 
+//
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 // IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 // FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -28,34 +28,31 @@ namespace Pinta.Core;
 
 public sealed class DeleteLayerHistoryItem : BaseHistoryItem
 {
-	private readonly int layer_index;
-	private UserLayer? layer;
+	private readonly UserLayer layer;
+	private readonly LayerPosition layer_position;
 
-	public DeleteLayerHistoryItem (string icon, string text, UserLayer layer, int layerIndex) : base (icon, text)
+	public DeleteLayerHistoryItem (
+		string icon,
+		string text,
+		UserLayer layer,
+		LayerPosition layerPosition)
+		: base (icon, text)
 	{
-		layer_index = layerIndex;
 		this.layer = layer;
+		layer_position = layerPosition;
 	}
 
 	public override void Undo ()
 	{
 		var doc = PintaCore.Workspace.ActiveDocument;
 
-		doc.Layers.Insert (layer!, layer_index); // NRT - layer is set by constructor
-
-		// Make new layer the current layer
-		doc.Layers.SetCurrentUserLayer (layer!);
-
-		layer = null;
+		doc.Layers.Insert (layer, layer_position);
+		doc.Layers.SetCurrentUserLayer (layer);
 	}
 
 	public override void Redo ()
 	{
 		var doc = PintaCore.Workspace.ActiveDocument;
-
-		// Store the layer for "undo"
-		layer = doc.Layers[layer_index];
-
-		doc.Layers.DeleteLayer (layer_index);
+		doc.Layers.DeleteLayer (layer);
 	}
 }

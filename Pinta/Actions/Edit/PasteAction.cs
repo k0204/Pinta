@@ -170,7 +170,7 @@ internal sealed class PasteAction : IActionHandler
 		// layer and record it's creation in the history
 		if (toNewLayer) {
 			var l = doc.Layers.AddNewLayer (string.Empty);
-			paste_action.Push (new AddLayerHistoryItem (Resources.Icons.LayerNew, Translations.GetString ("Add New Layer"), doc.Layers.IndexOf (l)));
+			paste_action.Push (new AddLayerHistoryItem (Resources.Icons.LayerNew, Translations.GetString ("Add New Layer"), l, doc.Layers.GetPosition (l)));
 		}
 
 		// Copy the paste to the temp layer, which should be at least the size of this document.

@@ -24,6 +24,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using Cairo;
@@ -36,6 +37,8 @@ namespace Pinta.Core;
 /// </summary>
 public sealed class UserLayer : Layer
 {
+	private readonly List<UserLayer> children = [];
+
 	//Special layers to be drawn on to keep things editable by drawing them separately from the UserLayers.
 	internal Collection<ReEditableLayer> ReEditableLayers { get; } = [];
 	public ReEditableLayer TextLayer { get; }
@@ -60,6 +63,12 @@ public sealed class UserLayer : Layer
 
 	//Stores most of the editable text's data, including the text itself.
 	public TextEngine TextEngine { get; internal set; }
+
+	public UserLayer? Parent { get; private set; }
+	public IReadOnlyList<UserLayer> Children => children;
+	public bool HasChildren => children.Count > 0;
+	internal List<UserLayer> MutableChildren => children;
+	public bool Expanded { get; set; } = true;
 
 	//Rectangular boundary surrounding the editable text.
 	public RectangleI TextBounds { get; set; } = RectangleI.Zero;
@@ -121,10 +130,24 @@ public sealed class UserLayer : Layer
 	}
 
 	/// <summary>
-	/// Returns a list of the layers to paint for this top-level layer.
+	/// Returns a list of the layers to paint for this layer and its visible child layers.
 	/// This includes the primary layer and any active re-editable layers.
 	/// </summary>
 	public IEnumerable<Layer> GetLayersToPaint ()
+	{
+		foreach (Layer layer in GetOwnLayersToPaint ())
+			yield return layer;
+
+		foreach (UserLayer child in children) {
+			if (child.Hidden)
+				continue;
+
+			foreach (Layer layer in child.GetLayersToPaint ())
+				yield return layer;
+		}
+	}
+
+	internal IEnumerable<Layer> GetOwnLayersToPaint ()
 	{
 		yield return this;
 
@@ -132,5 +155,47 @@ public sealed class UserLayer : Layer
 			if (rel.IsLayerSetup)
 				yield return rel.Layer;
 		}
+	}
+
+	internal int ChildIndexOf (UserLayer layer)
+		=> children.IndexOf (layer);
+
+	internal void InsertChild (int index, UserLayer layer)
+	{
+		if (layer == this || layer.IsAncestorOf (this))
+			throw new InvalidOperationException ("Cannot add a layer as a child of itself or one of its descendants.");
+
+		layer.Parent?.RemoveChild (layer);
+		children.Insert (index, layer);
+		layer.Parent = this;
+	}
+
+	internal void RemoveChild (UserLayer layer)
+	{
+		if (children.Remove (layer))
+			layer.Parent = null;
+	}
+
+	internal void DetachFromParent ()
+	{
+		Parent?.RemoveChild (this);
+	}
+
+	internal IEnumerable<UserLayer> GetSelfAndDescendants ()
+	{
+		yield return this;
+
+		foreach (UserLayer child in children)
+			foreach (UserLayer descendant in child.GetSelfAndDescendants ())
+				yield return descendant;
+	}
+
+	private bool IsAncestorOf (UserLayer layer)
+	{
+		for (UserLayer? parent = layer.Parent; parent is not null; parent = parent.Parent)
+			if (parent == this)
+				return true;
+
+		return false;
 	}
 }

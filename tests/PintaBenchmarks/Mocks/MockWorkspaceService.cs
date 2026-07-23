@@ -20,8 +20,7 @@ internal sealed class MockWorkspaceService (Size imageSize) : IWorkspaceService
 	public event EventHandler? ActiveDocumentChanged;
 	public event EventHandler? SelectionChanged;
 
-	public event EventHandler? LayerAdded;
-	public event EventHandler? LayerRemoved;
+	public event EventHandler? LayerTreeChanged;
 	public event EventHandler? SelectedLayerChanged;
 	public event PropertyChangedEventHandler? LayerPropertyChanged;
 	public event EventHandler? ViewSizeChanged;

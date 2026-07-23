@@ -2,15 +2,19 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
+using System.Linq;
 using Cairo;
 
 namespace Pinta.Core;
+
+public readonly record struct LayerPosition (UserLayer? Parent, int Index);
 
 public sealed class DocumentLayers
 {
 	private readonly ToolManager tools;
 	private readonly Document document;
 	private readonly List<UserLayer> user_layers = [];
+	private UserLayer? current_user_layer;
 
 	private int layer_name_int = 2;
 
@@ -28,20 +32,14 @@ public sealed class DocumentLayers
 		this.document = document;
 	}
 
-	public event EventHandler<IndexEventArgs>? LayerAdded;
-	public event EventHandler<IndexEventArgs>? LayerRemoved;
+	public event EventHandler? LayerTreeChanged;
 	public event EventHandler? SelectedLayerChanged;
 	public event PropertyChangedEventHandler? LayerPropertyChanged;
 
 	/// <summary>
 	/// Gets the currently selected user created layer.
 	/// </summary>
-	public UserLayer CurrentUserLayer => user_layers[CurrentUserLayerIndex];
-
-	/// <summary>
-	/// Gets the index of the currently selected user created layer.
-	/// </summary>
-	public int CurrentUserLayerIndex { get; private set; } = -1;
+	public UserLayer CurrentUserLayer => current_user_layer ?? throw new InvalidOperationException ("No layer is selected.");
 
 	/// <summary>
 	/// Gets the layer used for drawing and managing selections.
@@ -76,9 +74,14 @@ public sealed class DocumentLayers
 	}
 
 	/// <summary>
-	/// Collection of user layers.
+	/// Collection of root user layers.
 	/// </summary>
-	public IReadOnlyList<UserLayer> UserLayers => user_layers;
+	public IReadOnlyList<UserLayer> RootLayers => user_layers;
+
+	/// <summary>
+	/// All user layers, flattened bottom-to-top with descendants after their parent.
+	/// </summary>
+	public IReadOnlyList<UserLayer> AllLayers => GetAllUserLayers ().ToList ();
 
 	/// <summary>
 	/// Creates a new layer and adds it to the Layer collection after the
@@ -91,24 +94,49 @@ public sealed class DocumentLayers
 			? CreateLayer ()
 			: CreateLayer (name);
 
-		user_layers.Insert (++CurrentUserLayerIndex, layer);
+		LayerPosition position =
+			current_user_layer is null
+			? new LayerPosition (null, user_layers.Count)
+			: GetNextSiblingPosition (CurrentUserLayer);
 
-		layer.PropertyChanged += RaiseLayerPropertyChangedEvent;
+		Insert (layer, position);
+		current_user_layer = layer;
 
-		LayerAdded?.Invoke (this, new IndexEventArgs (CurrentUserLayerIndex));
 		SelectedLayerChanged?.Invoke (this, EventArgs.Empty);
 
 		return layer;
 	}
 
+	/// <summary>
+	/// Creates a new child layer under the given parent, making it the selected layer.
+	/// </summary>
+	public UserLayer AddNewChildLayer (
+		UserLayer parent,
+		string name)
+	{
+		UserLayer layer =
+			string.IsNullOrEmpty (name)
+			? CreateLayer ()
+			: CreateLayer (name);
+
+		Insert (layer, new LayerPosition (parent, parent.Children.Count));
+		current_user_layer = layer;
+
+		SelectedLayerChanged?.Invoke (this, EventArgs.Empty);
+
+		return layer;
+	}
 
 	/// <summary>
 	/// Disposes all user created and internal layers.
 	/// </summary>
 	internal void Close ()
 	{
+		foreach (UserLayer layer in GetAllUserLayers ())
+			layer.PropertyChanged -= RaiseLayerPropertyChangedEvent;
+
 		user_layers.Clear ();
-		CurrentUserLayerIndex = -1;
+		current_user_layer = null;
 
 		tool_layer = null;
 		selection_layer = null;
@@ -117,7 +145,7 @@ public sealed class DocumentLayers
 	/// <summary>
 	/// Returns the number of user layers.
 	/// </summary>
-	public int Count () => user_layers.Count;
+	public int Count () => GetAllUserLayers ().Count ();
 
 	/// <summary>
 	/// Creates a new layer, but does not add it to the layer collection.
@@ -159,27 +187,26 @@ public sealed class DocumentLayers
 	/// <summary>
 	/// Deletes the current layer and removes it from the layer collection.
 	/// </summary>
-	public void DeleteCurrentLayer () => DeleteLayer (CurrentUserLayerIndex);
+	public void DeleteCurrentLayer () => DeleteLayer (CurrentUserLayer);
 
 	/// <summary>
-	/// Deletes the user layer at the specified index and removes it from the
-	/// layer collection.
+	/// Deletes a user layer and its subtree.
 	/// </summary>
-	/// <param name="index"></param>
-	public void DeleteLayer (int index)
+	public void DeleteLayer (UserLayer layer)
 	{
-		var layer = user_layers[index];
+		if (!ContainsLayer (layer))
+			throw new ArgumentException ("Layer does not belong to this document.", nameof (layer));
 
-		user_layers.RemoveAt (index);
+		int index = AllLayers.ToList ().IndexOf (layer);
+		bool removedCurrent = current_user_layer is not null && ContainsLayer (layer, current_user_layer);
 
-		// Only change this if this wasn't already the bottom layer
-		if (CurrentUserLayerIndex > 0)
-			CurrentUserLayerIndex--;
+		RemoveLayer (layer);
 
-		layer.PropertyChanged -= RaiseLayerPropertyChangedEvent;
+		if (removedCurrent)
+			current_user_layer = Count () == 0 ? null : AllLayers[Math.Min (index, Count () - 1)];
 
-		LayerRemoved?.Invoke (this, new IndexEventArgs (index));
-
+		NotifyLayerTreeChanged ();
+		SelectedLayerChanged?.Invoke (this, EventArgs.Empty);
 		document.Workspace.Invalidate ();
 	}
 
@@ -199,23 +226,11 @@ public sealed class DocumentLayers
 	/// </summary>
 	public UserLayer DuplicateCurrentLayer ()
 	{
-		UserLayer source = CurrentUserLayer;
-		// Translators: this is the auto-generated name for a duplicated layer.
-		// {0} is the name of the source layer. Example: "Layer 3 copy".
-		UserLayer layer = CreateLayer (Translations.GetString ("{0} copy", source.Name));
+		UserLayer layer = DuplicateLayerTree (CurrentUserLayer);
 
-		using Context g = new (layer.Surface);
-		g.SetSourceSurface (source.Surface, 0, 0);
-		g.Paint ();
+		Insert (layer, GetNextSiblingPosition (CurrentUserLayer));
+		current_user_layer = layer;
 
-		layer.Hidden = source.Hidden;
-		layer.Opacity = source.Opacity;
-
-		user_layers.Insert (++CurrentUserLayerIndex, layer);
-
-		layer.PropertyChanged += RaiseLayerPropertyChangedEvent;
-
-		LayerAdded?.Invoke (this, new IndexEventArgs (CurrentUserLayerIndex));
 		SelectedLayerChanged?.Invoke (this, EventArgs.Empty);
 
 		return layer;
@@ -226,22 +241,21 @@ public sealed class DocumentLayers
 	/// </summary>
 	public void FlattenLayers ()
 	{
-		if (user_layers.Count < 2)
+		if (Count () < 2)
 			throw new InvalidOperationException ("Cannot flatten image because there is only one layer.");
 
 		// Find the "bottom" layer
-		UserLayer bottom_layer = user_layers[0];
+		UserLayer bottom_layer = AllLayers[0];
 
 		// Replace the bottom surface with the flattened image,
 		// and dispose the old surface
 		bottom_layer.Surface = GetFlattenedImage ();
 
 		// Reset our layer pointer to the only remaining layer
-		CurrentUserLayerIndex = 0;
+		current_user_layer = bottom_layer;
 
-		// Delete all other layers
-		while (user_layers.Count > 1)
-			DeleteLayer (user_layers.Count - 1);
+		foreach (UserLayer layer in AllLayers.Skip (1).Reverse ())
+			DeleteLayer (layer);
 
 		document.Workspace.Invalidate ();
 	}
@@ -274,115 +288,211 @@ public sealed class DocumentLayers
 	public IEnumerable<Layer> GetLayersToPaint (bool includeToolLayer = true)
 	{
 		foreach (UserLayer userLayer in user_layers) {
-			if (!userLayer.Hidden) {
-				foreach (Layer layer in userLayer.GetLayersToPaint ())
-					yield return layer;
-			}
-
-			if (userLayer == CurrentUserLayer) {
-				if (includeToolLayer && tool_layer is not null && !ToolLayer.Hidden)
-					yield return ToolLayer;
-
-				if (ShowSelectionLayer && (!SelectionLayer.Hidden))
-					yield return SelectionLayer;
-			}
+			foreach (Layer layer in GetLayersToPaint (userLayer, includeToolLayer))
+				yield return layer;
 		}
 	}
 
 	/// <summary>
-	/// Returns the index of the specified user layer.
-	/// </summary>
-	public int IndexOf (UserLayer layer)
+	public LayerPosition GetPosition (UserLayer layer)
 	{
-		return user_layers.IndexOf (layer);
+		if (!ContainsLayer (layer))
+			throw new ArgumentException ("Layer does not belong to this document.", nameof (layer));
+
+		if (layer.Parent is not null)
+			return new LayerPosition (layer.Parent, layer.Parent.ChildIndexOf (layer));
+
+		return new LayerPosition (null, user_layers.IndexOf (layer));
+	}
+
+	public void NotifyLayerTreeChanged ()
+	{
+		LayerTreeChanged?.Invoke (this, EventArgs.Empty);
 	}
 
 	/// <summary>
-	/// Adds the provided layer at the requested index of the layer collection.
+	/// Adds the provided layer at the requested root index of the layer collection.
 	/// </summary>
 	public void Insert (UserLayer layer, int index)
 	{
-		user_layers.Insert (index, layer);
+		Insert (layer, new LayerPosition (null, index));
+	}
 
-		if (user_layers.Count == 1)
-			CurrentUserLayerIndex = 0;
+	public void Insert (
+		UserLayer layer,
+		LayerPosition position)
+	{
+		if (ContainsLayer (layer)) {
+			MoveLayer (layer, position);
+			return;
+		}
 
-		layer.PropertyChanged += RaiseLayerPropertyChangedEvent;
+		ValidatePosition (layer, position);
+		layer.DetachFromParent ();
+		user_layers.Remove (layer);
 
-		LayerAdded?.Invoke (this, new IndexEventArgs (index));
+		if (position.Parent is null) {
+			user_layers.Insert (position.Index, layer);
+		} else {
+			position.Parent.InsertChild (position.Index, layer);
+		}
 
+		RegisterLayerTree (layer);
+
+		if (current_user_layer is null)
+			current_user_layer = layer;
+
+		NotifyLayerTreeChanged ();
 		document.Workspace.Invalidate ();
 	}
 
 	/// <summary>
-	/// Merges the current layer with the one below it.
+	/// Moves a layer and its descendants to the requested tree position.
+	/// </summary>
+	public void MoveLayer (
+		UserLayer layer,
+		LayerPosition position)
+	{
+		if (!ContainsLayer (layer))
+			throw new ArgumentException ("Layer does not belong to this document.", nameof (layer));
+
+		ValidatePosition (layer, position);
+
+		LayerPosition oldPosition = GetPosition (layer);
+		if (oldPosition.Parent is null)
+			user_layers.RemoveAt (oldPosition.Index);
+		else
+			layer.DetachFromParent ();
+
+		List<UserLayer> destination = position.Parent?.MutableChildren ?? user_layers;
+		int index = position.Index;
+		if (oldPosition.Parent == position.Parent && oldPosition.Index < index)
+			index--;
+
+		if (index < 0 || index > destination.Count)
+			throw new ArgumentOutOfRangeException (nameof (position));
+
+		if (position.Parent is null) {
+			user_layers.Insert (index, layer);
+		} else {
+			position.Parent.InsertChild (index, layer);
+		}
+
+		NotifyLayerTreeChanged ();
+		document.Workspace.Invalidate ();
+	}
+
+	/// <summary>
+	/// Merges the current layer with the sibling below it.
 	/// </summary>
 	public void MergeCurrentLayerDown ()
 	{
-		if (CurrentUserLayerIndex == 0)
+		UserLayer source = CurrentUserLayer;
+		List<UserLayer> siblings = GetSiblingList (source);
+		int siblingIndex = siblings.IndexOf (source);
+
+		if (siblingIndex == 0)
 			throw new InvalidOperationException ("Cannot flatten layer because current layer is the bottom layer.");
 
-		// Get our source and destination layers
-		UserLayer source = CurrentUserLayer;
-		UserLayer dest = user_layers[CurrentUserLayerIndex - 1];
+		UserLayer dest = siblings[siblingIndex - 1];
 
-		// Blend the layers
 		using Context g = new (dest.Surface);
-		source.Draw (g);
+		foreach (Layer layer in source.GetLayersToPaint ())
+			layer.Draw (g);
 
 		DeleteCurrentLayer ();
 	}
 
 	/// <summary>
-	/// Moves the current layer down 1 position in the layer collection.
+	/// Moves the current layer down 1 position among its siblings.
 	/// </summary>
 	public void MoveCurrentLayerDown ()
 	{
-		if (CurrentUserLayerIndex == 0)
+		if (!CanMoveCurrentLayerDown ())
 			throw new InvalidOperationException ("Cannot move layer down because current layer is the bottom layer.");
 
 		UserLayer layer = CurrentUserLayer;
-		int index = CurrentUserLayerIndex;
-		DeleteLayer (index);
-		Insert (layer, index - 1);
-
+		List<UserLayer> siblings = GetSiblingList (layer);
+		int siblingIndex = siblings.IndexOf (layer);
+		SwapLayers (layer, siblings[siblingIndex - 1]);
 		SelectedLayerChanged?.Invoke (this, EventArgs.Empty);
 
 		document.Workspace.Invalidate ();
 	}
 
 	/// <summary>
-	/// Moves the current layer up 1 position in the layer collection.
+	/// Moves the current layer up 1 position among its siblings.
 	/// </summary>
 	public void MoveCurrentLayerUp ()
 	{
-		if (CurrentUserLayerIndex == user_layers.Count)
+		if (!CanMoveCurrentLayerUp ())
 			throw new InvalidOperationException ("Cannot move layer up because current layer is the top layer.");
 
 		UserLayer layer = CurrentUserLayer;
-		int index = CurrentUserLayerIndex;
-
-		DeleteLayer (index);
-		Insert (layer, index + 1);
-
-		CurrentUserLayerIndex = index + 1;
-
+		List<UserLayer> siblings = GetSiblingList (layer);
+		int siblingIndex = siblings.IndexOf (layer);
+		SwapLayers (layer, siblings[siblingIndex + 1]);
 		SelectedLayerChanged?.Invoke (this, EventArgs.Empty);
 
 		document.Workspace.Invalidate ();
 	}
 
-	/// <summary>
-	/// Set the current user layer to the index specified.
-	/// </summary>
-	public void SetCurrentUserLayer (int i)
+	public bool CanMoveCurrentLayerDown ()
 	{
-		// Ensure that the current tool's modifications are finalized before
-		// switching layers.
-		tools.CurrentTool?.DoCommit (document);
+		if (current_user_layer is null)
+			return false;
 
-		CurrentUserLayerIndex = i;
-		SelectedLayerChanged?.Invoke (this, EventArgs.Empty);
+		UserLayer layer = CurrentUserLayer;
+		return GetSiblingList (layer).IndexOf (layer) > 0;
+	}
+
+	public bool CanMoveCurrentLayerUp ()
+	{
+		if (current_user_layer is null)
+			return false;
+
+		UserLayer layer = CurrentUserLayer;
+		List<UserLayer> siblings = GetSiblingList (layer);
+		return GetSiblingList (layer).IndexOf (layer) < siblings.Count - 1;
+	}
+
+	public UserLayer GetSiblingBelow (UserLayer layer)
+	{
+		List<UserLayer> siblings = GetSiblingList (layer);
+		int index = siblings.IndexOf (layer);
+
+		if (index <= 0)
+			throw new InvalidOperationException ("Layer has no sibling below it.");
+
+		return siblings[index - 1];
+	}
+
+	public UserLayer GetSiblingAbove (UserLayer layer)
+	{
+		List<UserLayer> siblings = GetSiblingList (layer);
+		int index = siblings.IndexOf (layer);
+
+		if (index < 0 || index >= siblings.Count - 1)
+			throw new InvalidOperationException ("Layer has no sibling above it.");
+
+		return siblings[index + 1];
+	}
+
+	public void SwapLayers (
+		UserLayer layer1,
+		UserLayer layer2)
+	{
+		if (layer1.Parent != layer2.Parent)
+			throw new InvalidOperationException ("Cannot swap layers with different parents.");
+
+		List<UserLayer> siblings = GetSiblingList (layer1);
+		int siblingIndex1 = siblings.IndexOf (layer1);
+		int siblingIndex2 = siblings.IndexOf (layer2);
+
+		(siblings[siblingIndex1], siblings[siblingIndex2]) = (siblings[siblingIndex2], siblings[siblingIndex1]);
+
+		NotifyLayerTreeChanged ();
+		document.Workspace.Invalidate ();
 	}
 
 	/// <summary>
@@ -390,13 +500,115 @@ public sealed class DocumentLayers
 	/// </summary>
 	public void SetCurrentUserLayer (UserLayer layer)
 	{
-		SetCurrentUserLayer (user_layers.IndexOf (layer));
+		if (!ContainsLayer (layer))
+			throw new ArgumentException ("Layer does not belong to this document.", nameof (layer));
+
+		// Ensure that the current tool's modifications are finalized before
+		// switching layers.
+		tools.CurrentTool?.DoCommit (document);
+
+		current_user_layer = layer;
+		SelectedLayerChanged?.Invoke (this, EventArgs.Empty);
 	}
 
-	/// <summary>
-	/// Gets the user layer at the specified index.
-	/// </summary>
-	public UserLayer this[int index] => user_layers[index];
+	private bool ContainsLayer (UserLayer layer) => GetAllUserLayers ().Contains (layer);
+
+	private static bool ContainsLayer (
+		UserLayer parent,
+		UserLayer layer)
+	{
+		return parent.GetSelfAndDescendants ().Contains (layer);
+	}
+
+	private UserLayer DuplicateLayerTree (UserLayer source)
+	{
+		// Translators: this is the auto-generated name for a duplicated layer.
+		// {0} is the name of the source layer. Example: "Layer 3 copy".
+		UserLayer layer = CreateLayer (Translations.GetString ("{0} copy", source.Name));
+
+		using Context g = new (layer.Surface);
+		g.SetSourceSurface (source.Surface, 0, 0);
+		g.Paint ();
+
+		layer.Hidden = source.Hidden;
+		layer.Opacity = source.Opacity;
+		layer.BlendMode = source.BlendMode;
+		layer.Transform = source.Transform.Clone ();
+
+		foreach (UserLayer child in source.Children)
+			layer.InsertChild (layer.Children.Count, DuplicateLayerTree (child));
+
+		return layer;
+	}
+
+	private IEnumerable<UserLayer> GetAllUserLayers ()
+	{
+		foreach (UserLayer layer in user_layers)
+			foreach (UserLayer descendant in layer.GetSelfAndDescendants ())
+				yield return descendant;
+	}
+
+	private IEnumerable<Layer> GetLayersToPaint (
+		UserLayer userLayer,
+		bool includeToolLayer)
+	{
+		if (userLayer.Hidden)
+			yield break;
+
+		foreach (Layer layer in userLayer.GetOwnLayersToPaint ())
+			yield return layer;
+
+		if (userLayer == CurrentUserLayer) {
+			if (includeToolLayer && tool_layer is not null && !ToolLayer.Hidden)
+				yield return ToolLayer;
+
+			if (ShowSelectionLayer && (!SelectionLayer.Hidden))
+				yield return SelectionLayer;
+		}
+
+		foreach (UserLayer child in userLayer.Children)
+			foreach (Layer layer in GetLayersToPaint (child, includeToolLayer))
+				yield return layer;
+	}
+
+	private LayerPosition GetNextSiblingPosition (UserLayer layer)
+	{
+		LayerPosition position = GetPosition (layer);
+		return position with { Index = position.Index + 1 };
+	}
+
+	private List<UserLayer> GetSiblingList (UserLayer layer)
+		=> layer.Parent?.MutableChildren ?? user_layers;
+
+	private void ValidatePosition (UserLayer layer, LayerPosition position)
+	{
+		if (position.Parent is not null && !ContainsLayer (position.Parent))
+			throw new ArgumentException ("Parent layer does not belong to this document.", nameof (position));
+
+		if (position.Parent is not null && layer.GetSelfAndDescendants ().Contains (position.Parent))
+			throw new InvalidOperationException ("Cannot move a layer into itself or one of its descendants.");
+
+		int count = position.Parent?.Children.Count ?? user_layers.Count;
+		if (position.Index < 0 || position.Index > count)
+			throw new ArgumentOutOfRangeException (nameof (position));
+	}
+
+	private void RegisterLayerTree (UserLayer layer)
+	{
+		foreach (UserLayer descendant in layer.GetSelfAndDescendants ())
+			descendant.PropertyChanged += RaiseLayerPropertyChangedEvent;
+	}
+
+	private void RemoveLayer (UserLayer layer)
+	{
+		if (layer.Parent is null)
+			user_layers.Remove (layer);
+		else
+			layer.DetachFromParent ();
+
+		foreach (UserLayer descendant in layer.GetSelfAndDescendants ())
+			descendant.PropertyChanged -= RaiseLayerPropertyChangedEvent;
+	}
 
 	private void RaiseLayerPropertyChangedEvent (object? sender, PropertyChangedEventArgs e)
 	{

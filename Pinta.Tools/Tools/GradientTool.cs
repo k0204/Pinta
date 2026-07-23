@@ -127,7 +127,7 @@ public sealed class GradientTool : BaseTool
 				? Translations.GetString ("Gradient Created")
 				: Translations.GetString ("Gradient Modified");
 			document.History.PushNewItem (new GradientHistoryItem (Icon, name, undo_surface,
-				document.Layers.CurrentUserLayerIndex, undo_data!.Value, this));
+				document.Layers.CurrentUserLayer, undo_data!.Value, this));
 		}
 
 		is_newly_created = false;
@@ -184,7 +184,7 @@ public sealed class GradientTool : BaseTool
 			undo_data = Data;
 			undo_surface = document.Layers.CurrentUserLayer.Surface.Clone ();
 			document.History.PushNewItem (new GradientHistoryItem (Icon, Name + " " + Translations.GetString ("Finalized"), undo_surface,
-						document.Layers.CurrentUserLayerIndex, undo_data!.Value, this));
+						document.Layers.CurrentUserLayer, undo_data!.Value, this));
 		}
 		handle.Active = false;
 

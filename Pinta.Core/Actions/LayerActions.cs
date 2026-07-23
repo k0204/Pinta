@@ -31,6 +31,7 @@ namespace Pinta.Core;
 public sealed class LayerActions
 {
 	public Command AddNewLayer { get; }
+	public Command AddChildLayer { get; }
 	public Command DeleteLayer { get; }
 	public Command DuplicateLayer { get; }
 	public Command MergeLayerDown { get; }
@@ -62,6 +63,12 @@ public sealed class LayerActions
 			null,
 			Resources.Icons.LayerNew,
 			shortcuts: ["<Primary><Shift>N"]);
+
+		AddChildLayer = new Command (
+			"addchildlayer",
+			Translations.GetString ("Add Child Layer"),
+			null,
+			Resources.Icons.LayerNew);
 
 		DeleteLayer = new Command (
 			"deletelayer",
@@ -139,6 +146,7 @@ public sealed class LayerActions
 	{
 		app.AddCommands ([
 			AddNewLayer,
+			AddChildLayer,
 			DeleteLayer,
 			DuplicateLayer,
 			MergeLayerDown,
@@ -157,6 +165,7 @@ public sealed class LayerActions
 	public void RegisterHandlers ()
 	{
 		AddNewLayer.Activated += HandlePintaCoreActionsLayersAddNewLayerActivated;
+		AddChildLayer.Activated += HandlePintaCoreActionsLayersAddChildLayerActivated;
 		DeleteLayer.Activated += HandlePintaCoreActionsLayersDeleteLayerActivated;
 		DuplicateLayer.Activated += HandlePintaCoreActionsLayersDuplicateLayerActivated;
 		MergeLayerDown.Activated += HandlePintaCoreActionsLayersMergeLayerDownActivated;
@@ -166,8 +175,7 @@ public sealed class LayerActions
 		FlipVertical.Activated += HandlePintaCoreActionsLayersFlipVerticalActivated;
 		ImportFromFile.Activated += HandlePintaCoreActionsLayersImportFromFileActivated;
 
-		workspace.LayerAdded += EnableOrDisableLayerActions;
-		workspace.LayerRemoved += EnableOrDisableLayerActions;
+		workspace.LayerTreeChanged += EnableOrDisableLayerActions;
 		workspace.SelectedLayerChanged += EnableOrDisableLayerActions;
 		workspace.ActiveDocumentChanged += EnableOrDisableLayerActions;
 
@@ -178,16 +186,16 @@ public sealed class LayerActions
 	{
 		Document? activeDoc = workspace.ActiveDocumentOrDefault;
 
-		bool hasMultipleLayers = activeDoc?.Layers.UserLayers.Count > 1;
+		bool hasMultipleLayers = activeDoc is not null && activeDoc.Layers.AllLayers.Count > 1;
 		DeleteLayer.Sensitive = hasMultipleLayers;
 		image.Flatten.Sensitive = hasMultipleLayers;
+		AddChildLayer.Sensitive = activeDoc != null;
 
-		bool canMergeDown = activeDoc?.Layers.CurrentUserLayerIndex > 0;
+		bool canMergeDown = activeDoc?.Layers.CanMoveCurrentLayerDown () ?? false;
 		MergeLayerDown.Sensitive = canMergeDown;
 		MoveLayerDown.Sensitive = canMergeDown;
 
-		MoveLayerUp.Sensitive = activeDoc != null
-			&& activeDoc.Layers.CurrentUserLayerIndex < activeDoc.Layers.UserLayers.Count - 1;
+		MoveLayerUp.Sensitive = activeDoc?.Layers.CanMoveCurrentLayerUp () ?? false;
 	}
 
 	private Gtk.FileFilter CreateImagesFileFilter ()
@@ -256,7 +264,8 @@ public sealed class LayerActions
 		AddLayerHistoryItem hist = new (
 			Resources.Icons.LayerImport,
 			Translations.GetString ("Import From File"),
-			doc.Layers.IndexOf (layer));
+			layer,
+			doc.Layers.GetPosition (layer));
 
 		// --- Changes to document go after everything else is completed successfully
 
@@ -273,7 +282,7 @@ public sealed class LayerActions
 
 		doc.Layers.CurrentUserLayer.FlipVertical ();
 		doc.Workspace.Invalidate ();
-		doc.History.PushNewItem (new InvertHistoryItem (InvertType.FlipLayerVertical, doc.Layers.CurrentUserLayerIndex));
+		doc.History.PushNewItem (new InvertHistoryItem (InvertType.FlipLayerVertical, doc.Layers.CurrentUserLayer));
 	}
 
 	private void HandlePintaCoreActionsLayersFlipHorizontalActivated (object sender, EventArgs e)
@@ -284,7 +293,7 @@ public sealed class LayerActions
 
 		doc.Layers.CurrentUserLayer.FlipHorizontal ();
 		doc.Workspace.Invalidate ();
-		doc.History.PushNewItem (new InvertHistoryItem (InvertType.FlipLayerHorizontal, doc.Layers.CurrentUserLayerIndex));
+		doc.History.PushNewItem (new InvertHistoryItem (InvertType.FlipLayerHorizontal, doc.Layers.CurrentUserLayer));
 	}
 
 	private void HandlePintaCoreActionsLayersMoveLayerUpActivated (object sender, EventArgs e)
@@ -293,11 +302,13 @@ public sealed class LayerActions
 
 		tools.Commit ();
 
+		UserLayer layer = doc.Layers.CurrentUserLayer;
+		UserLayer sibling = doc.Layers.GetSiblingAbove (layer);
 		SwapLayersHistoryItem hist = new (
 			Resources.StandardIcons.LayerMoveUp,
 			Translations.GetString ("Move Layer Up"),
-			doc.Layers.CurrentUserLayerIndex,
-			doc.Layers.CurrentUserLayerIndex + 1);
+			layer,
+			sibling);
 
 		doc.Layers.MoveCurrentLayerUp ();
 		doc.History.PushNewItem (hist);
@@ -309,11 +320,13 @@ public sealed class LayerActions
 
 		tools.Commit ();
 
+		UserLayer layer = doc.Layers.CurrentUserLayer;
+		UserLayer sibling = doc.Layers.GetSiblingBelow (layer);
 		SwapLayersHistoryItem hist = new (
 			Resources.StandardIcons.LayerMoveDown,
 			Translations.GetString ("Move Layer Down"),
-			doc.Layers.CurrentUserLayerIndex,
-			doc.Layers.CurrentUserLayerIndex - 1);
+			layer,
+			sibling);
 
 		doc.Layers.MoveCurrentLayerDown ();
 		doc.History.PushNewItem (hist);
@@ -325,8 +338,8 @@ public sealed class LayerActions
 
 		tools.Commit ();
 
-		int bottomLayerIndex = doc.Layers.CurrentUserLayerIndex - 1;
-		Cairo.ImageSurface oldBottomSurface = doc.Layers.UserLayers[bottomLayerIndex].Surface.Clone ();
+		UserLayer bottomLayer = doc.Layers.GetSiblingBelow (doc.Layers.CurrentUserLayer);
+		Cairo.ImageSurface oldBottomSurface = bottomLayer.Surface.Clone ();
 
 		CompoundHistoryItem hist = new (
 			Resources.Icons.LayerMergeDown,
@@ -336,7 +349,7 @@ public sealed class LayerActions
 			string.Empty,
 			string.Empty,
 			doc.Layers.CurrentUserLayer,
-			doc.Layers.CurrentUserLayerIndex);
+			doc.Layers.GetPosition (doc.Layers.CurrentUserLayer));
 
 		doc.Layers.MergeCurrentLayerDown ();
 
@@ -344,7 +357,7 @@ public sealed class LayerActions
 			string.Empty,
 			string.Empty,
 			oldBottomSurface,
-			bottomLayerIndex);
+			bottomLayer);
 		hist.Push (h1);
 		hist.Push (h2);
 
@@ -365,7 +378,8 @@ public sealed class LayerActions
 		AddLayerHistoryItem hist = new (
 			Resources.Icons.LayerDuplicate,
 			Translations.GetString ("Duplicate Layer"),
-			doc.Layers.IndexOf (l));
+			l,
+			doc.Layers.GetPosition (l));
 		doc.History.PushNewItem (hist);
 	}
 
@@ -379,9 +393,9 @@ public sealed class LayerActions
 			Resources.Icons.LayerDelete,
 			Translations.GetString ("Delete Layer"),
 			doc.Layers.CurrentUserLayer,
-			doc.Layers.CurrentUserLayerIndex);
+			doc.Layers.GetPosition (doc.Layers.CurrentUserLayer));
 
-		doc.Layers.DeleteLayer (doc.Layers.CurrentUserLayerIndex);
+		doc.Layers.DeleteCurrentLayer ();
 
 		doc.History.PushNewItem (hist);
 	}
@@ -396,7 +410,23 @@ public sealed class LayerActions
 		AddLayerHistoryItem hist = new (
 			Resources.Icons.LayerNew,
 			Translations.GetString ("Add New Layer"),
-			doc.Layers.IndexOf (l));
+			l,
+			doc.Layers.GetPosition (l));
+		doc.History.PushNewItem (hist);
+	}
+
+	private void HandlePintaCoreActionsLayersAddChildLayerActivated (object sender, EventArgs e)
+	{
+		Document doc = workspace.ActiveDocument;
+		tools.Commit ();
+
+		UserLayer l = doc.Layers.AddNewChildLayer (doc.Layers.CurrentUserLayer, string.Empty);
+
+		AddLayerHistoryItem hist = new (
+			Resources.Icons.LayerNew,
+			Translations.GetString ("Add Child Layer"),
+			l,
+			doc.Layers.GetPosition (l));
 		doc.History.PushNewItem (hist);
 	}
 }

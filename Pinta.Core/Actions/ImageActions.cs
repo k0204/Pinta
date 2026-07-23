@@ -212,7 +212,7 @@ public sealed class ImageActions
 
 		ImageSurface oldBottomSurface =
 			doc.Layers
-			.UserLayers[0]
+			.AllLayers[0]
 			.Surface
 			.Clone ();
 
@@ -220,12 +220,14 @@ public sealed class ImageActions
 			Resources.Icons.ImageFlatten,
 			Translations.GetString ("Flatten"));
 
-		for (int i = doc.Layers.UserLayers.Count - 1; i >= 1; i--)
-			hist.Push (new DeleteLayerHistoryItem (string.Empty, string.Empty, doc.Layers.UserLayers[i], i));
+		for (int i = doc.Layers.AllLayers.Count - 1; i >= 1; i--) {
+			UserLayer layer = doc.Layers.AllLayers[i];
+			hist.Push (new DeleteLayerHistoryItem (string.Empty, string.Empty, layer, doc.Layers.GetPosition (layer)));
+		}
 
 		doc.Layers.FlattenLayers ();
 
-		hist.Push (new SimpleHistoryItem (string.Empty, string.Empty, oldBottomSurface, 0));
+		hist.Push (new SimpleHistoryItem (string.Empty, string.Empty, oldBottomSurface, doc.Layers.AllLayers[0]));
 
 		doc.History.PushNewItem (hist);
 	}
@@ -304,7 +306,7 @@ public sealed class ImageActions
 
 		view.UpdateCanvasScale ();
 
-		foreach (var layer in doc.Layers.UserLayers)
+		foreach (var layer in doc.Layers.AllLayers)
 			layer.Crop (rect, selection);
 
 		hist.FinishSnapshotOfImage ();

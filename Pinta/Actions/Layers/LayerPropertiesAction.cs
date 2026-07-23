@@ -63,7 +63,7 @@ internal sealed class LayerPropertiesAction : IActionHandler
 
 			if (response == Gtk.ResponseType.Ok && dialog.AreLayerPropertiesUpdated) {
 				UpdateLayerPropertiesHistoryItem historyItem = GetLayerUpdateHistoryItem (
-					active.Layers.CurrentUserLayerIndex,
+					active.Layers.CurrentUserLayer,
 					dialog.InitialLayerProperties,
 					dialog.UpdatedLayerProperties);
 
@@ -88,7 +88,7 @@ internal sealed class LayerPropertiesAction : IActionHandler
 	}
 
 	private static UpdateLayerPropertiesHistoryItem GetLayerUpdateHistoryItem (
-		int layer,
+		UserLayer layer,
 		LayerProperties initial,
 		LayerProperties updated)
 	{

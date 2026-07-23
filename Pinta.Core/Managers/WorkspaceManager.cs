@@ -47,8 +47,7 @@ public interface IWorkspaceService
 	event EventHandler? SelectionChanged;
 	event EventHandler? ActiveDocumentChanged;
 
-	public event EventHandler? LayerAdded;
-	public event EventHandler? LayerRemoved;
+	public event EventHandler? LayerTreeChanged;
 	public event EventHandler? SelectedLayerChanged;
 	public event EventHandler? ViewSizeChanged;
 	public event PropertyChangedEventHandler? LayerPropertyChanged;
@@ -125,7 +124,6 @@ public static class WorkspaceServiceExtensions
 	{
 		Document doc = new (PintaCore.Actions, PintaCore.Tools, PintaCore.Workspace, imageSize);
 		doc.Workspace.ViewSize = imageSize;
-		workspace.ActivateDocument (doc);
 
 		// Start with an empty white layer
 		Layer background = doc.Layers.AddNewLayer (Translations.GetString ("Background"));
@@ -135,6 +133,8 @@ public static class WorkspaceServiceExtensions
 			g.SetSourceColor (backgroundColor);
 			g.Paint ();
 		}
+
+		workspace.ActivateDocument (doc);
 
 		doc.Workspace.History.PushNewItem (new BaseHistoryItem (Resources.StandardIcons.DocumentNew, Translations.GetString ("New Image")));
 		doc.Workspace.History.SetClean ();
@@ -212,8 +212,7 @@ public sealed class WorkspaceManager : IWorkspaceService
 
 	public void ActivateDocument (Document document)
 	{
-		document.Layers.LayerAdded += Document_LayerAdded;
-		document.Layers.LayerRemoved += Document_LayerRemoved;
+		document.Layers.LayerTreeChanged += Document_LayerTreeChanged;
 		document.Layers.SelectedLayerChanged += Document_SelectedLayerChanged;
 		document.Layers.LayerPropertyChanged += Document_LayerPropertyChanged;
 		document.Workspace.ViewSizeChanged += Document_ViewSizeChanged;
@@ -236,14 +235,9 @@ public sealed class WorkspaceManager : IWorkspaceService
 		SelectedLayerChanged?.Invoke (sender, e);
 	}
 
-	private void Document_LayerRemoved (object? sender, IndexEventArgs e)
+	private void Document_LayerTreeChanged (object? sender, EventArgs e)
 	{
-		LayerRemoved?.Invoke (sender, e);
-	}
-
-	private void Document_LayerAdded (object? sender, IndexEventArgs e)
-	{
-		LayerAdded?.Invoke (sender, e);
+		LayerTreeChanged?.Invoke (sender, e);
 	}
 
 	private void Document_ViewSizeChanged (object? sender, EventArgs ev)
@@ -274,8 +268,7 @@ public sealed class WorkspaceManager : IWorkspaceService
 			open_documents.Remove (document);
 		}
 
-		document.Layers.LayerAdded -= Document_LayerAdded;
-		document.Layers.LayerRemoved -= Document_LayerRemoved;
+		document.Layers.LayerTreeChanged -= Document_LayerTreeChanged;
 		document.Layers.SelectedLayerChanged -= Document_SelectedLayerChanged;
 		document.Layers.LayerPropertyChanged -= Document_LayerPropertyChanged;
 		document.Workspace.ViewSizeChanged -= Document_ViewSizeChanged;
@@ -294,7 +287,7 @@ public sealed class WorkspaceManager : IWorkspaceService
 			new Size (image.Width, image.Height),
 			new Color (0, 0, 0, 0));
 
-		using Context g = new (doc.Layers[0].Surface);
+		using Context g = new (doc.Layers.RootLayers[0].Surface);
 		g.SetSourceSurface (image, 0, 0);
 		g.Paint ();
 
@@ -465,8 +458,7 @@ public sealed class WorkspaceManager : IWorkspaceService
 		return chrome_manager.ShowMessageDialog (parent, message, details);
 	}
 
-	public event EventHandler? LayerAdded;
-	public event EventHandler? LayerRemoved;
+	public event EventHandler? LayerTreeChanged;
 	public event EventHandler? SelectedLayerChanged;
 	public event PropertyChangedEventHandler? LayerPropertyChanged;
 	public event EventHandler? ViewSizeChanged;

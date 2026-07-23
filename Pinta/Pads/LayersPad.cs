@@ -70,6 +70,7 @@ internal sealed class LayersPad : IDockPad
 		Gtk.Box layers_tb = layers_item.AddToolBar ();
 		layers_tb.AppendMultiple ([
 			layer_actions.AddNewLayer.CreateDockToolBarItem (),
+			layer_actions.AddChildLayer.CreateDockToolBarItem (),
 			layer_actions.DeleteLayer.CreateDockToolBarItem (),
 			layer_actions.DuplicateLayer.CreateDockToolBarItem (),
 			layer_actions.MergeLayerDown.CreateDockToolBarItem (),

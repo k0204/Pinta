@@ -38,6 +38,7 @@ namespace Pinta.Core;
 public sealed class OraFormat : IImageImporter, IImageExporter
 {
 	private const int THUMB_MAX_SIZE = 256;
+	private const string pinta_namespace = "https://pinta-project.com/openraster";
 
 	public Document Import (Gio.File file)
 	{
@@ -66,66 +67,12 @@ public sealed class OraFormat : IImageImporter, IImageExporter
 			file,
 			"ora");
 
-		XmlElement stackElement = (XmlElement) stackXml.GetElementsByTagName ("stack")[0]!;
-		XmlNodeList layerElements = stackElement.GetElementsByTagName ("layer");
+		XmlElement? stackElement = imageElement["stack"];
+		if (stackElement is null)
+			throw new XmlException ("No layer stack found in OpenRaster file");
 
-		if (layerElements.Count == 0)
+		if (!ImportStack (stackElement, newDocument, zipfile, parent: null))
 			throw new XmlException ("No layers found in OpenRaster file");
-
-		for (int i = 0; i < layerElements.Count; i++) {
-
-			XmlElement layerElement = (XmlElement) layerElements[i]!;
-
-			PointI position = new (
-				X: int.Parse (GetAttribute (layerElement, "x", "0")),
-				Y: int.Parse (GetAttribute (layerElement, "y", "0"))
-			);
-
-			string name = GetAttribute (layerElement, "name", $"Layer {i}");
-
-			try {
-				// Write the file to a temporary file first
-				// Fixes a bug when running on .Net
-				ZipArchiveEntry? zf = zipfile.GetEntry (layerElement.GetAttribute ("src")) ?? throw new XmlException ("Missing layer in OpenRaster file");
-				using Stream s = zf.Open ();
-				string tmp_file = System.IO.Path.GetTempFileName ();
-
-				using (Stream stream_out = File.Open (tmp_file, FileMode.OpenOrCreate)) {
-					byte[] buffer = new byte[2048];
-					while (true) {
-						int len = s.Read (buffer, 0, buffer.Length);
-
-						if (len > 0)
-							stream_out.Write (buffer, 0, len);
-						else
-							break;
-					}
-				}
-
-				UserLayer layer = newDocument.Layers.CreateLayer (name);
-				newDocument.Layers.Insert (layer, 0);
-
-				string visibility = GetAttribute (layerElement, "visibility", "visible");
-				if (visibility == "hidden") {
-					layer.Hidden = true;
-				}
-
-				layer.Opacity = double.Parse (GetAttribute (layerElement, "opacity", "1"), GetFormat ());
-				layer.BlendMode = StandardToBlendMode (GetAttribute (layerElement, "composite-op", "svg:src-over"));
-
-				using Pixbuf pb = Pixbuf.NewFromFile (tmp_file)!; // NRT: only nullable when an error is thrown
-				using Context g = new (layer.Surface);
-				g.DrawPixbuf (pb, (PointD) position);
-
-				try {
-					File.Delete (tmp_file);
-				} catch { }
-			} catch {
-				// Translators: {0} is the name of a layer, and {1} is the path to a .ora file.
-				string details = Translations.GetString ("Could not import layer \"{0}\" from {1}", name, zipfile);
-				PintaCore.Chrome.ShowMessageDialog (PintaCore.Chrome.MainWindow, Translations.GetString ("Error"), details);
-			}
-		}
 
 		return newDocument;
 	}
@@ -149,7 +96,83 @@ public sealed class OraFormat : IImageImporter, IImageExporter
 			return new ((int) ((double) width / height * THUMB_MAX_SIZE), THUMB_MAX_SIZE);
 	}
 
-	private static byte[] GetLayerXmlData (IReadOnlyList<UserLayer> layers)
+	private static bool ImportStack (
+		XmlElement stack,
+		Document document,
+		ZipArchive archive,
+		UserLayer? parent)
+	{
+		bool imported = false;
+		int layerNumber = 0;
+
+		foreach (XmlNode node in stack.ChildNodes) {
+			if (node is not XmlElement element)
+				continue;
+
+			if (element.Name == "layer" && parent is not null && element.GetAttribute ("surface", pinta_namespace) == "true") {
+				LoadLayerSurface (element, parent, archive);
+				continue;
+			}
+
+			if (element.Name == "layer") {
+				UserLayer layer = CreateLayer (element, document, layerNumber++);
+				InsertImportedLayer (document, layer, parent);
+				LoadLayerSurface (element, layer, archive);
+				imported = true;
+			} else if (element.Name == "stack") {
+				UserLayer layer = CreateLayer (element, document, layerNumber++);
+				InsertImportedLayer (document, layer, parent);
+				ImportStack (element, document, archive, layer);
+				imported = true;
+			}
+		}
+
+		return imported;
+	}
+
+	private static UserLayer CreateLayer (XmlElement element, Document document, int number)
+	{
+		UserLayer layer = document.Layers.CreateLayer (GetAttribute (element, "name", $"Layer {number}"));
+		layer.Hidden = GetAttribute (element, "visibility", "visible") == "hidden";
+		layer.Opacity = double.Parse (GetAttribute (element, "opacity", "1"), GetFormat ());
+		layer.BlendMode = StandardToBlendMode (GetAttribute (element, "composite-op", "svg:src-over"));
+		return layer;
+	}
+
+	private static void InsertImportedLayer (Document document, UserLayer layer, UserLayer? parent)
+		=> document.Layers.Insert (layer, new LayerPosition (parent, 0));
+
+	private static void LoadLayerSurface (XmlElement element, UserLayer layer, ZipArchive archive)
+	{
+		PointI position = new (
+			X: int.Parse (GetAttribute (element, "x", "0")),
+			Y: int.Parse (GetAttribute (element, "y", "0")));
+		string name = layer.Name;
+		string? temporaryFile = null;
+
+		try {
+			ZipArchiveEntry entry = archive.GetEntry (element.GetAttribute ("src")) ?? throw new XmlException ("Missing layer in OpenRaster file");
+			temporaryFile = System.IO.Path.GetTempFileName ();
+			using (Stream source = entry.Open ())
+			using (Stream destination = File.Open (temporaryFile, FileMode.OpenOrCreate))
+				source.CopyTo (destination);
+
+			using Pixbuf pixbuf = Pixbuf.NewFromFile (temporaryFile)!;
+			using Context context = new (layer.Surface);
+			context.DrawPixbuf (pixbuf, (PointD) position);
+		} catch {
+			string details = Translations.GetString ("Could not import layer \"{0}\" from {1}", name, archive);
+			PintaCore.Chrome.ShowMessageDialog (PintaCore.Chrome.MainWindow, Translations.GetString ("Error"), details);
+		} finally {
+			if (temporaryFile is not null) {
+				try {
+					File.Delete (temporaryFile);
+				} catch { }
+			}
+		}
+	}
+
+	private static byte[] GetLayerXmlData (IReadOnlyList<UserLayer> rootLayers, IReadOnlyList<UserLayer> allLayers)
 	{
 		using MemoryStream ms = new ();
 		using XmlTextWriter writer = new (ms, System.Text.Encoding.UTF8) {
@@ -157,26 +180,18 @@ public sealed class OraFormat : IImageImporter, IImageExporter
 		};
 
 		writer.WriteStartElement ("image");
-		writer.WriteAttributeString ("w", layers[0].Surface.Width.ToString ());
-		writer.WriteAttributeString ("h", layers[0].Surface.Height.ToString ());
+		writer.WriteAttributeString ("w", rootLayers[0].Surface.Width.ToString ());
+		writer.WriteAttributeString ("h", rootLayers[0].Surface.Height.ToString ());
 		writer.WriteAttributeString ("version", "0.0.5"); // Current version of the spec.
 
 		writer.WriteStartElement ("stack");
 
-		// ORA stores layers top to bottom
-		for (int i = layers.Count - 1; i >= 0; i--) {
-			var layer = layers[i];
-			writer.WriteStartElement ("layer");
-			writer.WriteAttributeString ("opacity", string.Format (GetFormat (), "{0:0.00}", layer.Opacity));
-			writer.WriteAttributeString ("name", layer.Name);
-			writer.WriteAttributeString ("composite-op", BlendModeToStandard (layer.BlendMode));
-			writer.WriteAttributeString ("src", "data/layer" + i.ToString () + ".png");
+		Dictionary<UserLayer, int> indexes = [];
+		for (int i = 0; i < allLayers.Count; i++)
+			indexes.Add (allLayers[i], i);
 
-			if (layer.Hidden)
-				writer.WriteAttributeString ("visibility", "hidden");
-
-			writer.WriteEndElement ();
-		}
+		for (int i = rootLayers.Count - 1; i >= 0; i--)
+			WriteLayerNode (writer, rootLayers[i], indexes);
 
 		writer.WriteEndElement (); // stack
 		writer.WriteEndElement (); // image
@@ -184,6 +199,44 @@ public sealed class OraFormat : IImageImporter, IImageExporter
 		writer.Close ();
 
 		return ms.ToArray ();
+	}
+
+	private static void WriteLayerNode (XmlWriter writer, UserLayer layer, IReadOnlyDictionary<UserLayer, int> indexes)
+	{
+		if (!layer.HasChildren) {
+			WriteLayerElement (writer, layer, indexes[layer], isContainerSurface: false);
+			return;
+		}
+
+		writer.WriteStartElement ("stack");
+		WriteLayerAttributes (writer, layer);
+
+		for (int i = layer.Children.Count - 1; i >= 0; i--)
+			WriteLayerNode (writer, layer.Children[i], indexes);
+
+		WriteLayerElement (writer, layer, indexes[layer], isContainerSurface: true);
+		writer.WriteEndElement ();
+	}
+
+	private static void WriteLayerElement (XmlWriter writer, UserLayer layer, int index, bool isContainerSurface)
+	{
+		writer.WriteStartElement ("layer");
+		if (isContainerSurface)
+			writer.WriteAttributeString ("pinta", "surface", pinta_namespace, "true");
+		else
+			WriteLayerAttributes (writer, layer);
+
+		writer.WriteAttributeString ("src", $"data/layer{index}.png");
+		writer.WriteEndElement ();
+	}
+
+	private static void WriteLayerAttributes (XmlWriter writer, UserLayer layer)
+	{
+		writer.WriteAttributeString ("opacity", string.Format (GetFormat (), "{0:0.00}", layer.Opacity));
+		writer.WriteAttributeString ("name", layer.Name);
+		writer.WriteAttributeString ("composite-op", BlendModeToStandard (layer.BlendMode));
+		if (layer.Hidden)
+			writer.WriteAttributeString ("visibility", "hidden");
 	}
 
 	public void Export (Document document, Gio.File file, Gtk.Window parent)
@@ -208,8 +261,8 @@ public sealed class OraFormat : IImageImporter, IImageExporter
 
 	private static void AddLayerEntries (ZipArchive archive, Document document)
 	{
-		for (int i = 0; i < document.Layers.UserLayers.Count; i++) {
-			using Pixbuf pb = document.Layers.UserLayers[i].Surface.ToPixbuf ();
+		for (int i = 0; i < document.Layers.AllLayers.Count; i++) {
+			using Pixbuf pb = document.Layers.AllLayers[i].Surface.ToPixbuf ();
 			byte[] buf = pb.SaveToBuffer ("png");
 			ZipArchiveEntry layerEntry = archive.CreateEntry ($"data/layer{i}.png");
 			using Stream layerStream = layerEntry.Open ();
@@ -219,7 +272,7 @@ public sealed class OraFormat : IImageImporter, IImageExporter
 
 	private static void AddStackEntry (ZipArchive archive, Document document)
 	{
-		byte[] userLayerBytes = GetLayerXmlData (document.Layers.UserLayers);
+		byte[] userLayerBytes = GetLayerXmlData (document.Layers.RootLayers, document.Layers.AllLayers);
 		ZipArchiveEntry stackEntry = archive.CreateEntry ("stack.xml");
 		using Stream stackStream = stackEntry.Open ();
 		stackStream.Write (userLayerBytes, 0, userLayerBytes.Length);

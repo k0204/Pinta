@@ -28,19 +28,19 @@ namespace Pinta.Core;
 
 public sealed class UpdateLayerPropertiesHistoryItem : BaseHistoryItem
 {
-	readonly int layer_index;
+	readonly UserLayer layer;
 	readonly LayerProperties initial_properties;
 	readonly LayerProperties updated_properties;
 
 	public UpdateLayerPropertiesHistoryItem (
 			 string icon,
 			 string text,
-			 int layerIndex,
+			 UserLayer layer,
 			 LayerProperties initialProperties,
 			 LayerProperties updatedProperties)
 		: base (icon, text)
 	{
-		layer_index = layerIndex;
+		this.layer = layer;
 		initial_properties = initialProperties;
 		updated_properties = updatedProperties;
 	}
@@ -49,7 +49,6 @@ public sealed class UpdateLayerPropertiesHistoryItem : BaseHistoryItem
 	{
 		var doc = PintaCore.Workspace.ActiveDocument;
 
-		var layer = doc.Layers[layer_index];
 		layer.Opacity = initial_properties.Opacity;
 		layer.Hidden = initial_properties.Hidden;
 		layer.Name = initial_properties.Name;
@@ -62,7 +61,6 @@ public sealed class UpdateLayerPropertiesHistoryItem : BaseHistoryItem
 	{
 		var doc = PintaCore.Workspace.ActiveDocument;
 
-		var layer = doc.Layers[layer_index];
 		layer.Opacity = updated_properties.Opacity;
 		layer.Hidden = updated_properties.Hidden;
 		layer.Name = updated_properties.Name;

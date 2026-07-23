@@ -101,7 +101,7 @@ public sealed class LivePreviewManager : ILivePreview
 		string effectName = effect.Name;
 
 		SimpleHistoryItem historyItem = new (effect.Icon, effect.Name);
-		historyItem.TakeSnapshotOfLayer (doc.Layers.CurrentUserLayerIndex);
+		historyItem.TakeSnapshotOfLayer (doc.Layers.CurrentUserLayer);
 
 		RenderHandle renderHandle = null!; // NRT: Assigned before first use
 
