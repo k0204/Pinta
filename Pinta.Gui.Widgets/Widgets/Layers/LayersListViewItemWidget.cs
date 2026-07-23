@@ -140,13 +140,12 @@ public sealed partial class LayersListViewItemWidget
 	private ImageSurface? thumbnail_surface;
 
 	private Gtk.Button disclosure_button;
-	private Gtk.DrawingArea drop_after_indicator;
-	private Gtk.DrawingArea drop_before_indicator;
-	private Gtk.DrawingArea drop_into_indicator;
+	private Gtk.DrawingArea drop_preview;
 	private Gtk.DrawingArea item_thumbnail;
 	private Gtk.Label item_label;
-	private Gtk.CheckButton visible_button;
+	private Gtk.Button visible_button;
 	private LayerDropHint drop_hint = LayerDropHint.None;
+	private int drop_preview_depth;
 
 	public event EventHandler<LayerDragEventArgs>? LayerDragEnded;
 	public event EventHandler<LayerDragEventArgs>? LayerDragUpdated;
@@ -161,17 +160,14 @@ public sealed partial class LayersListViewItemWidget
 	[MemberNotNull (nameof (item_label))]
 	[MemberNotNull (nameof (visible_button))]
 	[MemberNotNull (nameof (disclosure_button))]
-	[MemberNotNull (nameof (drop_after_indicator))]
-	[MemberNotNull (nameof (drop_before_indicator))]
-	[MemberNotNull (nameof (drop_into_indicator))]
+	[MemberNotNull (nameof (drop_preview))]
 	partial void Initialize ()
 	{
-		Gtk.DrawingArea dropBeforeIndicator = CreateDropIndicator ();
-		Gtk.DrawingArea dropAfterIndicator = CreateDropIndicator ();
-		Gtk.DrawingArea dropIntoIndicator = Gtk.DrawingArea.New ();
-		dropIntoIndicator.WidthRequest = 4;
-		dropIntoIndicator.SetDrawFunc ((area, context, width, height) => DrawDropIndicator (context, width, height));
-		dropIntoIndicator.Visible = false;
+		Gtk.DrawingArea dropPreview = Gtk.DrawingArea.New ();
+		dropPreview.Hexpand = true;
+		dropPreview.Vexpand = true;
+		dropPreview.CanTarget = false;
+		dropPreview.SetDrawFunc ((area, context, width, height) => DrawDropPreview (context, width, height));
 
 		Gtk.Button disclosureButton = Gtk.Button.New ();
 		disclosureButton.HasFrame = false;
@@ -189,10 +185,15 @@ public sealed partial class LayersListViewItemWidget
 		itemLabel.Hexpand = true;
 		itemLabel.Ellipsize = Pango.EllipsizeMode.End;
 
-		Gtk.CheckButton visibleButton = Gtk.CheckButton.New ();
-		visibleButton.Halign = Gtk.Align.End;
-		visibleButton.Hexpand = false;
-		visibleButton.OnToggled += (_, _) => item?.HandleVisibilityToggled (visibleButton.Active);
+		Gtk.Button visibleButton = Gtk.Button.New ();
+		visibleButton.HasFrame = false;
+		visibleButton.WidthRequest = 20;
+		visibleButton.Halign = Gtk.Align.Start;
+		visibleButton.CanFocus = false;
+		visibleButton.OnClicked += (_, _) => {
+			if (item is not null)
+				item.HandleVisibilityToggled (!item.Visible);
+		};
 
 		Gtk.GestureClick menuGesture = Gtk.GestureClick.New ();
 		menuGesture.SetButton (Gdk.Constants.BUTTON_SECONDARY);
@@ -202,52 +203,79 @@ public sealed partial class LayersListViewItemWidget
 
 		this.SetAllMargins (2);
 		this.AddController (menuGesture);
-		AddLayerDragGesture (itemLabel);
-		AddLayerDragGesture (itemThumbnail);
 
 		// --- Initialization (Gtk.Box)
 
 		Gtk.Box itemRow = Gtk.Box.New (Gtk.Orientation.Horizontal, 6);
-		itemRow.Append (dropIntoIndicator);
-		itemRow.Append (disclosureButton);
+		itemRow.Hexpand = true;
 		itemRow.Append (visibleButton);
-		itemRow.Append (itemLabel);
-		itemRow.Append (itemThumbnail);
+		itemRow.Append (disclosureButton);
+
+		Gtk.Box dragContent = Gtk.Box.New (Gtk.Orientation.Horizontal, 6);
+		dragContent.Hexpand = true;
+		dragContent.Append (itemThumbnail);
+		dragContent.Append (itemLabel);
+		AddLayerDragGesture (dragContent);
+		itemRow.Append (dragContent);
+
+		Gtk.Overlay rowOverlay = Gtk.Overlay.New ();
+		rowOverlay.Child = itemRow;
+		rowOverlay.AddOverlay (dropPreview);
 
 		Spacing = 0;
 		SetOrientation (Gtk.Orientation.Vertical);
-		Append (dropBeforeIndicator);
-		Append (itemRow);
-		Append (dropAfterIndicator);
+		Append (rowOverlay);
 
 		// --- References to keep
 
 		disclosure_button = disclosureButton;
-		drop_after_indicator = dropAfterIndicator;
-		drop_before_indicator = dropBeforeIndicator;
-		drop_into_indicator = dropIntoIndicator;
+		drop_preview = dropPreview;
 		item_thumbnail = itemThumbnail;
 		item_label = itemLabel;
 		visible_button = visibleButton;
 	}
 
-	private static Gtk.DrawingArea CreateDropIndicator ()
-	{
-		Gtk.DrawingArea indicator = Gtk.DrawingArea.New ();
-		indicator.HeightRequest = 2;
-		indicator.SetDrawFunc ((area, context, width, height) => DrawDropIndicator (context, width, height));
-		indicator.Visible = false;
-		return indicator;
-	}
-
-	private static void DrawDropIndicator (
+	private void DrawDropPreview (
 		Context context,
 		int width,
 		int height)
 	{
-		context.Rectangle (0, 0, width, height);
-		context.SetSourceColor (new Color (0.21, 0.52, 0.89));
-		context.Fill ();
+		if (width <= 0 || height <= 0)
+			return;
+
+		context.Rectangle (0.5, 0.5, width - 1, height - 1);
+		context.SetSourceColor (new Color (0.5, 0.5, 0.5, 0.35));
+		context.LineWidth = 1;
+		context.Stroke ();
+
+		if (drop_hint == LayerDropHint.None)
+			return;
+
+		const double blue = 0.89;
+		const double green = 0.52;
+		const double red = 0.21;
+		double indent = Math.Min (width - 10, 8 + drop_preview_depth * 16);
+		context.Save ();
+
+		if (drop_hint is LayerDropHint.Before or LayerDropHint.After) {
+			double y = drop_hint == LayerDropHint.Before ? 2 : height - 2;
+			context.SetSourceColor (new Color (red, green, blue));
+			context.LineWidth = 3;
+			context.MoveTo (indent, y);
+			context.LineTo (width - 5, y);
+			context.Stroke ();
+			context.Arc (indent, y, 4, 0, Math.PI * 2);
+			context.Fill ();
+		} else {
+			context.Rectangle (indent, 2, Math.Max (1, width - indent - 5), height - 4);
+			context.SetSourceColor (new Color (red, green, blue, 0.16));
+			context.FillPreserve ();
+			context.SetSourceColor (new Color (red, green, blue, 0.8));
+			context.LineWidth = 2;
+			context.Stroke ();
+		}
+
+		context.Restore ();
 	}
 
 	private void AddLayerDragGesture (Gtk.Widget widget)
@@ -255,10 +283,16 @@ public sealed partial class LayersListViewItemWidget
 		Gtk.GestureDrag dragGesture = Gtk.GestureDrag.New ();
 		dragGesture.SetButton (GtkExtensions.MOUSE_LEFT_BUTTON);
 		dragGesture.SetPropagationPhase (Gtk.PropagationPhase.Capture);
-		dragGesture.OnDragBegin += (_, _) => dragGesture.SetState (Gtk.EventSequenceState.Claimed);
+		dragGesture.OnDragBegin += (_, _) => {
+			SetOpacity (0.55);
+			dragGesture.SetState (Gtk.EventSequenceState.Claimed);
+		};
 		dragGesture.OnDragUpdate += (controller, args) => HandleDragUpdate (widget, controller, args);
 		dragGesture.OnDragEnd += (controller, args) => HandleDragEnd (widget, controller, args);
-		dragGesture.OnCancel += (_, _) => LayerDragCanceled?.Invoke (this, EventArgs.Empty);
+		dragGesture.OnCancel += (_, _) => {
+			SetOpacity (1.0f);
+			LayerDragCanceled?.Invoke (this, EventArgs.Empty);
+		};
 		widget.AddController (dragGesture);
 	}
 
@@ -280,6 +314,7 @@ public sealed partial class LayersListViewItemWidget
 		Gtk.GestureDrag controller,
 		Gtk.GestureDrag.DragEndSignalArgs args)
 	{
+		SetOpacity (1.0f);
 		controller.GetStartPoint (out double startX, out double startY);
 		PointD endPoint = new (startX + args.OffsetX, startY + args.OffsetY);
 		if (!sourceWidget.TranslateCoordinates (this, endPoint, out PointD rowPoint))
@@ -289,14 +324,16 @@ public sealed partial class LayersListViewItemWidget
 	}
 
 	public void SetDropHint (LayerDropHint hint)
+		=> SetDropHint (hint, 0);
+
+	public void SetDropHint (LayerDropHint hint, int depth)
 	{
-		if (drop_hint == hint)
+		if (drop_hint == hint && drop_preview_depth == depth)
 			return;
 
 		drop_hint = hint;
-		drop_before_indicator.Visible = hint == LayerDropHint.Before;
-		drop_after_indicator.Visible = hint == LayerDropHint.After;
-		drop_into_indicator.Visible = hint == LayerDropHint.Into;
+		drop_preview_depth = depth;
+		drop_preview.QueueDraw ();
 	}
 
 	private void MenuGesture_OnPressed (
@@ -375,13 +412,16 @@ public sealed partial class LayersListViewItemWidget
 		disclosure_button.Visible = true;
 		disclosure_button.Sensitive = item.CanExpand;
 		disclosure_button.SetIconName (item.CanExpand ? (item.Expanded ? "pan-down-symbolic" : "pan-end-symbolic") : string.Empty);
-		visible_button.SetActive (item.Visible);
+		visible_button.SetIconName (item.Visible ? Resources.StandardIcons.ViewReveal : Resources.StandardIcons.ViewConceal);
+		visible_button.TooltipText = item.Visible
+			? Translations.GetString ("Hide Layer")
+			: Translations.GetString ("Show Layer");
 
 		thumbnail_surface = null;
 		item_thumbnail.QueueDraw ();
 	}
 
-	private void DrawThumbnail (
+	internal void DrawThumbnail (
 		Context g,
 		int width,
 		int height)

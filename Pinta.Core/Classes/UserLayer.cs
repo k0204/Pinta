@@ -68,6 +68,7 @@ public sealed class UserLayer : Layer
 	public IReadOnlyList<UserLayer> Children => children;
 	public bool HasChildren => children.Count > 0;
 	internal List<UserLayer> MutableChildren => children;
+	internal string? DocumentId { get; set; }
 	public bool Expanded { get; set; } = true;
 
 	//Rectangular boundary surrounding the editable text.

@@ -71,10 +71,13 @@ internal sealed class SaveDocumentImplmentationAction : IActionHandler
 
 	private async Task<bool> Activated (FileActions sender, DocumentSaveEventArgs e)
 	{
-		// Prompt for a new filename for "Save As", or a document that hasn't been saved before
-		if (e.SaveAs || !e.Document.HasFile) {
-			return await SaveFileAs (e.Document);
-		}
+		if (e.SaveAs)
+			return await SaveFileAs (e.Document, documentFormatOnly: false);
+
+		// Ctrl+S is document save. Imported images do not become the document's
+		// native save target until they have been saved as a .pinta file.
+		if (!IsPintaDocument (e.Document))
+			return await SaveFileAs (e.Document, documentFormatOnly: true);
 
 		// Document hasn't changed, don't re-save it
 		if (!e.Document.IsDirty)
@@ -86,31 +89,39 @@ internal sealed class SaveDocumentImplmentationAction : IActionHandler
 
 	// This is actually both for "Save As" and saving a file that never
 	// been saved before.  Either way, we need to prompt for a filename.
-	private async Task<bool> SaveFileAs (Document document)
+	private async Task<bool> SaveFileAs (Document document, bool documentFormatOnly)
 	{
 		var fcd = Gtk.FileChooserNative.New (
-			Translations.GetString ("Save Image File"),
+			documentFormatOnly
+				? Translations.GetString ("Save Pinta Document")
+				: Translations.GetString ("Save Image File"),
 			chrome.MainWindow,
 			Gtk.FileChooserAction.Save,
 			Translations.GetString ("Save"),
 			Translations.GetString ("Cancel"));
 
-		if (document.HasFile)
+		FormatDescriptor pintaFormat = image_formats.GetFormatByExtension ("pinta")
+			?? throw new InvalidOperationException ("The Pinta document format is not registered.");
+
+		if (document.HasFile && !documentFormatOnly)
 			fcd.SetFile (document.File!);
 		else {
-			if (recent_files.GetDialogDirectory () is Gio.File dir && dir.QueryExists (null))
+			Gio.File? dir = document.File?.GetParent () ?? recent_files.GetDialogDirectory ();
+			if (dir is not null && dir.QueryExists (null))
 				fcd.SetCurrentFolder (dir);
 
-			// Append the default extension, producing e.g. "Unsaved Image 1.png"
-			string default_ext = image_formats.GetDefaultSaveFormat ().Extensions.First ();
-			fcd.SetCurrentName ($"{document.DisplayName}.{default_ext}");
+			string name = System.IO.Path.GetFileNameWithoutExtension (document.DisplayName);
+			string extension = documentFormatOnly
+				? pintaFormat.Extensions.First ()
+				: image_formats.GetDefaultSaveFormat ().Extensions.First ();
+			fcd.SetCurrentName ($"{name}.{extension}");
 		}
 
 		// Add all the formats we support to the save dialog
 		Dictionary<Gtk.FileFilter, FormatDescriptor> filetypes = [];
 		foreach (var format in image_formats.Formats) {
 
-			if (!format.IsExportAvailable ())
+			if (!format.IsExportAvailable () || (documentFormatOnly && format != pintaFormat))
 				continue;
 
 			fcd.AddFilter (format.Filter);
@@ -123,9 +134,9 @@ internal sealed class SaveDocumentImplmentationAction : IActionHandler
 
 		// If we already have a format, set it to the default.
 		// If not, default to jpeg
-		FormatDescriptor? format_desc = null;
+		FormatDescriptor? format_desc = documentFormatOnly ? pintaFormat : null;
 
-		if (document.HasFile) {
+		if (!documentFormatOnly && document.HasFile) {
 			format_desc = image_formats.GetFormatByFile (document.DisplayName);
 		}
 
@@ -140,11 +151,17 @@ internal sealed class SaveDocumentImplmentationAction : IActionHandler
 
 			// Note that we can't use file.GetDisplayName() because the file doesn't exist.
 			string displayName = file.GetParent ()!.GetRelativePath (file)!;
+			if (documentFormatOnly && !displayName.EndsWith (".pinta", StringComparison.OrdinalIgnoreCase)) {
+				displayName = System.IO.Path.ChangeExtension (displayName, "pinta");
+				file = file.GetParent ()!.GetChild (displayName);
+			}
 
 			// Always follow the extension rather than the file type drop down
 			// ie: if the user chooses to save a "jpeg" as "foo.png", we are going
 			// to assume they just didn't update the dropdown and really want png
-			FormatDescriptor? format = image_formats.GetFormatByFile (displayName);
+			FormatDescriptor? format = documentFormatOnly
+				? pintaFormat
+				: image_formats.GetFormatByFile (displayName);
 			if (format is null) {
 				if (fcd.Filter is not null)
 					format = filetypes[fcd.Filter];
@@ -170,9 +187,10 @@ internal sealed class SaveDocumentImplmentationAction : IActionHandler
 				continue;
 			}
 
-			//The user is saving the Document to a new file, so technically it
-			//hasn't been saved to its associated file in this session.
-			document.HasBeenSavedInSession = false;
+			// Native Pinta documents are fully saved by SaveFile. Keep the existing
+			// image-export behavior, where Save As prompts for JPEG quality again.
+			if (!format.Extensions.Contains ("pinta", StringComparer.OrdinalIgnoreCase))
+				document.HasBeenSavedInSession = false;
 
 			recent_files.AddFile (file);
 			image_formats.SetDefaultFormat (format.Extensions.First ());
@@ -184,6 +202,10 @@ internal sealed class SaveDocumentImplmentationAction : IActionHandler
 
 		return false;
 	}
+
+	private static bool IsPintaDocument (Document document)
+		=> document.HasFile
+		&& string.Equals (document.FileType, "pinta", StringComparison.OrdinalIgnoreCase);
 
 	private async Task<bool> SaveFile (Document document, Gio.File? file, FormatDescriptor? format, Gtk.Window parent)
 	{
@@ -217,8 +239,11 @@ internal sealed class SaveDocumentImplmentationAction : IActionHandler
 		// Commit any pending changes
 		tools.Commit ();
 
+		document.ReleaseFileLock ();
 		try {
 			format.Exporter.Export (document, file, parent);
+			document.File = file;
+			document.FileType = format.Extensions.First ();
 
 		} catch (GLib.GException e) when (e.Message == "Image too large to be saved as ICO") {
 
@@ -243,10 +268,9 @@ internal sealed class SaveDocumentImplmentationAction : IActionHandler
 		} catch (OperationCanceledException) {
 
 			return false;
+		} finally {
+			document.AcquireFileLock ();
 		}
-
-		document.File = file;
-		document.FileType = format.Extensions.First ();
 
 		tools.DoAfterSave (document);
 

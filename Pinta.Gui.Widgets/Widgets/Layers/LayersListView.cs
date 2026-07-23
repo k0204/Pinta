@@ -38,9 +38,14 @@ public sealed partial class LayersListView
 	private Gio.ListStore list_model;
 	private Gtk.SingleSelection selection_model;
 	private Gtk.ListView list_view;
+	private Gtk.Fixed drag_preview_layer;
+	private Gtk.Box drag_preview;
+	private Gtk.DrawingArea drag_preview_thumbnail;
+	private Gtk.Label drag_preview_label;
 	private Document? active_document;
 	private bool changing_selection = false;
 	private LayersListViewItemWidget? drop_hint_widget;
+	private LayersListViewItemWidget? drag_preview_source;
 	private readonly List<LayersListViewItemWidget> row_widgets = [];
 
 	public static new LayersListView New ()
@@ -49,6 +54,10 @@ public sealed partial class LayersListView
 	[MemberNotNull (nameof (list_model))]
 	[MemberNotNull (nameof (selection_model))]
 	[MemberNotNull (nameof (list_view))]
+	[MemberNotNull (nameof (drag_preview_layer))]
+	[MemberNotNull (nameof (drag_preview))]
+	[MemberNotNull (nameof (drag_preview_thumbnail))]
+	[MemberNotNull (nameof (drag_preview_label))]
 	partial void Initialize ()
 	{
 		// --- Control creaton
@@ -66,6 +75,36 @@ public sealed partial class LayersListView
 		listView.CanFocus = false;
 		listView.OnActivate += HandleRowActivated;
 
+		Gtk.DrawingArea dragPreviewThumbnail = Gtk.DrawingArea.New ();
+		dragPreviewThumbnail.SetSizeRequest (60, 40);
+		dragPreviewThumbnail.SetDrawFunc ((area, context, width, height) =>
+			drag_preview_source?.DrawThumbnail (context, width, height));
+
+		Gtk.Label dragPreviewLabel = Gtk.Label.New (string.Empty);
+		dragPreviewLabel.Halign = Gtk.Align.Start;
+		dragPreviewLabel.Hexpand = true;
+		dragPreviewLabel.Ellipsize = Pango.EllipsizeMode.End;
+
+		Gtk.Box dragPreview = Gtk.Box.New (Gtk.Orientation.Horizontal, 6);
+		dragPreview.Append (dragPreviewThumbnail);
+		dragPreview.Append (dragPreviewLabel);
+		dragPreview.AddCssClass (AdwaitaStyles.Osd);
+		dragPreview.SetOpacity (0.9);
+		dragPreview.Halign = Gtk.Align.Start;
+		dragPreview.Valign = Gtk.Align.Start;
+		dragPreview.CanTarget = false;
+		dragPreview.Visible = false;
+
+		Gtk.Fixed dragPreviewLayer = Gtk.Fixed.New ();
+		dragPreviewLayer.Hexpand = true;
+		dragPreviewLayer.Vexpand = true;
+		dragPreviewLayer.CanTarget = false;
+		dragPreviewLayer.Put (dragPreview, 0, 0);
+
+		Gtk.Overlay dragOverlay = Gtk.Overlay.New ();
+		dragOverlay.Child = listView;
+		dragOverlay.AddOverlay (dragPreviewLayer);
+
 		// --- Initialization (Gtk.Widget)
 
 		CanFocus = false;
@@ -74,13 +113,17 @@ public sealed partial class LayersListView
 		// --- Initialization (Gtk.ScrolledWindow)
 
 		SetPolicy (Gtk.PolicyType.Automatic, Gtk.PolicyType.Automatic);
-		SetChild (listView);
+		SetChild (dragOverlay);
 
 		// --- References to keep
 
 		list_model = listModel;
 		selection_model = selectionModel;
 		list_view = listView;
+		drag_preview_layer = dragPreviewLayer;
+		drag_preview = dragPreview;
+		drag_preview_thumbnail = dragPreviewThumbnail;
+		drag_preview_label = dragPreviewLabel;
 
 		// --- Other initialization (TODO: remove references to PintaCore)
 
@@ -225,21 +268,25 @@ public sealed partial class LayersListView
 		if (sender is not LayersListViewItemWidget source)
 			return;
 
+		UpdateDragPreview (source, args.EndPoint);
+
 		if (!TryGetDropTarget (source, args.EndPoint, out LayerDropTarget target)) {
 			ClearDropHint ();
 			return;
 		}
 
-		SetDropHint (target.Widget, target.Hint);
+		SetDropHint (target.Widget, target.Hint, target.PreviewDepth);
 	}
 
 	private void HandleLayerDragCanceled (object? sender, EventArgs args)
 	{
+		HideDragPreview ();
 		ClearDropHint ();
 	}
 
 	private void HandleLayerDragEnded (object? sender, LayerDragEventArgs args)
 	{
+		HideDragPreview ();
 		ClearDropHint ();
 
 		if (active_document is null || sender is not LayersListViewItemWidget source || source.UserLayer is null)
@@ -276,6 +323,40 @@ public sealed partial class LayersListView
 			newPosition));
 	}
 
+	private void UpdateDragPreview (
+		LayersListViewItemWidget source,
+		PointD sourcePoint)
+	{
+		if (!source.TranslateCoordinates (drag_preview_layer, sourcePoint, out PointD point))
+			return;
+
+		if (drag_preview_source != source) {
+			drag_preview_source = source;
+			drag_preview_label.SetText (source.UserLayer?.Name ?? string.Empty);
+			drag_preview.WidthRequest = source.GetWidth ();
+			drag_preview.HeightRequest = source.GetHeight ();
+			drag_preview_thumbnail.QueueDraw ();
+			drag_preview.Visible = true;
+		}
+
+		int previewWidth = drag_preview.WidthRequest;
+		int previewHeight = drag_preview.HeightRequest;
+		double y = point.Y + 12;
+		if (y + previewHeight > drag_preview_layer.GetHeight ())
+			y = point.Y - previewHeight - 12;
+
+		drag_preview_layer.Move (
+			drag_preview,
+			0,
+			Math.Clamp (y, 0, Math.Max (0, drag_preview_layer.GetHeight () - previewHeight)));
+	}
+
+	private void HideDragPreview ()
+	{
+		drag_preview.Visible = false;
+		drag_preview_source = null;
+	}
+
 	private bool TryGetDropTarget (
 		LayersListViewItemWidget source,
 		PointD sourcePoint,
@@ -296,13 +377,13 @@ public sealed partial class LayersListView
 		UserLayer layer = source.UserLayer;
 
 		if (dropPoint.Y < rows[0].Top) {
-			target = new LayerDropTarget (rows[0].Widget, new LayerPosition (null, 0), LayerDropHint.Before);
+			target = new LayerDropTarget (rows[0].Widget, new LayerPosition (null, 0), LayerDropHint.Before, 0);
 			return true;
 		}
 
 		RowBounds last = rows[^1];
 		if (dropPoint.Y >= last.Bottom) {
-			target = new LayerDropTarget (last.Widget, new LayerPosition (null, active_document.Layers.RootLayers.Count), LayerDropHint.After);
+			target = new LayerDropTarget (last.Widget, new LayerPosition (null, active_document.Layers.RootLayers.Count), LayerDropHint.After, 0);
 			return true;
 		}
 
@@ -320,7 +401,8 @@ public sealed partial class LayersListView
 				target = new LayerDropTarget (
 					row.Widget,
 					GetSiblingDropPosition (row.Widget, targetLayer, after: false, dropPoint.X),
-					LayerDropHint.Before);
+					LayerDropHint.Before,
+					GetSiblingDropDepth (row.Widget, targetLayer, after: false, dropPoint.X));
 				return true;
 			}
 
@@ -328,14 +410,16 @@ public sealed partial class LayersListView
 				target = new LayerDropTarget (
 					row.Widget,
 					GetSiblingDropPosition (row.Widget, targetLayer, after: true, dropPoint.X),
-					LayerDropHint.After);
+					LayerDropHint.After,
+					GetSiblingDropDepth (row.Widget, targetLayer, after: true, dropPoint.X));
 				return true;
 			}
 
 			target = new LayerDropTarget (
 				row.Widget,
 				new LayerPosition (targetLayer, targetLayer.Children.Count),
-				LayerDropHint.Into);
+				LayerDropHint.Into,
+				row.Widget.Depth + 1);
 			return true;
 		}
 
@@ -350,13 +434,32 @@ public sealed partial class LayersListView
 	{
 		ArgumentNullException.ThrowIfNull (active_document);
 
-		int desiredDepth = Math.Clamp ((int) (dropX / 24d), 0, widget.Depth);
+		int desiredDepth = Math.Clamp ((int) (dropX / 16d), 0, widget.Depth);
 		UserLayer insertionTarget = targetLayer;
 		for (int depth = widget.Depth; depth > desiredDepth && insertionTarget.Parent is not null; --depth)
 			insertionTarget = insertionTarget.Parent;
 
 		LayerPosition position = active_document.Layers.GetPosition (insertionTarget);
 		return after ? position with { Index = position.Index + 1 } : position;
+	}
+
+	private int GetSiblingDropDepth (
+		LayersListViewItemWidget widget,
+		UserLayer targetLayer,
+		bool after,
+		double dropX)
+	{
+		LayerPosition position = GetSiblingDropPosition (widget, targetLayer, after, dropX);
+		return position.Parent is null ? 0 : GetLayerDepth (position.Parent) + 1;
+	}
+
+	private static int GetLayerDepth (UserLayer layer)
+	{
+		int depth = 0;
+		for (UserLayer? parent = layer.Parent; parent is not null; parent = parent.Parent)
+			depth++;
+
+		return depth;
 	}
 
 	private List<RowBounds> GetVisibleRows ()
@@ -382,13 +485,14 @@ public sealed partial class LayersListView
 
 	private void SetDropHint (
 		LayersListViewItemWidget widget,
-		LayerDropHint hint)
+		LayerDropHint hint,
+		int depth)
 	{
 		if (drop_hint_widget != widget)
 			ClearDropHint ();
 
 		drop_hint_widget = widget;
-		widget.SetDropHint (hint);
+		widget.SetDropHint (hint, depth);
 	}
 
 	private void ClearDropHint ()
@@ -433,7 +537,8 @@ public sealed partial class LayersListView
 	private readonly record struct LayerDropTarget (
 		LayersListViewItemWidget Widget,
 		LayerPosition Position,
-		LayerDropHint Hint);
+		LayerDropHint Hint,
+		int PreviewDepth);
 
 	private readonly record struct RowBounds (
 		LayersListViewItemWidget Widget,

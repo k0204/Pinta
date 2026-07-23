@@ -212,6 +212,8 @@ public sealed class WorkspaceManager : IWorkspaceService
 
 	public void ActivateDocument (Document document)
 	{
+		document.Renamed += Document_TitleChanged;
+		document.IsDirtyChanged += Document_TitleChanged;
 		document.Layers.LayerTreeChanged += Document_LayerTreeChanged;
 		document.Layers.SelectedLayerChanged += Document_SelectedLayerChanged;
 		document.Layers.LayerPropertyChanged += Document_LayerPropertyChanged;
@@ -228,6 +230,12 @@ public sealed class WorkspaceManager : IWorkspaceService
 	{
 		LayerPropertyChanged?.Invoke (sender, e);
 		this.Invalidate ();
+	}
+
+	private void Document_TitleChanged (object? sender, EventArgs e)
+	{
+		if (sender == ActiveDocumentOrDefault)
+			ResetTitle ();
 	}
 
 	private void Document_SelectedLayerChanged (object? sender, EventArgs e)
@@ -268,6 +276,8 @@ public sealed class WorkspaceManager : IWorkspaceService
 			open_documents.Remove (document);
 		}
 
+		document.Renamed -= Document_TitleChanged;
+		document.IsDirtyChanged -= Document_TitleChanged;
 		document.Layers.LayerTreeChanged -= Document_LayerTreeChanged;
 		document.Layers.SelectedLayerChanged -= Document_SelectedLayerChanged;
 		document.Layers.LayerPropertyChanged -= Document_LayerPropertyChanged;
@@ -306,12 +316,20 @@ public sealed class WorkspaceManager : IWorkspaceService
 	{
 		parent ??= chrome_manager.MainWindow;
 
+		int openIndex = open_documents.FindIndex (
+			document => document.File is Gio.File openFile && openFile.Equal (file));
+		if (openIndex >= 0) {
+			SetActiveDocument (openIndex);
+			return true;
+		}
+
 		try {
 			// Open the image and add it to the layers
-			IImageImporter? importer = image_formats.GetImporterByFile (file.GetDisplayName ());
+			string fileName = file.GetBasename () ?? file.GetParseName ();
+			IImageImporter? importer = image_formats.GetImporterByFile (fileName);
 			if (importer is not null) {
 				Document imported = importer.Import (file);
-				ActivateDocument (imported);
+				ActivateImportedDocument (imported);
 			} else {
 				// Unknown extension, so try every loader.
 				StringBuilder errors = new ();
@@ -319,7 +337,7 @@ public sealed class WorkspaceManager : IWorkspaceService
 				foreach (var format in image_formats.Formats.Where (f => f.IsImportAvailable ())) {
 					try {
 						Document imported = format.Importer!.Import (file);
-						ActivateDocument (imported);
+						ActivateImportedDocument (imported);
 						loaded = true;
 						break;
 					} catch (UnauthorizedAccessException) {
@@ -353,6 +371,17 @@ public sealed class WorkspaceManager : IWorkspaceService
 		}
 
 		return false;
+	}
+
+	private void ActivateImportedDocument (Document document)
+	{
+		try {
+			document.AcquireFileLock ();
+			ActivateDocument (document);
+		} catch {
+			document.Close ();
+			throw;
+		}
 	}
 
 	public bool ImageFitsInWindow

@@ -25,6 +25,7 @@
 // THE SOFTWARE.
 
 using System;
+using System.IO;
 using System.Threading.Tasks;
 using Cairo;
 
@@ -38,6 +39,7 @@ public sealed class Document
 {
 	private string display_name = string.Empty;
 	private Gio.File? file = null;
+	private FileStream? file_lock_stream;
 
 	private bool is_dirty;
 
@@ -132,6 +134,8 @@ public sealed class Document
 	public Gio.File? File {
 		get => file;
 		set {
+			if (file is not null && (value is null || !file.Equal (value)))
+				ReleaseFileLock ();
 			file = value;
 			DisplayName = file?.GetDisplayName () ?? string.Empty;
 		}
@@ -196,8 +200,24 @@ public sealed class Document
 	// Clean up any native resources we had
 	public void Close ()
 	{
+		ReleaseFileLock ();
 		Layers.Close ();
 		Workspace.History.Clear ();
+	}
+
+	public void AcquireFileLock ()
+	{
+		ReleaseFileLock ();
+		string? path = File?.GetPath ();
+		// Keep local documents readable while preventing external writes or deletes.
+		if (path is not null)
+			file_lock_stream = new FileStream (path, FileMode.Open, FileAccess.Read, FileShare.Read);
+	}
+
+	public void ReleaseFileLock ()
+	{
+		file_lock_stream?.Dispose ();
+		file_lock_stream = null;
 	}
 
 	public Context CreateClippedContext ()

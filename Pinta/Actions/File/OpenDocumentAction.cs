@@ -62,16 +62,19 @@ internal sealed class OpenDocumentAction : IActionHandler
 
 	private async void Activated (object sender, EventArgs e)
 	{
-		using Gtk.FileFilter imagesFilter = CreateImagesFilter ();
+		using Gtk.FileFilter pintaFilter = CreatePintaFilter ();
+		using Gtk.FileFilter supportedFilesFilter = CreateSupportedFilesFilter ();
 		using Gtk.FileFilter catchAllFilter = CreateCatchAllFilter ();
 
 		using Gio.ListStore filters = Gio.ListStore.New (Gtk.FileFilter.GetGType ());
-		filters.Append (imagesFilter);
+		filters.Append (pintaFilter);
+		filters.Append (supportedFilesFilter);
 		filters.Append (catchAllFilter);
 
 		using Gtk.FileDialog fileDialog = Gtk.FileDialog.New ();
-		fileDialog.SetTitle (Translations.GetString ("Open Image File"));
+		fileDialog.SetTitle (Translations.GetString ("Open Pinta Document or Image"));
 		fileDialog.SetFilters (filters);
+		fileDialog.SetDefaultFilter (pintaFilter);
 		fileDialog.Modal = true;
 
 		if (recent_files.GetDialogDirectory () is Gio.File dir && dir.QueryExists (null))
@@ -96,6 +99,17 @@ internal sealed class OpenDocumentAction : IActionHandler
 		}
 	}
 
+	private Gtk.FileFilter CreatePintaFilter ()
+	{
+		FormatDescriptor format = image_formats.GetFormatByExtension ("pinta")
+			?? throw new InvalidOperationException ("The Pinta document format is not registered.");
+		Gtk.FileFilter result = Gtk.FileFilter.New ();
+		result.Name = Translations.GetString ("Pinta documents");
+		foreach (string extension in format.Extensions)
+			result.AddPattern ($"*.{extension}");
+		return result;
+	}
+
 	private static Gtk.FileFilter CreateCatchAllFilter ()
 	{
 		Gtk.FileFilter result = Gtk.FileFilter.New ();
@@ -104,11 +118,11 @@ internal sealed class OpenDocumentAction : IActionHandler
 		return result;
 	}
 
-	private Gtk.FileFilter CreateImagesFilter ()
+	private Gtk.FileFilter CreateSupportedFilesFilter ()
 	{
 		Gtk.FileFilter result = Gtk.FileFilter.New ();
 
-		result.Name = Translations.GetString ("Image files");
+		result.Name = Translations.GetString ("Supported files");
 
 		foreach (var format in image_formats.Formats) {
 

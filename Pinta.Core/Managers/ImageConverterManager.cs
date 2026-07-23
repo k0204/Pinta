@@ -49,6 +49,14 @@ public sealed class ImageConverterManager
 			yield return CreateFormatDescriptor (format);
 
 		// Create all the formats we have our own importers/exporters for
+		PintaDocumentFormat pintaDocumentHandler = new ();
+		yield return new FormatDescriptor (
+			displayPrefix: "Pinta",
+			extensions: ["pinta", "PINTA"],
+			mimes: ["application/x-pinta-document"],
+			importer: pintaDocumentHandler,
+			exporter: pintaDocumentHandler,
+			supportsLayers: true);
 
 		OraFormat oraHandler = new ();
 		FormatDescriptor oraFormatDescriptor = new (
