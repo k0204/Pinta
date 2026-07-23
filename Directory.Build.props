@@ -4,6 +4,12 @@
     <TargetFramework Condition=" '$(TargetFramework)' == '' ">net10.0</TargetFramework>
     <Nullable>enable</Nullable>
 
+    <!-- Allow framework-dependent builds to roll forward to a newer patch / minor runtime.
+         This lets developers run `dotnet build` output directly on machines that have a
+         newer .NET 10 runtime (e.g. 10.0.10) than the SDK was built against. -->
+    <RollForward>LatestMinor</RollForward>
+    <RollForwardToPreRelease>true</RollForwardToPreRelease>
+
     <!-- Versioning and assembly info -->
     <Version>3.2.0.0</Version>
     <!-- User-facing version number, used for the version command line argument -->

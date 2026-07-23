@@ -36,6 +36,14 @@ public static class Translations
 	public static void Init (string domain, string locale_dir)
 	{
 		CultureInfo cultureInfo = CultureInfo.CurrentUICulture;
+
+		// 默认使用中文（zh-CN）
+		try {
+			cultureInfo = new CultureInfo ("zh-CN");
+		} catch {
+			// 如果 zh-CN 不可用，回退到原来的 CurrentUICulture
+		}
+
 		catalog = new Catalog (domain, locale_dir, cultureInfo);
 
 		// The dotnet UI culture controls which translations are loaded for Pinta above.
