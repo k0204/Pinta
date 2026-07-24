@@ -309,6 +309,9 @@ Pinta.Gui.Widgets/Widgets/PointPickerWidget.cs
 Pinta.Gui.Widgets/Widgets/Ruler.cs
 Pinta.Gui.Widgets/Widgets/StatusBarColorPaletteWidget.cs
 Pinta.Gui.Widgets/Widgets/ToolBoxWidget.cs
+Pinta.PsdAddin/PsdAddinExtension.cs
+Pinta.PsdAddin/PsdImportModels.cs
+Pinta.PsdAddin/PsdToolsImporter.cs
 Pinta.Resources/Icons.cs
 Pinta.Resources/ResourceManager.cs
 Pinta.Resources/Styles.cs

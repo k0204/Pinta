@@ -160,6 +160,7 @@ public sealed class ActionHandlers
 		PintaCore.Actions.Layers.DuplicateLayer.Sensitive = enable;
 		PintaCore.Actions.Layers.MergeLayerDown.Sensitive = enable;
 		PintaCore.Actions.Layers.ImportFromFile.Sensitive = enable;
+		PintaCore.Actions.Layers.DetectBorder.Sensitive = enable;
 		PintaCore.Actions.Layers.FlipHorizontal.Sensitive = enable;
 		PintaCore.Actions.Layers.FlipVertical.Sensitive = enable;
 		PintaCore.Actions.Layers.RotateZoom.Sensitive = enable;

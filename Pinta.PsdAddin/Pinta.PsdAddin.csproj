@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputPath>..\build\bin</OutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Pinta.Core\Pinta.Core.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Mono.Addins" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="python\\psd_tools_helper.py" CopyToOutputDirectory="PreserveNewest" TargetPath="python\\psd_tools_helper.py" />
+    <None Include="python\\requirements.txt" CopyToOutputDirectory="PreserveNewest" TargetPath="python\\requirements.txt" />
+  </ItemGroup>
+</Project>

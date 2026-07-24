@@ -25,6 +25,11 @@
 // THE SOFTWARE.
 
 using System;
+using System.Collections.Generic;
+using System.Net.Http;
+using System.Text;
+using System.Text.Json;
+using System.Threading.Tasks;
 
 namespace Pinta.Core;
 
@@ -36,6 +41,7 @@ public sealed class LayerActions
 	public Command DuplicateLayer { get; }
 	public Command MergeLayerDown { get; }
 	public Command ImportFromFile { get; }
+	public Command DetectBorder { get; }
 	public Command FlipHorizontal { get; }
 	public Command FlipVertical { get; }
 	public Command RotateZoom { get; }
@@ -49,6 +55,11 @@ public sealed class LayerActions
 	private readonly ToolManager tools;
 	private readonly WorkspaceManager workspace;
 	private readonly ImageActions image;
+	private bool detect_border_running;
+
+	private static readonly Uri border_detection_base_uri = new ("http://127.0.0.1:8001/");
+	private static readonly HttpClient border_detection_client = new () { Timeout = TimeSpan.FromMinutes (6) };
+
 	public LayerActions (
 		ChromeManager chrome,
 		ImageConverterManager imageFormats,
@@ -96,6 +107,12 @@ public sealed class LayerActions
 			Translations.GetString ("Import from File..."),
 			null,
 			Resources.Icons.LayerImport);
+
+		DetectBorder = new Command (
+			"detectborder",
+			Translations.GetString ("Detect Border"),
+			Translations.GetString ("Detect border and create a new layer"),
+			Resources.Icons.EffectsStylizeOutline);
 
 		FlipHorizontal = new Command (
 			"fliplayerhorizontal",
@@ -151,6 +168,7 @@ public sealed class LayerActions
 			DuplicateLayer,
 			MergeLayerDown,
 			ImportFromFile,
+			DetectBorder,
 
 			FlipHorizontal,
 			FlipVertical,
@@ -174,6 +192,7 @@ public sealed class LayerActions
 		FlipHorizontal.Activated += HandlePintaCoreActionsLayersFlipHorizontalActivated;
 		FlipVertical.Activated += HandlePintaCoreActionsLayersFlipVerticalActivated;
 		ImportFromFile.Activated += HandlePintaCoreActionsLayersImportFromFileActivated;
+		DetectBorder.Activated += HandlePintaCoreActionsLayersDetectBorderActivated;
 
 		workspace.LayerTreeChanged += EnableOrDisableLayerActions;
 		workspace.SelectedLayerChanged += EnableOrDisableLayerActions;
@@ -196,6 +215,7 @@ public sealed class LayerActions
 		MoveLayerDown.Sensitive = canMergeDown;
 
 		MoveLayerUp.Sensitive = activeDoc?.Layers.CanMoveCurrentLayerUp () ?? false;
+		DetectBorder.Sensitive = activeDoc is not null && !detect_border_running;
 	}
 
 	private Gtk.FileFilter CreateImagesFileFilter ()
@@ -272,6 +292,127 @@ public sealed class LayerActions
 		doc.Layers.SetCurrentUserLayer (layer);
 		doc.History.PushNewItem (hist);
 		doc.Workspace.Invalidate ();
+	}
+
+	private async void HandlePintaCoreActionsLayersDetectBorderActivated (object sender, EventArgs e)
+	{
+		if (detect_border_running)
+			return;
+
+		Document doc = workspace.ActiveDocument;
+		tools.Commit ();
+
+		RectangleI box =
+			doc.Selection.Visible
+			? doc.GetSelectedBounds (canvasOnly: true)
+			: new RectangleI (0, 0, doc.ImageSize.Width, doc.ImageSize.Height);
+
+		if (box.IsEmpty) {
+			await chrome.ShowMessageDialog (
+				chrome.MainWindow,
+				Translations.GetString ("Detect Border"),
+				Translations.GetString ("The selected area is empty."));
+			return;
+		}
+
+		detect_border_running = true;
+		EnableOrDisableLayerActions (null, EventArgs.Empty);
+		chrome.SetStatusBarText (Translations.GetString ("Detecting border..."));
+
+		try {
+			byte[] sourcePng = CreateDocumentPng (doc);
+			byte[] layerPng = await DetectBorderLayerAsync (sourcePng, box);
+
+			UserLayer layer = doc.Layers.AddNewLayer (Translations.GetString ("Detected Border"));
+			DrawPngOnLayer (layerPng, layer);
+
+			AddLayerHistoryItem hist = new (
+				Resources.Icons.EffectsStylizeOutline,
+				Translations.GetString ("Detect Border"),
+				layer,
+				doc.Layers.GetPosition (layer));
+
+			doc.Layers.SetCurrentUserLayer (layer);
+			doc.History.PushNewItem (hist);
+			doc.Workspace.Invalidate ();
+		} catch (Exception ex) {
+			await chrome.ShowErrorDialog (
+				chrome.MainWindow,
+				Translations.GetString ("Detect Border Failed"),
+				Translations.GetString ("Start SpineSplitAnimation on port 8001, then try again."),
+				ex.ToString ());
+		} finally {
+			detect_border_running = false;
+			EnableOrDisableLayerActions (null, EventArgs.Empty);
+			chrome.SetStatusBarText (string.Empty);
+		}
+	}
+
+	private static byte[] CreateDocumentPng (Document doc)
+	{
+		using Cairo.ImageSurface source = doc.GetFlattenedImage ();
+		using GdkPixbuf.Pixbuf pixbuf = source.ToPixbuf ();
+		return pixbuf.SaveToBuffer ("png");
+	}
+
+	private static void DrawPngOnLayer (byte[] png, UserLayer layer)
+	{
+		using GLib.Bytes bytes = GLib.Bytes.New (png);
+		using Gio.MemoryInputStream stream = Gio.MemoryInputStream.NewFromBytes (bytes);
+		using GdkPixbuf.Pixbuf pixbuf = GdkPixbuf.Pixbuf.NewFromStream (stream, cancellable: null)!;
+		using Cairo.Context context = new (layer.Surface);
+		context.DrawPixbuf (pixbuf, PointD.Zero);
+	}
+
+	private static async Task<byte[]> DetectBorderLayerAsync (byte[] sourcePng, RectangleI box)
+	{
+		string jobId = await CreateBorderDetectionJobAsync (sourcePng);
+		string imageUrl = await CreateBorderDetectionPartAsync (jobId, box);
+		return await border_detection_client.GetByteArrayAsync (new Uri (border_detection_base_uri, imageUrl.TrimStart ('/')));
+	}
+
+	private static async Task<string> CreateBorderDetectionJobAsync (byte[] sourcePng)
+	{
+		using MultipartFormDataContent content = new ();
+		using ByteArrayContent image = new (sourcePng);
+		image.Headers.ContentType = new ("image/png");
+		content.Add (image, "file", "pinta.png");
+
+		using HttpResponseMessage response = await border_detection_client.PostAsync (new Uri (border_detection_base_uri, "api/jobs"), content);
+		using JsonDocument json = JsonDocument.Parse (await ReadApiResponseAsync (response));
+		return json.RootElement.GetProperty ("job_id").GetString () ?? throw new InvalidOperationException ("Missing job_id");
+	}
+
+	private static async Task<string> CreateBorderDetectionPartAsync (string jobId, RectangleI box)
+	{
+		var payload = new Dictionary<string, object> {
+			["name"] = "Detected Border",
+			["segment_prompt"] = "object",
+			["box"] = new[] { box.X, box.Y, box.X + box.Width, box.Y + box.Height },
+			["part_type"] = "other",
+		};
+
+		using StringContent content = new (JsonSerializer.Serialize (payload), Encoding.UTF8, "application/json");
+		using HttpResponseMessage response = await border_detection_client.PostAsync (new Uri (border_detection_base_uri, $"api/jobs/{jobId}/parts"), content);
+		using JsonDocument json = JsonDocument.Parse (await ReadApiResponseAsync (response));
+		return json.RootElement.GetProperty ("part").GetProperty ("image_url").GetString () ?? throw new InvalidOperationException ("Missing image_url");
+	}
+
+	private static async Task<string> ReadApiResponseAsync (HttpResponseMessage response)
+	{
+		string body = await response.Content.ReadAsStringAsync ();
+		if (response.IsSuccessStatusCode)
+			return body;
+
+		string detail = body;
+		try {
+			using JsonDocument json = JsonDocument.Parse (body);
+			if (json.RootElement.TryGetProperty ("detail", out JsonElement detailElement))
+				detail = detailElement.ToString ();
+		} catch (JsonException) {
+		}
+
+		throw new InvalidOperationException ($"{(int) response.StatusCode} {response.ReasonPhrase}: {detail}");
 	}
 
 	private void HandlePintaCoreActionsLayersFlipVerticalActivated (object sender, EventArgs e)
