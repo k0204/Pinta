@@ -69,6 +69,8 @@ internal sealed class PasteAction : IActionHandler
 		}
 
 		var doc = workspace.ActiveDocument;
+		if (!doc.Layers.CurrentUserLayer.IsEditable)
+			return;
 
 		// Get the scroll position in canvas coordinates
 		var view = (Gtk.Viewport) doc.Workspace.Canvas.Parent!;
@@ -113,6 +115,9 @@ internal sealed class PasteAction : IActionHandler
 		bool toNewLayer,
 		PointI pastePosition = new ())
 	{
+		if (!toNewLayer && !doc.Layers.CurrentUserLayer.IsEditable)
+			return;
+
 		// Create a compound history item for recording several
 		// operations so that they can all be undone/redone together.
 		var history_text = toNewLayer ? Translations.GetString ("Paste Into New Layer") : Translations.GetString ("Paste");

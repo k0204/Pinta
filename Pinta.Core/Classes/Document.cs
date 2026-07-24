@@ -26,6 +26,7 @@
 
 using System;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using Cairo;
 
@@ -40,6 +41,10 @@ public sealed class Document
 	private string display_name = string.Empty;
 	private Gio.File? file = null;
 	private FileStream? file_lock_stream;
+	private FileSystemWatcher? resource_watcher;
+	private int reference_reload_scheduled;
+	private int resource_watcher_retry_scheduled;
+	private bool is_closed;
 
 	private bool is_dirty;
 
@@ -157,6 +162,11 @@ public sealed class Document
 
 	public Size ImageSize { get; set; }
 
+	/// <summary>
+	/// Absolute URI of the directory used to resolve referenced layer paths.
+	/// </summary>
+	public string? ResourceRootUri { get; private set; }
+
 	public bool IsDirty {
 		get => is_dirty;
 		set {
@@ -171,6 +181,171 @@ public sealed class Document
         public DocumentGuides Guides { get; }
 
 	public DocumentWorkspace Workspace { get; }
+
+	public void SetResourceRoot (Gio.File? root)
+	{
+		resource_watcher?.Dispose ();
+		resource_watcher = null;
+		ResourceRootUri = root?.GetUri ();
+
+		ReloadReferencedLayers ();
+	}
+
+	private bool TryStartResourceWatcher ()
+	{
+		if (ResourceRootUri is null)
+			return false;
+
+		try {
+			string? path = Gio.FileHelper.NewForUri (ResourceRootUri).GetPath ();
+			if (path is null || !Directory.Exists (path)) {
+				resource_watcher?.Dispose ();
+				resource_watcher = null;
+				return false;
+			}
+
+			if (resource_watcher is not null)
+				return true;
+
+			resource_watcher = new FileSystemWatcher (path) {
+				IncludeSubdirectories = true,
+				NotifyFilter = NotifyFilters.FileName | NotifyFilters.DirectoryName | NotifyFilters.LastWrite | NotifyFilters.Size,
+			};
+			resource_watcher.Changed += HandleResourceChanged;
+			resource_watcher.Created += HandleResourceChanged;
+			resource_watcher.Deleted += HandleResourceChanged;
+			resource_watcher.Renamed += HandleResourceChanged;
+			resource_watcher.Error += HandleResourceWatcherError;
+			resource_watcher.EnableRaisingEvents = true;
+			return true;
+		} catch (Exception e) when (e is IOException or UnauthorizedAccessException or ArgumentException or GLib.GException) {
+			resource_watcher?.Dispose ();
+			resource_watcher = null;
+			return false;
+		}
+	}
+
+	public bool TryGetResourceRelativePath (Gio.File file, out string relativePath)
+	{
+		relativePath = string.Empty;
+		if (ResourceRootUri is null)
+			return false;
+
+		Gio.File root = Gio.FileHelper.NewForUri (ResourceRootUri);
+		string? result = root.GetRelativePath (file)?.Replace ('\\', '/');
+		if (string.IsNullOrEmpty (result) || result == ".." || result.StartsWith ("../", StringComparison.Ordinal))
+			return false;
+
+		relativePath = result;
+		return true;
+	}
+
+	public bool LoadReferencedLayer (UserLayer layer)
+	{
+		if (ResourceRootUri is null || layer.ReferencePath is null) {
+			SetReferenceMissing (layer);
+			return false;
+		}
+
+		try {
+			Gio.File root = Gio.FileHelper.NewForUri (ResourceRootUri);
+			string? rootPath = root.GetPath ();
+			if (rootPath is null) {
+				SetReferenceMissing (layer);
+				return false;
+			}
+
+			string sourcePath = System.IO.Path.Combine (rootPath, layer.ReferencePath.Replace ('/', System.IO.Path.DirectorySeparatorChar));
+			using GdkPixbuf.Pixbuf? pixbuf = GdkPixbuf.Pixbuf.NewFromFile (sourcePath);
+			if (pixbuf is null) {
+				SetReferenceMissing (layer);
+				return false;
+			}
+
+			layer.Surface.Clear ();
+			using Context context = new (layer.Surface);
+			context.DrawPixbuf (pixbuf, PointD.Zero);
+			layer.ReferenceSize = new Size (pixbuf.Width, pixbuf.Height);
+			layer.ReferenceMissing = false;
+			return true;
+		} catch (Exception e) when (e is IOException or UnauthorizedAccessException or ArgumentException or GLib.GException) {
+			SetReferenceMissing (layer);
+			return false;
+		}
+	}
+
+	private void SetReferenceMissing (UserLayer layer)
+	{
+		layer.ReferenceMissing = true;
+		layer.Surface.Clear ();
+		Size size = layer.ReferenceSize.IsEmpty
+			? new Size (Math.Min (128, ImageSize.Width), Math.Min (128, ImageSize.Height))
+			: layer.ReferenceSize;
+		layer.ReferenceSize = size;
+
+		using Context context = new (layer.Surface);
+		context.SetSourceColor (new Color (0.85, 0.15, 0.15, 0.8));
+		context.LineWidth = 3;
+		context.Rectangle (1.5, 1.5, Math.Max (0, size.Width - 3), Math.Max (0, size.Height - 3));
+		context.MoveTo (2, 2);
+		context.LineTo (size.Width - 2, size.Height - 2);
+		context.MoveTo (size.Width - 2, 2);
+		context.LineTo (2, size.Height - 2);
+		context.Stroke ();
+	}
+
+	public void ReloadReferencedLayers ()
+	{
+		if (!TryStartResourceWatcher ())
+			ScheduleResourceWatcherRetry ();
+
+		foreach (UserLayer layer in Layers.AllLayers) {
+			if (layer.IsReference)
+				LoadReferencedLayer (layer);
+		}
+
+		Workspace.Invalidate ();
+		Layers.NotifyLayerTreeChanged ();
+	}
+
+	private void HandleResourceChanged (object sender, FileSystemEventArgs e)
+		=> ScheduleReferenceReload ();
+
+	private void HandleResourceWatcherError (object sender, ErrorEventArgs e)
+		=> ScheduleReferenceReload ();
+
+	private void ScheduleReferenceReload ()
+	{
+		if (is_closed || Interlocked.Exchange (ref reference_reload_scheduled, 1) != 0)
+			return;
+
+		GLib.Functions.TimeoutAdd (GLib.Constants.PRIORITY_DEFAULT, 200, () => {
+			Interlocked.Exchange (ref reference_reload_scheduled, 0);
+			if (!is_closed)
+				ReloadReferencedLayers ();
+			return false;
+		});
+	}
+
+	private void ScheduleResourceWatcherRetry ()
+	{
+		if (is_closed || ResourceRootUri is null || Interlocked.Exchange (ref resource_watcher_retry_scheduled, 1) != 0)
+			return;
+
+		GLib.Functions.TimeoutAdd (GLib.Constants.PRIORITY_DEFAULT, 1000, () => {
+			if (is_closed || ResourceRootUri is null) {
+				Interlocked.Exchange (ref resource_watcher_retry_scheduled, 0);
+				return false;
+			}
+
+			if (!TryStartResourceWatcher ())
+				return true;
+
+			Interlocked.Exchange (ref resource_watcher_retry_scheduled, 0);
+			ReloadReferencedLayers ();
+			return false;
+		});
+	}
 
 	public delegate void LayerCloneEvent ();
 
@@ -204,6 +379,9 @@ public sealed class Document
 	// Clean up any native resources we had
 	public void Close ()
 	{
+		is_closed = true;
+		resource_watcher?.Dispose ();
+		resource_watcher = null;
 		ReleaseFileLock ();
 		Layers.Close ();
 		Workspace.History.Clear ();
@@ -240,6 +418,9 @@ public sealed class Document
 
 	public void FinishSelection ()
 	{
+		if (!Layers.CurrentUserLayer.IsEditable)
+			return;
+
 		// We don't have an uncommitted layer, abort
 		if (!Layers.ShowSelectionLayer)
 			return;

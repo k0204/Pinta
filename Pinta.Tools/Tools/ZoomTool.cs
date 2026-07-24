@@ -32,6 +32,7 @@ namespace Pinta.Tools;
 
 public sealed class ZoomTool : BaseTool
 {
+	public override bool RequiresEditableLayer => false;
 	private readonly Gdk.Cursor cursor_zoom_in;
 	private readonly Gdk.Cursor cursor_zoom_out;
 	private readonly Gdk.Cursor cursor_zoom;

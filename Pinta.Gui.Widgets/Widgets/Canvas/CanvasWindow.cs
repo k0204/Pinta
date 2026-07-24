@@ -86,6 +86,10 @@ public sealed partial class CanvasWindow
 		// when the image is close to the background color.
 		canvas.Name = "canvas";
 
+		Gtk.DropTarget referenceDrop = Gtk.DropTarget.New (Gdk.FileList.GetGType (), Gdk.DragAction.Copy);
+		referenceDrop.OnDrop += HandleReferenceDrop;
+		canvas.AddController (referenceDrop);
+
 		Gtk.Viewport viewPort = Gtk.Viewport.New (null, null);
 		viewPort.AddController (scrollController);
 		viewPort.Child = canvas;
@@ -188,6 +192,29 @@ public sealed partial class CanvasWindow
 		this.chrome = chrome;
 		this.tools = tools;
 		this.document = document;
+	}
+
+	private bool HandleReferenceDrop (Gtk.DropTarget sender, Gtk.DropTarget.DropSignalArgs args)
+	{
+		if (args.Value.GetBoxed (Gdk.FileList.GetGType ()) is not Gdk.FileList files || document.ResourceRootUri is null)
+			return false;
+
+		PointD center = document.Workspace.ViewPointToCanvas (new PointD (args.X, args.Y));
+		bool added = false;
+		foreach (Gio.File file in files.GetFilesHelper ()) {
+			if (!document.TryGetResourceRelativePath (file, out string relativePath) || PintaCore.ImageFormats.GetImporterByFile (file.GetParseName ()) is null)
+				continue;
+
+			tools.Commit ();
+			string name = System.IO.Path.GetFileName (file.GetPath () ?? relativePath);
+			UserLayer layer = document.Layers.AddReferenceLayer (name, relativePath, center);
+			document.History.PushNewItem (new AddLayerHistoryItem (Resources.Icons.LayerImport, Translations.GetString ("Import Referenced Image"), layer, document.Layers.GetPosition (layer)));
+			added = true;
+		}
+
+		if (added)
+			document.Workspace.Invalidate ();
+		return added;
 	}
 
 	public static CanvasWindow New (

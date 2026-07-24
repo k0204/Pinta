@@ -178,14 +178,34 @@ public sealed class ImageActions
 			bool visible = false;
 
 			if (workspace.HasOpenDocuments)
-				visible = workspace.ActiveDocument.Selection.Visible;
+				visible = workspace.ActiveDocument.Selection.Visible && !workspace.ActiveDocument.Layers.HasLockedReferences;
 
 			CropToSelection.Sensitive = visible;
 		};
+
+		workspace.LayerTreeChanged += (_, _) => UpdateReferenceSensitiveState ();
+		workspace.ActiveDocumentChanged += (_, _) => UpdateReferenceSensitiveState ();
+		UpdateReferenceSensitiveState ();
+	}
+
+	private void UpdateReferenceSensitiveState ()
+	{
+		bool canEditImage = workspace.ActiveDocumentOrDefault is Document document && !document.Layers.HasLockedReferences;
+		Resize.Sensitive = canEditImage;
+		CanvasSize.Sensitive = canEditImage;
+		FlipHorizontal.Sensitive = canEditImage;
+		FlipVertical.Sensitive = canEditImage;
+		RotateCW.Sensitive = canEditImage;
+		RotateCCW.Sensitive = canEditImage;
+		Rotate180.Sensitive = canEditImage;
+		Flatten.Sensitive = canEditImage && (workspace.ActiveDocumentOrDefault?.Layers.AllLayers.Count > 1);
+		CropToSelection.Sensitive = canEditImage && (workspace.ActiveDocumentOrDefault?.Selection.Visible == true);
+		AutoCrop.Sensitive = canEditImage;
 	}
 
 	private void HandlePintaCoreActionsImageRotateCCWActivated (object sender, EventArgs e)
 	{
+		if (workspace.ActiveDocument.Layers.HasLockedReferences) return;
 		Document doc = workspace.ActiveDocument;
 
 		tools.Commit ();
@@ -196,6 +216,7 @@ public sealed class ImageActions
 
 	private void HandlePintaCoreActionsImageRotateCWActivated (object sender, EventArgs e)
 	{
+		if (workspace.ActiveDocument.Layers.HasLockedReferences) return;
 		Document doc = workspace.ActiveDocument;
 
 		tools.Commit ();
@@ -206,6 +227,7 @@ public sealed class ImageActions
 
 	private void HandlePintaCoreActionsImageFlattenActivated (object sender, EventArgs e)
 	{
+		if (workspace.ActiveDocument.Layers.HasLockedReferences) return;
 		Document doc = workspace.ActiveDocument;
 
 		tools.Commit ();
@@ -234,6 +256,7 @@ public sealed class ImageActions
 
 	private void HandlePintaCoreActionsImageRotate180Activated (object sender, EventArgs e)
 	{
+		if (workspace.ActiveDocument.Layers.HasLockedReferences) return;
 		Document doc = workspace.ActiveDocument;
 
 		tools.Commit ();
@@ -244,6 +267,7 @@ public sealed class ImageActions
 
 	private void HandlePintaCoreActionsImageFlipVerticalActivated (object sender, EventArgs e)
 	{
+		if (workspace.ActiveDocument.Layers.HasLockedReferences) return;
 		Document doc = workspace.ActiveDocument;
 
 		tools.Commit ();
@@ -254,6 +278,7 @@ public sealed class ImageActions
 
 	private void HandlePintaCoreActionsImageFlipHorizontalActivated (object sender, EventArgs e)
 	{
+		if (workspace.ActiveDocument.Layers.HasLockedReferences) return;
 		Document doc = workspace.ActiveDocument;
 
 		tools.Commit ();
@@ -264,6 +289,7 @@ public sealed class ImageActions
 
 	private void HandlePintaCoreActionsImageCropToSelectionActivated (object sender, EventArgs e)
 	{
+		if (workspace.ActiveDocument.Layers.HasLockedReferences) return;
 		Document doc = workspace.ActiveDocument;
 
 		tools.Commit ();
@@ -275,6 +301,7 @@ public sealed class ImageActions
 
 	private void HandlePintaCoreActionsImageAutoCropActivated (object sender, EventArgs e)
 	{
+		if (workspace.ActiveDocument.Layers.HasLockedReferences) return;
 		Document doc = workspace.ActiveDocument;
 
 		tools.Commit ();

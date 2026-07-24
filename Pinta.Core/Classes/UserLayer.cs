@@ -71,6 +71,16 @@ public class UserLayer : Layer
 	internal string? DocumentId { get; set; }
 	public bool Expanded { get; set; } = true;
 
+	/// <summary>
+	/// Path to an image below the document resource root. A layer with a reference path
+	/// is rendered from the loaded source image but is not written into a Pinta project.
+	/// </summary>
+	public string? ReferencePath { get; internal set; }
+	public bool ReferenceMissing { get; internal set; }
+	public Size ReferenceSize { get; internal set; }
+	public bool IsReference => ReferencePath is not null;
+	public bool IsEditable => this is not GroupLayer && !IsReference;
+
 	//Rectangular boundary surrounding the editable text.
 	public RectangleI TextBounds { get; set; } = RectangleI.Zero;
 	public RectangleI PreviousTextBounds { get; set; } = RectangleI.Zero;

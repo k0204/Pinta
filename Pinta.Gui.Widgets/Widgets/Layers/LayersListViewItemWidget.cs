@@ -423,6 +423,7 @@ public sealed partial class LayersListViewItemWidget
 		flipSection.AppendItem (actions.RotateZoom.CreateMenuItem ());
 
 		Gio.Menu propertiesSection = Gio.Menu.New ();
+		propertiesSection.AppendItem (actions.UnlockReference.CreateMenuItem ());
 		propertiesSection.AppendItem (actions.Properties.CreateMenuItem ());
 
 		Gio.Menu menu = Gio.Menu.New ();
@@ -472,10 +473,14 @@ public sealed partial class LayersListViewItemWidget
                 disclosure_button.Opacity = item.CanExpand ? 1 : 0;
                 disclosure_button.Sensitive = item.CanExpand;
                 disclosure_button.IconName = item.CanExpand ? (item.Expanded ? "pan-down-symbolic" : "pan-end-symbolic") : string.Empty;
-                bool isGroup = item.UserLayer is GroupLayer;
-                item_thumbnail.Visible = !isGroup;
-                layer_icon.IconName = isGroup ? Resources.StandardIcons.Folder : string.Empty;
-                layer_icon.Visible = isGroup;
+			bool isGroup = item.UserLayer is GroupLayer;
+			bool isReference = item.UserLayer?.IsReference == true;
+			item_thumbnail.Visible = !isGroup;
+			layer_icon.IconName = isGroup ? Resources.StandardIcons.Folder : isReference ? "object-locked-symbolic" : string.Empty;
+			layer_icon.TooltipText = isReference
+				? item.UserLayer!.ReferenceMissing ? Translations.GetString ("Referenced image is missing") : Translations.GetString ("Referenced layer is locked")
+				: null;
+			layer_icon.Visible = isGroup || isReference;
                 visible_button.IconName = item.Visible ? Resources.StandardIcons.ViewReveal : Resources.StandardIcons.ViewConceal;
 		visible_button.TooltipText = item.Visible
 			? Translations.GetString ("Hide Layer")

@@ -529,6 +529,9 @@ internal sealed class MainWindow
 		HistoryPad history_pad = new (PintaCore.Actions.Edit);
 		history_pad.Initialize (dock);
 
+		ResourcesPad resources_pad = new ();
+		resources_pad.Initialize (dock);
+
 		container.Append (dock);
 	}
 

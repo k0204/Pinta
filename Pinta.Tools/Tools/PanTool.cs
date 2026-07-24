@@ -31,6 +31,7 @@ namespace Pinta.Tools;
 
 public sealed class PanTool : BaseTool
 {
+	public override bool RequiresEditableLayer => false;
 	private bool active;
 	private PointD last_point;
 	private readonly Gdk.Cursor grabbing_cursor = GdkExtensions.CursorFromName (Pinta.Resources.StandardCursors.Grabbing);

@@ -49,6 +49,7 @@ public sealed class LayerActions
 	public Command MoveLayerUp { get; }
 	public Command MoveLayerDown { get; }
 	public Command Properties { get; }
+	public Command UnlockReference { get; }
 
 	private readonly ChromeManager chrome;
 	private readonly ImageConverterManager image_formats;
@@ -56,6 +57,8 @@ public sealed class LayerActions
 	private readonly ToolManager tools;
 	private readonly WorkspaceManager workspace;
 	private readonly ImageActions image;
+	private readonly AdjustmentsActions adjustments;
+	private readonly EffectsActions effects;
 	private bool detect_border_running;
 
 	private static readonly Uri border_detection_base_uri = new ("http://127.0.0.1:8001/");
@@ -67,7 +70,9 @@ public sealed class LayerActions
 		RecentFileManager recentFiles,
 		ToolManager tools,
 		WorkspaceManager workspace,
-		ImageActions image)
+		ImageActions image,
+		AdjustmentsActions adjustments,
+		EffectsActions effects)
 	{
 		AddNewLayer = new Command (
 			"addnewlayer",
@@ -158,12 +163,20 @@ public sealed class LayerActions
 			Resources.Icons.LayerProperties,
 			shortcuts: ["F4"]);
 
+		UnlockReference = new Command (
+			"unlockreference",
+			Translations.GetString ("Unlock Referenced Layer"),
+			null,
+			Resources.Icons.LayerImport);
+
 		this.chrome = chrome;
 		image_formats = imageFormats;
 		recent_files = recentFiles;
 		this.tools = tools;
 		this.workspace = workspace;
 		this.image = image;
+		this.adjustments = adjustments;
+		this.effects = effects;
 	}
 
 	public void RegisterActions (Gtk.Application app)
@@ -183,6 +196,7 @@ public sealed class LayerActions
 			RotateZoom,
 
 			Properties,
+			UnlockReference,
 
 			MoveLayerDown,
 			MoveLayerUp]);
@@ -202,6 +216,7 @@ public sealed class LayerActions
 		FlipVertical.Activated += HandlePintaCoreActionsLayersFlipVerticalActivated;
 		ImportFromFile.Activated += HandlePintaCoreActionsLayersImportFromFileActivated;
 		DetectBorder.Activated += HandlePintaCoreActionsLayersDetectBorderActivated;
+		UnlockReference.Activated += HandleUnlockReferenceActivated;
 
 		workspace.LayerTreeChanged += EnableOrDisableLayerActions;
 		workspace.SelectedLayerChanged += EnableOrDisableLayerActions;
@@ -216,16 +231,38 @@ public sealed class LayerActions
 
 		bool hasMultipleLayers = activeDoc is not null && activeDoc.Layers.AllLayers.Count > 1;
 		DeleteLayer.Sensitive = hasMultipleLayers;
-		image.Flatten.Sensitive = hasMultipleLayers;
+		image.Flatten.Sensitive = hasMultipleLayers && activeDoc?.Layers.HasLockedReferences != true;
                 AddNewGroup.Sensitive = activeDoc != null;
 		AddChildLayer.Sensitive = activeDoc != null;
 
+		bool currentEditable = activeDoc?.Layers.CurrentUserLayer.IsEditable ?? false;
 		bool canMergeDown = activeDoc?.Layers.CanMoveCurrentLayerDown () ?? false;
-		MergeLayerDown.Sensitive = canMergeDown;
+		MergeLayerDown.Sensitive = canMergeDown && currentEditable && activeDoc!.Layers.GetSiblingBelow (activeDoc.Layers.CurrentUserLayer).IsEditable;
 		MoveLayerDown.Sensitive = canMergeDown;
 
 		MoveLayerUp.Sensitive = activeDoc?.Layers.CanMoveCurrentLayerUp () ?? false;
+		FlipHorizontal.Sensitive = currentEditable;
+		FlipVertical.Sensitive = currentEditable;
+		RotateZoom.Sensitive = currentEditable;
+		adjustments.ToggleActionsSensitive (currentEditable);
+		effects.ToggleActionsSensitive (currentEditable);
+		UnlockReference.Sensitive = activeDoc?.Layers.CurrentUserLayer.IsReference == true && !activeDoc.Layers.CurrentUserLayer.ReferenceMissing;
 		DetectBorder.Sensitive = activeDoc is not null && !detect_border_running;
+	}
+
+	private void HandleUnlockReferenceActivated (object sender, EventArgs e)
+	{
+		Document document = workspace.ActiveDocument;
+		UserLayer layer = document.Layers.CurrentUserLayer;
+		if (!layer.IsReference || layer.ReferenceMissing)
+			return;
+
+		string previousPath = layer.ReferencePath!;
+		layer.ReferencePath = null;
+		layer.ReferenceMissing = false;
+		document.History.PushNewItem (new UpdateLayerReferenceHistoryItem (document, layer, previousPath, null));
+		document.Layers.NotifyLayerTreeChanged ();
+		document.Workspace.Invalidate ();
 	}
 
 	private Gtk.FileFilter CreateImagesFileFilter ()
@@ -428,6 +465,8 @@ public sealed class LayerActions
 	private void HandlePintaCoreActionsLayersFlipVerticalActivated (object sender, EventArgs e)
 	{
 		Document doc = workspace.ActiveDocument;
+		if (!doc.Layers.CurrentUserLayer.IsEditable)
+			return;
 
 		tools.Commit ();
 
@@ -439,6 +478,8 @@ public sealed class LayerActions
 	private void HandlePintaCoreActionsLayersFlipHorizontalActivated (object sender, EventArgs e)
 	{
 		Document doc = workspace.ActiveDocument;
+		if (!doc.Layers.CurrentUserLayer.IsEditable)
+			return;
 
 		tools.Commit ();
 
@@ -486,6 +527,8 @@ public sealed class LayerActions
 	private void HandlePintaCoreActionsLayersMergeLayerDownActivated (object sender, EventArgs e)
 	{
 		Document doc = workspace.ActiveDocument;
+		if (!doc.Layers.CurrentUserLayer.IsEditable || !doc.Layers.GetSiblingBelow (doc.Layers.CurrentUserLayer).IsEditable)
+			return;
 
 		tools.Commit ();
 

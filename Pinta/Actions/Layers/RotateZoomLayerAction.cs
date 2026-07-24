@@ -61,6 +61,8 @@ public sealed class RotateZoomLayerAction : IActionHandler
 
 	private async void Activated (object sender, EventArgs e)
 	{
+		if (!workspace.ActiveDocument.Layers.CurrentUserLayer.IsEditable)
+			return;
 		// TODO - allow the layer to be zoomed in or out
 
 		RotateZoomData data = new ();
@@ -116,6 +118,8 @@ public sealed class RotateZoomLayerAction : IActionHandler
 	private void ApplyTransform (RotateZoomData data)
 	{
 		var doc = workspace.ActiveDocument;
+		if (!doc.Layers.CurrentUserLayer.IsEditable)
+			return;
 
 		tools.Commit ();
 

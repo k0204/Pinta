@@ -245,6 +245,9 @@ public sealed class ToolManager : IEnumerable<BaseTool>, IToolService
 
 	public void DoMouseDown (Document document, ToolMouseEventArgs args)
 	{
+		if (CurrentTool?.RequiresEditableLayer == true && !document.Layers.CurrentUserLayer.IsEditable)
+			return;
+
 		if (!TryMouseDownPanOverride (document, args))
 			CurrentTool?.DoMouseDown (document, args);
 	}

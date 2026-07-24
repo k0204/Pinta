@@ -60,6 +60,9 @@ internal sealed class ResizeCanvasAction : IActionHandler
 
 	private async void Activated (object sender, EventArgs e)
 	{
+		if (workspace.ActiveDocument.Layers.HasLockedReferences)
+			return;
+
 		ResizeCanvasOptions? response = await PromptResize ();
 		if (!response.HasValue) return;
 		ResizeCanvasOptions resizing = response.Value;

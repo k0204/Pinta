@@ -284,24 +284,32 @@ public sealed class EditActions
 		InvertSelection.Activated += HandleInvertSelectionActivated;
 
 		workspace.ActiveDocumentChanged += WorkspaceActiveDocumentChanged;
+		workspace.SelectionChanged += UpdatePixelActionSensitivity;
+		workspace.SelectedLayerChanged += UpdatePixelActionSensitivity;
+		workspace.LayerTreeChanged += UpdatePixelActionSensitivity;
+	}
 
-		workspace.SelectionChanged += (o, _) => {
-			var visible = false;
-			if (workspace.HasOpenDocuments)
-				visible = workspace.ActiveDocument.Selection.Visible;
+	private void UpdatePixelActionSensitivity (object? sender, EventArgs e)
+	{
+		Document? document = workspace.ActiveDocumentOrDefault;
+		bool visible = document?.Selection.Visible == true;
+		bool editable = document?.Layers.CurrentUserLayer.IsEditable == true;
 
-			Deselect.Sensitive = visible;
-			EraseSelection.Sensitive = visible;
-			FillSelection.Sensitive = visible;
-			InvertSelection.Sensitive = visible;
-			OffsetSelection.Sensitive = visible;
-		};
+		Deselect.Sensitive = visible;
+		EraseSelection.Sensitive = visible && editable;
+		FillSelection.Sensitive = visible && editable;
+		InvertSelection.Sensitive = visible;
+		OffsetSelection.Sensitive = visible;
+		Cut.Sensitive = editable;
+		Paste.Sensitive = editable;
 	}
 
 	#region Action Handlers
 	private void HandlePintaCoreActionsEditFillSelectionActivated (object sender, EventArgs e)
 	{
 		Document doc = workspace.ActiveDocument;
+		if (!doc.Layers.CurrentUserLayer.IsEditable)
+			return;
 
 		tools.Commit ();
 
@@ -349,6 +357,8 @@ public sealed class EditActions
 	private void HandlePintaCoreActionsEditEraseSelectionActivated (object sender, EventArgs e)
 	{
 		Document doc = workspace.ActiveDocument;
+		if (!doc.Layers.CurrentUserLayer.IsEditable)
+			return;
 
 		tools.Commit ();
 
@@ -435,6 +445,8 @@ public sealed class EditActions
 	private void HandlerPintaCoreActionsEditCutActivated (object sender, EventArgs e)
 	{
 		Document doc = workspace.ActiveDocument;
+		if (!doc.Layers.CurrentUserLayer.IsEditable)
+			return;
 
 		Gdk.Clipboard cb = GdkExtensions.GetDefaultClipboard ();
 
@@ -634,6 +646,7 @@ public sealed class EditActions
 
 		// Force an update of the undo/redo state after switching documents.
 		UpdateUndoRedoActions ();
+		UpdatePixelActionSensitivity (sender, e);
 	}
 
 	private void OnDocumentHistoryChanged (object? sender, EventArgs e)

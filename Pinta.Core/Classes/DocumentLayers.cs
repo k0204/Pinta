@@ -82,6 +82,7 @@ public sealed class DocumentLayers
 	/// All user layers, flattened bottom-to-top with descendants after their parent.
 	/// </summary>
 	public IReadOnlyList<UserLayer> AllLayers => GetAllUserLayers ().ToList ();
+	public bool HasLockedReferences => GetAllUserLayers ().Any (layer => layer.IsReference);
 
 	/// <summary>
 	/// Creates a new layer and adds it to the Layer collection after the
@@ -163,6 +164,21 @@ public sealed class DocumentLayers
 		ImageSurface surface = CairoExtensions.CreateImageSurface (Format.Argb32, width.Value, height.Value);
 		UserLayer layer = new (surface) { Name = name };
 
+		return layer;
+	}
+
+	public UserLayer AddReferenceLayer (
+		string name,
+		string referencePath,
+		PointD center)
+	{
+		UserLayer layer = AddNewLayer (name);
+		layer.ReferencePath = referencePath;
+		document.LoadReferencedLayer (layer);
+
+		Matrix transform = CairoExtensions.CreateIdentityMatrix ();
+		transform.Translate (center.X - layer.ReferenceSize.Width / 2.0, center.Y - layer.ReferenceSize.Height / 2.0);
+		layer.Transform = transform;
 		return layer;
 	}
 
@@ -564,13 +580,22 @@ public sealed class DocumentLayers
 	{
 		// Translators: this is the auto-generated name for a duplicated layer.
 		// {0} is the name of the source layer. Example: "Layer 3 copy".
-                UserLayer layer = source is GroupLayer
+		UserLayer layer = source is GroupLayer
                         ? CreateGroupLayer (Translations.GetString ("{0} copy", source.Name))
                         : CreateLayer (Translations.GetString ("{0} copy", source.Name));
 
-		using Context g = new (layer.Surface);
-		g.SetSourceSurface (source.Surface, 0, 0);
-		g.Paint ();
+		if (!source.IsReference) {
+			using Context g = new (layer.Surface);
+			g.SetSourceSurface (source.Surface, 0, 0);
+			g.Paint ();
+		} else {
+			layer.ReferencePath = source.ReferencePath;
+			layer.ReferenceMissing = source.ReferenceMissing;
+			layer.ReferenceSize = source.ReferenceSize;
+			using Context g = new (layer.Surface);
+			g.SetSourceSurface (source.Surface, 0, 0);
+			g.Paint ();
+		}
 
 		layer.Hidden = source.Hidden;
 		layer.Opacity = source.Opacity;

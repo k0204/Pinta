@@ -60,6 +60,9 @@ internal sealed class ResizeImageAction : IActionHandler
 
 	private async void Activated (object sender, EventArgs e)
 	{
+		if (workspace.ActiveDocument.Layers.HasLockedReferences)
+			return;
+
 		ResizeImageOptions? response = await PromptResize ();
 		if (!response.HasValue) return;
 		ResizeImageOptions resizing = response.Value;

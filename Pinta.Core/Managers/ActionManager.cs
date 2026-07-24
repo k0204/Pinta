@@ -67,7 +67,7 @@ public sealed class ActionManager
 		FileActions file = new (system, app);
 		HelpActions help = new (system, app);
 		ImageActions image = new (tools, workspace, view);
-		LayerActions layers = new (chrome, imageFormats, recentFiles, tools, workspace, image);
+		LayerActions layers = new (chrome, imageFormats, recentFiles, tools, workspace, image, adjustments, effects);
 
 		// --- References to keep
 

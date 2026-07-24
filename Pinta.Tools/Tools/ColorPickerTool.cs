@@ -34,6 +34,7 @@ namespace Pinta.Tools;
 
 public sealed class ColorPickerTool : BaseTool
 {
+	public override bool RequiresEditableLayer => false;
 	private readonly IPaletteService palette;
 	private readonly IToolService tools;
 	private readonly IWorkspaceService workspace;

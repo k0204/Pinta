@@ -101,6 +101,9 @@ public abstract class BaseTool
 	public virtual bool IsSelectionTool
 		=> false;
 
+	public virtual bool RequiresEditableLayer
+		=> !IsSelectionTool;
+
 	/// <summary>
 	/// Whether or not the tool is an editable ShapeTool.
 	/// </summary>

@@ -8,6 +8,7 @@ public sealed class PintaDocumentManifest
 	public int Version { get; set; }
 	public int Width { get; set; }
 	public int Height { get; set; }
+	public string? ResourceRoot { get; set; }
 	public string? SelectedLayerId { get; set; }
         public List<PintaDocumentGuide> Guides { get; set; } = [];
 	public PintaDocumentSelection Selection { get; set; } = new ();
@@ -28,7 +29,10 @@ public sealed class PintaDocumentLayerNode
 	public double Opacity { get; set; }
 	public string BlendMode { get; set; } = string.Empty;
 	public bool Expanded { get; set; }
-	public string Surface { get; set; } = string.Empty;
+	public string Kind { get; set; } = "layer";
+	public string Storage { get; set; } = "embedded";
+	public string? Surface { get; set; }
+	public string? ReferencePath { get; set; }
 	public PintaDocumentMatrix Transform { get; set; } = new ();
 	public List<PintaDocumentLayerNode> Children { get; set; } = [];
 }

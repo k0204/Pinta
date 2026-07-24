@@ -74,6 +74,17 @@ partial class GtkExtensions
 		return result;
 	}
 
+	public static async Task<Gio.File?> SelectFolderAsync (
+		this Gtk.FileDialog fileDialog,
+		Gtk.Window parent)
+	{
+		try {
+			return await fileDialog.SelectFolderAsync (parent);
+		} catch (GLib.GException) {
+			return null;
+		}
+	}
+
 	/// <summary>
 	/// Similar to gtk_dialog_run() in GTK3, this runs the dialog in a blocking manner with a nested event loop.
 	/// This can be useful for compatibility with old code that relies on this behaviour, but new code should be
