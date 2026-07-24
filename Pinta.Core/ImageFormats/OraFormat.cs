@@ -29,6 +29,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.IO.Compression;
+using System.Linq;
 using System.Xml;
 using Cairo;
 using GdkPixbuf;
@@ -74,6 +75,7 @@ public sealed class OraFormat : IImageImporter, IImageExporter
 		if (!ImportStack (stackElement, newDocument, zipfile, parent: null))
 			throw new XmlException ("No layers found in OpenRaster file");
 
+                ImportGuides (imageElement, newDocument);
 		return newDocument;
 	}
 
@@ -172,17 +174,22 @@ public sealed class OraFormat : IImageImporter, IImageExporter
 		}
 	}
 
-	private static byte[] GetLayerXmlData (IReadOnlyList<UserLayer> rootLayers, IReadOnlyList<UserLayer> allLayers)
+        private static byte[] GetLayerXmlData (Document document)
 	{
 		using MemoryStream ms = new ();
 		using XmlTextWriter writer = new (ms, System.Text.Encoding.UTF8) {
 			Formatting = Formatting.Indented,
 		};
 
+                IReadOnlyList<UserLayer> rootLayers = document.Layers.RootLayers;
+                IReadOnlyList<UserLayer> allLayers = document.Layers.AllLayers;
+
 		writer.WriteStartElement ("image");
 		writer.WriteAttributeString ("w", rootLayers[0].Surface.Width.ToString ());
 		writer.WriteAttributeString ("h", rootLayers[0].Surface.Height.ToString ());
 		writer.WriteAttributeString ("version", "0.0.5"); // Current version of the spec.
+                writer.WriteAttributeString ("xmlns", "pinta", null, pinta_namespace);
+                WriteGuideAttributes (writer, document.Guides.Items);
 
 		writer.WriteStartElement ("stack");
 
@@ -272,11 +279,52 @@ public sealed class OraFormat : IImageImporter, IImageExporter
 
 	private static void AddStackEntry (ZipArchive archive, Document document)
 	{
-		byte[] userLayerBytes = GetLayerXmlData (document.Layers.RootLayers, document.Layers.AllLayers);
+                byte[] userLayerBytes = GetLayerXmlData (document);
 		ZipArchiveEntry stackEntry = archive.CreateEntry ("stack.xml");
 		using Stream stackStream = stackEntry.Open ();
 		stackStream.Write (userLayerBytes, 0, userLayerBytes.Length);
 	}
+
+        private static void ImportGuides (XmlElement imageElement, Document document)
+        {
+                List<DocumentGuide> guides = [];
+                guides.AddRange (ParseGuidePositions (imageElement, "guides-horizontal", GuideOrientation.Horizontal));
+                guides.AddRange (ParseGuidePositions (imageElement, "guides-vertical", GuideOrientation.Vertical));
+                document.Guides.ReplaceAll (guides);
+        }
+
+        private static IEnumerable<DocumentGuide> ParseGuidePositions (
+                XmlElement imageElement,
+                string attributeName,
+                GuideOrientation orientation)
+        {
+                string value = imageElement.GetAttribute (attributeName, pinta_namespace);
+                if (string.IsNullOrWhiteSpace (value))
+                        yield break;
+
+                foreach (string part in value.Split (',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)) {
+                        if (!double.TryParse (part, NumberStyles.Float, GetFormat (), out double position))
+                                continue;
+
+                        yield return new DocumentGuide (orientation, position);
+                }
+        }
+
+        private static void WriteGuideAttributes (XmlWriter writer, IReadOnlyList<DocumentGuide> guides)
+        {
+                string horizontal = string.Join (",", guides
+                        .Where (guide => guide.Orientation == GuideOrientation.Horizontal)
+                        .Select (guide => guide.Position.ToString ("0.###", GetFormat ())));
+                string vertical = string.Join (",", guides
+                        .Where (guide => guide.Orientation == GuideOrientation.Vertical)
+                        .Select (guide => guide.Position.ToString ("0.###", GetFormat ())));
+
+                if (!string.IsNullOrEmpty (horizontal))
+                        writer.WriteAttributeString ("pinta", "guides-horizontal", pinta_namespace, horizontal);
+
+                if (!string.IsNullOrEmpty (vertical))
+                        writer.WriteAttributeString ("pinta", "guides-vertical", pinta_namespace, vertical);
+        }
 
 	private static void AddMergedImage (ZipArchive archive, Pixbuf flattened)
 	{

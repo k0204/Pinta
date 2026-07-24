@@ -157,7 +157,7 @@ internal sealed partial class PintaCanvas
 
 		DrawTransparentBackground (snapshot, canvasViewBounds);
 		DrawCanvasTexture (snapshot, modified_area, canvasViewBounds);
-		DrawSelection (snapshot, canvasViewBounds);
+                DrawSelection (snapshot, canvasViewBounds);
 		DrawHandles (snapshot, canvasViewBounds);
 		DrawCanvasGrid (snapshot, canvasViewBounds);
 		DrawCanvasAxonometricGrid (snapshot, canvasViewBounds);

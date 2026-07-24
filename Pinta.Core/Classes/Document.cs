@@ -83,6 +83,8 @@ public sealed class Document
 
 		Layers = new DocumentLayers (tools, this);
 		Workspace = new DocumentWorkspace (actions, this);
+                Guides = new DocumentGuides (this);
+                Guides.Changed += (_, _) => Workspace.Invalidate ();
 		IsDirty = false;
 		HasBeenSavedInSession = false;
 		ImageSize = size;
@@ -165,6 +167,8 @@ public sealed class Document
 	}
 
 	public DocumentLayers Layers { get; }
+
+        public DocumentGuides Guides { get; }
 
 	public DocumentWorkspace Workspace { get; }
 
@@ -352,6 +356,7 @@ public sealed class Document
 		double scale = Workspace.Scale;
 
 		ImageSize = newSize;
+                Guides.ClampAllToImageBounds ();
 
 		foreach (var layer in Layers.AllLayers)
 			layer.ResizeCanvas (newSize, anchor);
@@ -384,6 +389,7 @@ public sealed class Document
 		double scale = Workspace.Scale;
 
 		ImageSize = newSize;
+                Guides.ClampAllToImageBounds ();
 
 		foreach (var layer in Layers.AllLayers)
 			layer.Resize (newSize, resamplingMode);
@@ -426,6 +432,7 @@ public sealed class Document
 
 		ImageSize = new_size;
 		Workspace.ViewSize = new_size;
+                Guides.ClampAllToImageBounds ();
 
 		actions.View.UpdateCanvasScale ();
 		ResetSelectionPaths ();

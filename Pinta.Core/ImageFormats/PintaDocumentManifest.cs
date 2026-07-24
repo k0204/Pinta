@@ -9,8 +9,15 @@ public sealed class PintaDocumentManifest
 	public int Width { get; set; }
 	public int Height { get; set; }
 	public string? SelectedLayerId { get; set; }
+        public List<PintaDocumentGuide> Guides { get; set; } = [];
 	public PintaDocumentSelection Selection { get; set; } = new ();
 	public List<PintaDocumentLayerNode> Layers { get; set; } = [];
+}
+
+public sealed class PintaDocumentGuide
+{
+        public GuideOrientation Orientation { get; set; }
+        public double Position { get; set; }
 }
 
 public sealed class PintaDocumentLayerNode

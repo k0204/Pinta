@@ -27,6 +27,7 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using Cairo;
 using Pinta.Core;
 using Pinta.Gui.Widgets;
 
@@ -40,6 +41,7 @@ public sealed partial class CanvasWindow
 	private ToolManager tools = null!;
 
 	private PintaCanvas canvas;
+        private Gtk.DrawingArea guide_overlay;
 	private Ruler horizontal_ruler;
 	private Ruler vertical_ruler;
 	private Gtk.ScrolledWindow scrolled_window;
@@ -52,13 +54,18 @@ public sealed partial class CanvasWindow
 	private PointD current_canvas_pos = PointD.Zero;
 	private double cumulative_zoom_amount;
 	private double last_scale_delta;
+        private GuideDragState? guide_drag_state;
 
 	private const double ZOOM_THRESHOLD_SCROLL = 1.25;
 	private const double ZOOM_THRESHOLD_PINCH = 0.15;
+        private const double GUIDE_HIT_TOLERANCE_VIEW = 6;
+
+        private readonly record struct GuideDragState (GuideOrientation Orientation, int Index);
 
 	public Gtk.Widget Canvas { get { return canvas; } }
 
 	[MemberNotNull (nameof (canvas))]
+        [MemberNotNull (nameof (guide_overlay))]
 	[MemberNotNull (nameof (horizontal_ruler), nameof (vertical_ruler))]
 	[MemberNotNull (nameof (scrolled_window), nameof (horizontal_scrollbar), nameof (vertical_scrollbar))]
 	[MemberNotNull (nameof (motion_controller), nameof (drag_controller), nameof (gesture_zoom))]
@@ -97,6 +104,16 @@ public sealed partial class CanvasWindow
 		scrolledWindow.Vexpand = true;
 		scrolledWindow.Child = viewPort;
 
+                Gtk.DrawingArea guideOverlay = Gtk.DrawingArea.New ();
+                guideOverlay.Hexpand = true;
+                guideOverlay.Vexpand = true;
+                guideOverlay.CanTarget = false;
+                guideOverlay.SetDrawFunc ((_, context, width, height) => DrawGuidesOverlay (context, width, height));
+
+                Gtk.Overlay canvasOverlay = Gtk.Overlay.New ();
+                canvasOverlay.Child = scrolledWindow;
+                canvasOverlay.AddOverlay (guideOverlay);
+
 		Ruler horizontalRuler = Ruler.New (Gtk.Orientation.Horizontal);
 		horizontalRuler.Metric = MetricType.Pixels;
 		horizontalRuler.Visible = false;
@@ -125,11 +142,12 @@ public sealed partial class CanvasWindow
 
 		Attach (horizontalRuler, 1, 0, 1, 1);
 		Attach (verticalRuler, 0, 1, 1, 1);
-		Attach (scrolledWindow, 1, 1, 1, 1);
+                Attach (canvasOverlay, 1, 1, 1, 1);
 
 		// --- References to keep
 
 		this.canvas = canvas;
+                guide_overlay = guideOverlay;
 
 		scrolled_window = scrolledWindow;
 		gesture_zoom = gestureZoom;
@@ -165,6 +183,7 @@ public sealed partial class CanvasWindow
 		// the canvas widget (e.g. when zoomed out and no scrollbars are required)
 		document.Workspace.ViewSizeChanged += UpdateRulerRange;
 		document.SelectionChanged += UpdateRulerSelection;
+                document.Guides.Changed += (_, _) => guide_overlay.QueueDraw ();
 
 		this.chrome = chrome;
 		this.tools = tools;
@@ -311,6 +330,7 @@ public sealed partial class CanvasWindow
 
 		horizontal_ruler.RulerRange = new (lower.X, upper.X);
 		vertical_ruler.RulerRange = new (lower.Y, upper.Y);
+                guide_overlay.QueueDraw ();
 	}
 
 	private bool HandleScrollEvent (
@@ -369,13 +389,18 @@ public sealed partial class CanvasWindow
 		// widget jumps back to the origin.
 		GrabFocus ();
 
+                PointD rootPoint = new (args.StartX, args.StartY);
+                if (TryStartGuideDrag (rootPoint)) {
+                        gesture.SetState (Gtk.EventSequenceState.Claimed);
+                        return;
+                }
+
 		// Note: if we ever regain support for docking multiple canvas
 		// widgets side by side (like Pinta 1.7 could), a mouse click should switch
 		// the active document to this document.
 
 		// Send the mouse press event to the current tool.
 		// Translate coordinates to the canvas widget.
-		PointD rootPoint = new (args.StartX, args.StartY);
 		this.TranslateCoordinates (Canvas, rootPoint, out PointD viewPoint);
 		PointD canvasPoint = document.Workspace.ViewPointToCanvas (viewPoint);
 
@@ -394,6 +419,11 @@ public sealed partial class CanvasWindow
 	{
 		gesture.GetStartPoint (out double startX, out double startY);
 		PointD rootPoint = new (startX + args.OffsetX, startY + args.OffsetY);
+
+                if (guide_drag_state.HasValue) {
+                        UpdateGuideDrag (rootPoint);
+                        return;
+                }
 
 		// Translate coordinates to the canvas widget.
 		this.TranslateCoordinates (Canvas, rootPoint, out PointD viewPoint);
@@ -418,6 +448,11 @@ public sealed partial class CanvasWindow
 	{
 		gesture.GetStartPoint (out double startX, out double startY);
 		PointD rootPoint = new (startX + args.OffsetX, startY + args.OffsetY);
+
+                if (guide_drag_state.HasValue) {
+                        EndGuideDrag (rootPoint);
+                        return;
+                }
 
 		// Translate coordinates to the canvas widget.
 		this.TranslateCoordinates (Canvas, rootPoint, out PointD viewPoint);
@@ -473,4 +508,140 @@ public sealed partial class CanvasWindow
 		if (vertical_scrollbar is not null)
 			vertical_scrollbar.CanTarget = canTarget;
 	}
+
+        private void DrawGuidesOverlay (Context context, int width, int height)
+        {
+                if (document.Guides.Count == 0 || width <= 0 || height <= 0)
+                        return;
+
+                PointD canvasOrigin = GetCanvasOriginInViewport ();
+                double scale = document.Workspace.Scale;
+
+                context.SetSourceColor (new Color (0.1, 0.6, 1.0, 0.95));
+                context.LineWidth = 1;
+
+                foreach (DocumentGuide guide in document.Guides.Items) {
+                        switch (guide.Orientation) {
+                                case GuideOrientation.Horizontal:
+                                        double y = canvasOrigin.Y + guide.Position * scale + 0.5;
+                                        context.MoveTo (0, y);
+                                        context.LineTo (width, y);
+                                        break;
+                                case GuideOrientation.Vertical:
+                                        double x = canvasOrigin.X + guide.Position * scale + 0.5;
+                                        context.MoveTo (x, 0);
+                                        context.LineTo (x, height);
+                                        break;
+                        }
+                }
+
+                context.Stroke ();
+        }
+
+        private PointD GetCanvasOriginInViewport ()
+        {
+                Gtk.Widget viewport = scrolled_window.Child!;
+                Size viewSize = document.Workspace.ViewSize;
+                PointD offset = new (
+                        (viewport.GetAllocatedWidth () - viewSize.Width) / 2.0,
+                        (viewport.GetAllocatedHeight () - viewSize.Height) / 2.0);
+
+                double x = offset.X > 0 ? offset.X : -scrolled_window.Hadjustment!.Value;
+                double y = offset.Y > 0 ? offset.Y : -scrolled_window.Vadjustment!.Value;
+
+                return new PointD (x, y);
+        }
+
+        private void EndGuideDrag (PointD rootPoint)
+        {
+                GuideDragState state = guide_drag_state!.Value;
+                guide_drag_state = null;
+
+                if (IsPointerOnDeleteRuler (state.Orientation, rootPoint))
+                        document.Guides.RemoveAt (state.Index);
+        }
+
+        private bool IsPointerOnDeleteRuler (GuideOrientation orientation, PointD rootPoint)
+        {
+                return orientation switch {
+                        GuideOrientation.Horizontal => horizontal_ruler.Visible && horizontal_ruler.IsMouseInDrawingArea (this, rootPoint, out _),
+                        GuideOrientation.Vertical => vertical_ruler.Visible && vertical_ruler.IsMouseInDrawingArea (this, rootPoint, out _),
+                        _ => false,
+                };
+        }
+
+        private bool TryFindGuideAtPoint (PointD rootPoint, out GuideDragState state)
+        {
+                state = default;
+
+                if (!this.TranslateCoordinates (Canvas, rootPoint, out PointD viewPoint))
+                        return false;
+
+                PointD canvasPoint = document.Workspace.ViewPointToCanvas (viewPoint);
+                if (!document.Workspace.PointInCanvas (canvasPoint))
+                        return false;
+
+                double tolerance = GUIDE_HIT_TOLERANCE_VIEW / Math.Max (document.Workspace.Scale, 0.01);
+                double bestDistance = double.MaxValue;
+                bool found = false;
+
+                for (int i = 0; i < document.Guides.Items.Count; i++) {
+                        DocumentGuide guide = document.Guides.Items[i];
+                        double distance = guide.Orientation == GuideOrientation.Horizontal
+                                ? Math.Abs (guide.Position - canvasPoint.Y)
+                                : Math.Abs (guide.Position - canvasPoint.X);
+
+                        if (distance > tolerance || distance >= bestDistance)
+                                continue;
+
+                        bestDistance = distance;
+                        state = new GuideDragState (guide.Orientation, i);
+                        found = true;
+                }
+
+                return found;
+        }
+
+        private bool TryStartGuideDrag (PointD rootPoint)
+        {
+                if (horizontal_ruler.Visible && horizontal_ruler.IsMouseInDrawingArea (this, rootPoint, out _)) {
+                        int index = document.Guides.AddHorizontal (0);
+                        guide_drag_state = new GuideDragState (GuideOrientation.Horizontal, index);
+                        UpdateGuideDrag (rootPoint);
+                        return true;
+                }
+
+                if (vertical_ruler.Visible && vertical_ruler.IsMouseInDrawingArea (this, rootPoint, out _)) {
+                        int index = document.Guides.AddVertical (0);
+                        guide_drag_state = new GuideDragState (GuideOrientation.Vertical, index);
+                        UpdateGuideDrag (rootPoint);
+                        return true;
+                }
+
+                if (!TryFindGuideAtPoint (rootPoint, out GuideDragState state))
+                        return false;
+
+                guide_drag_state = state;
+                UpdateGuideDrag (rootPoint);
+                return true;
+        }
+
+        private void UpdateGuideDrag (PointD rootPoint)
+        {
+                GuideDragState state = guide_drag_state!.Value;
+
+                if (!this.TranslateCoordinates (Canvas, rootPoint, out PointD viewPoint))
+                        return;
+
+                PointD canvasPoint = document.Workspace.ViewPointToCanvas (viewPoint);
+                current_canvas_pos = canvasPoint;
+                horizontal_ruler.Position = canvasPoint.X;
+                vertical_ruler.Position = canvasPoint.Y;
+
+                double position = state.Orientation == GuideOrientation.Horizontal
+                        ? canvasPoint.Y
+                        : canvasPoint.X;
+
+                document.Guides.UpdateAt (state.Index, position);
+        }
 }

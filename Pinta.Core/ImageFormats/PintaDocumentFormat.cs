@@ -41,6 +41,7 @@ public sealed class PintaDocumentFormat : IImageImporter, IImageExporter
 		if (manifest.SelectedLayerId is not null)
 			document.Layers.SetCurrentUserLayer (layersById[manifest.SelectedLayerId]);
 
+                document.Guides.ReplaceAll (CreateGuides (manifest.Guides));
 		document.Selection = CreateSelection (manifest.Selection);
 		return document;
 	}
@@ -97,6 +98,10 @@ public sealed class PintaDocumentFormat : IImageImporter, IImageExporter
 			Width = document.ImageSize.Width,
 			Height = document.ImageSize.Height,
 			SelectedLayerId = selectedLayer.DocumentId,
+                        Guides = [.. document.Guides.Items.Select (guide => new PintaDocumentGuide {
+                                Orientation = guide.Orientation,
+                                Position = guide.Position,
+                        })],
 			Selection = CreateSelectionModel (document.Selection),
 			Layers = [.. document.Layers.RootLayers.Select (CreateLayerModel)],
 		};
@@ -139,6 +144,9 @@ public sealed class PintaDocumentFormat : IImageImporter, IImageExporter
 			Polygons = [.. selection.SelectionPolygons.Select (
 				polygon => polygon.Select (point => new PintaDocumentPoint { X = point.X, Y = point.Y }).ToList ())],
 		};
+
+        private static IReadOnlyList<DocumentGuide> CreateGuides (IReadOnlyList<PintaDocumentGuide> guides)
+                => [.. guides.Select (guide => new DocumentGuide (guide.Orientation, guide.Position))];
 
 	private static DocumentSelection CreateSelection (PintaDocumentSelection selection)
 		=> new () {
@@ -229,6 +237,10 @@ public sealed class PintaDocumentFormat : IImageImporter, IImageExporter
 			throw new InvalidDataException ($"Unsupported Pinta document version {manifest.Version}.");
 		if (manifest.Width <= 0 || manifest.Height <= 0)
 			throw new InvalidDataException ("The Pinta document dimensions must be positive.");
+                if (manifest.Guides is null)
+                        throw new InvalidDataException ("The Pinta document guides collection is missing.");
+                if (manifest.Guides.Any (guide => !Enum.IsDefined (guide.Orientation) || !double.IsFinite (guide.Position)))
+                        throw new InvalidDataException ("The Pinta document guides are invalid.");
 		if (manifest.Selection is null || manifest.Selection.HandleBounds is null || manifest.Selection.Polygons is null)
 			throw new InvalidDataException ("The Pinta document selection is incomplete.");
 		if (!IsFinite (manifest.Selection.HandleBounds))
