@@ -64,6 +64,8 @@ public sealed partial class LayersListViewItem
 			throw new InvalidOperationException ($"{nameof (LayersListViewItem)} is not initialized");
 
 		ImageSurface surface = CairoExtensions.CreateImageSurface (Format.Argb32, widthRequest, heightRequest);
+                if (UserLayer is GroupLayer)
+                        return surface;
 
 		List<Layer> layers = UserLayer.GetLayersToPaint ().ToList ();
 		// For the current layer, show the selection layer too (e.g. when moving the selection's contents).
@@ -139,11 +141,13 @@ public sealed partial class LayersListViewItemWidget
 	private LayersListViewItem? item;
 	private ImageSurface? thumbnail_surface;
 
-	private Gtk.Button disclosure_button;
+        private Gtk.Image disclosure_button;
 	private Gtk.DrawingArea drop_preview;
+        private Gtk.Box hierarchy_content;
+        private Gtk.Image layer_icon;
 	private Gtk.DrawingArea item_thumbnail;
 	private Gtk.Label item_label;
-	private Gtk.Button visible_button;
+        private Gtk.Image visible_button;
 	private LayerDropHint drop_hint = LayerDropHint.None;
 	private int drop_preview_depth;
 
@@ -158,8 +162,10 @@ public sealed partial class LayersListViewItemWidget
 
 	[MemberNotNull (nameof (item_thumbnail))]
 	[MemberNotNull (nameof (item_label))]
+        [MemberNotNull (nameof (layer_icon))]
 	[MemberNotNull (nameof (visible_button))]
 	[MemberNotNull (nameof (disclosure_button))]
+        [MemberNotNull (nameof (hierarchy_content))]
 	[MemberNotNull (nameof (drop_preview))]
 	partial void Initialize ()
 	{
@@ -169,31 +175,35 @@ public sealed partial class LayersListViewItemWidget
 		dropPreview.CanTarget = false;
 		dropPreview.SetDrawFunc ((area, context, width, height) => DrawDropPreview (context, width, height));
 
-		Gtk.Button disclosureButton = Gtk.Button.New ();
-		disclosureButton.HasFrame = false;
-		disclosureButton.CanFocus = false;
-		disclosureButton.WidthRequest = 20;
-		disclosureButton.OnClicked += (_, _) => item?.ToggleExpanded ();
+                Gtk.Image disclosureButton = Gtk.Image.New ();
+                disclosureButton.WidthRequest = 16;
+                disclosureButton.Valign = Gtk.Align.Center;
+                AddActionButtonGesture (disclosureButton, () => item?.ToggleExpanded ());
 
 		Gtk.DrawingArea itemThumbnail = Gtk.DrawingArea.New ();
 		itemThumbnail.SetDrawFunc ((area, context, width, height) => DrawThumbnail (context, width, height));
-		itemThumbnail.WidthRequest = 60;
-		itemThumbnail.HeightRequest = 40;
+                itemThumbnail.WidthRequest = 48;
+                itemThumbnail.HeightRequest = 32;
+
+                Gtk.Image layerIcon = Gtk.Image.New ();
+                layerIcon.IconSize = Gtk.IconSize.Normal;
+                layerIcon.Valign = Gtk.Align.Center;
+                layerIcon.Visible = false;
+                AddActionButtonGesture (layerIcon, () => item?.ToggleExpanded ());
 
 		Gtk.Label itemLabel = Gtk.Label.New (string.Empty);
 		itemLabel.Halign = Gtk.Align.Start;
 		itemLabel.Hexpand = true;
 		itemLabel.Ellipsize = Pango.EllipsizeMode.End;
 
-		Gtk.Button visibleButton = Gtk.Button.New ();
-		visibleButton.HasFrame = false;
-		visibleButton.WidthRequest = 20;
-		visibleButton.Halign = Gtk.Align.Start;
-		visibleButton.CanFocus = false;
-		visibleButton.OnClicked += (_, _) => {
+                Gtk.Image visibleButton = Gtk.Image.New ();
+                visibleButton.WidthRequest = 16;
+                visibleButton.Halign = Gtk.Align.Start;
+                visibleButton.Valign = Gtk.Align.Center;
+                AddActionButtonGesture (visibleButton, () => {
 			if (item is not null)
 				item.HandleVisibilityToggled (!item.Visible);
-		};
+                });
 
 		Gtk.GestureClick menuGesture = Gtk.GestureClick.New ();
 		menuGesture.SetButton (Gdk.Constants.BUTTON_SECONDARY);
@@ -201,22 +211,28 @@ public sealed partial class LayersListViewItemWidget
 
 		// --- Initialization (Gtk.Widget)
 
-		this.SetAllMargins (2);
-		this.AddController (menuGesture);
+                this.SetAllMargins (2);
+                this.AddController (menuGesture);
 
 		// --- Initialization (Gtk.Box)
 
-		Gtk.Box itemRow = Gtk.Box.New (Gtk.Orientation.Horizontal, 6);
+                Gtk.Box itemRow = Gtk.Box.New (Gtk.Orientation.Horizontal, 3);
 		itemRow.Hexpand = true;
 		itemRow.Append (visibleButton);
-		itemRow.Append (disclosureButton);
+                AddSelectLayerGesture (itemRow);
 
-		Gtk.Box dragContent = Gtk.Box.New (Gtk.Orientation.Horizontal, 6);
+                Gtk.Box dragContent = Gtk.Box.New (Gtk.Orientation.Horizontal, 4);
 		dragContent.Hexpand = true;
 		dragContent.Append (itemThumbnail);
+                dragContent.Append (layerIcon);
 		dragContent.Append (itemLabel);
 		AddLayerDragGesture (dragContent);
-		itemRow.Append (dragContent);
+
+                Gtk.Box hierarchyContent = Gtk.Box.New (Gtk.Orientation.Horizontal, 3);
+                hierarchyContent.Hexpand = true;
+                hierarchyContent.Append (disclosureButton);
+                hierarchyContent.Append (dragContent);
+                itemRow.Append (hierarchyContent);
 
 		Gtk.Overlay rowOverlay = Gtk.Overlay.New ();
 		rowOverlay.Child = itemRow;
@@ -230,6 +246,8 @@ public sealed partial class LayersListViewItemWidget
 
 		disclosure_button = disclosureButton;
 		drop_preview = dropPreview;
+                hierarchy_content = hierarchyContent;
+                layer_icon = layerIcon;
 		item_thumbnail = itemThumbnail;
 		item_label = itemLabel;
 		visible_button = visibleButton;
@@ -296,6 +314,45 @@ public sealed partial class LayersListViewItemWidget
 		widget.AddController (dragGesture);
 	}
 
+        private void AddActionButtonGesture (
+                Gtk.Widget widget,
+                Action action)
+        {
+                Gtk.GestureClick click = Gtk.GestureClick.New ();
+                click.SetButton (GtkExtensions.MOUSE_LEFT_BUTTON);
+                click.SetPropagationPhase (Gtk.PropagationPhase.Capture);
+                click.OnPressed += (_, _) => {
+                        if (item?.UserLayer is UserLayer layer && PintaCore.Workspace.HasOpenDocuments) {
+                                Document doc = PintaCore.Workspace.ActiveDocument;
+                                if (doc.Layers.CurrentUserLayer != layer)
+                                        doc.Layers.SetCurrentUserLayer (layer);
+                        }
+
+                        action ();
+                        click.SetState (Gtk.EventSequenceState.Claimed);
+                };
+                widget.AddController (click);
+        }
+
+        private void AddSelectLayerGesture (Gtk.Widget widget)
+        {
+                Gtk.GestureClick click = Gtk.GestureClick.New ();
+                click.SetButton (GtkExtensions.MOUSE_LEFT_BUTTON);
+                click.SetPropagationPhase (Gtk.PropagationPhase.Capture);
+                click.OnPressed += (_, _) => SelectCurrentLayer ();
+                widget.AddController (click);
+        }
+
+        private void SelectCurrentLayer ()
+        {
+                if (item?.UserLayer is not UserLayer layer || !PintaCore.Workspace.HasOpenDocuments)
+                        return;
+
+                Document doc = PintaCore.Workspace.ActiveDocument;
+                if (doc.Layers.CurrentUserLayer != layer)
+                        doc.Layers.SetCurrentUserLayer (layer);
+        }
+
 	private void HandleDragUpdate (
 		Gtk.Widget sourceWidget,
 		Gtk.GestureDrag controller,
@@ -352,6 +409,7 @@ public sealed partial class LayersListViewItemWidget
 		LayerActions actions = PintaCore.Actions.Layers;
 
 		Gio.Menu operationsSection = Gio.Menu.New ();
+                operationsSection.AppendItem (actions.AddNewGroup.CreateMenuItem ());
 		operationsSection.AppendItem (actions.AddChildLayer.CreateMenuItem ());
 		operationsSection.AppendItem (actions.DeleteLayer.CreateMenuItem ());
 		operationsSection.AppendItem (actions.DuplicateLayer.CreateMenuItem ());
@@ -407,12 +465,18 @@ public sealed partial class LayersListViewItemWidget
 			throw new InvalidOperationException ($"{nameof (item)} is null");
 
 		item_label.SetText (item.Label);
-		item_label.MarginStart = 0;
-		disclosure_button.MarginStart = item.Depth * 16;
-		disclosure_button.Visible = true;
-		disclosure_button.Sensitive = item.CanExpand;
-		disclosure_button.SetIconName (item.CanExpand ? (item.Expanded ? "pan-down-symbolic" : "pan-end-symbolic") : string.Empty);
-		visible_button.SetIconName (item.Visible ? Resources.StandardIcons.ViewReveal : Resources.StandardIcons.ViewConceal);
+                item_label.MarginStart = 0;
+                hierarchy_content.MarginStart = item.Depth * 16;
+                disclosure_button.MarginStart = 0;
+                disclosure_button.Visible = item.Depth > 0 || item.CanExpand;
+                disclosure_button.Opacity = item.CanExpand ? 1 : 0;
+                disclosure_button.Sensitive = item.CanExpand;
+                disclosure_button.IconName = item.CanExpand ? (item.Expanded ? "pan-down-symbolic" : "pan-end-symbolic") : string.Empty;
+                bool isGroup = item.UserLayer is GroupLayer;
+                item_thumbnail.Visible = !isGroup;
+                layer_icon.IconName = isGroup ? Resources.StandardIcons.Folder : string.Empty;
+                layer_icon.Visible = isGroup;
+                visible_button.IconName = item.Visible ? Resources.StandardIcons.ViewReveal : Resources.StandardIcons.ViewConceal;
 		visible_button.TooltipText = item.Visible
 			? Translations.GetString ("Hide Layer")
 			: Translations.GetString ("Show Layer");

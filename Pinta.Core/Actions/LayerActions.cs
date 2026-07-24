@@ -36,6 +36,7 @@ namespace Pinta.Core;
 public sealed class LayerActions
 {
 	public Command AddNewLayer { get; }
+        public Command AddNewGroup { get; }
 	public Command AddChildLayer { get; }
 	public Command DeleteLayer { get; }
 	public Command DuplicateLayer { get; }
@@ -74,6 +75,12 @@ public sealed class LayerActions
 			null,
 			Resources.Icons.LayerNew,
 			shortcuts: ["<Primary><Shift>N"]);
+
+                AddNewGroup = new Command (
+                        "addnewgroup",
+                        Translations.GetString ("Add New Group"),
+                        null,
+                        Resources.Icons.LayerGroup);
 
 		AddChildLayer = new Command (
 			"addchildlayer",
@@ -163,6 +170,7 @@ public sealed class LayerActions
 	{
 		app.AddCommands ([
 			AddNewLayer,
+                        AddNewGroup,
 			AddChildLayer,
 			DeleteLayer,
 			DuplicateLayer,
@@ -183,6 +191,7 @@ public sealed class LayerActions
 	public void RegisterHandlers ()
 	{
 		AddNewLayer.Activated += HandlePintaCoreActionsLayersAddNewLayerActivated;
+                AddNewGroup.Activated += HandlePintaCoreActionsLayersAddNewGroupActivated;
 		AddChildLayer.Activated += HandlePintaCoreActionsLayersAddChildLayerActivated;
 		DeleteLayer.Activated += HandlePintaCoreActionsLayersDeleteLayerActivated;
 		DuplicateLayer.Activated += HandlePintaCoreActionsLayersDuplicateLayerActivated;
@@ -208,6 +217,7 @@ public sealed class LayerActions
 		bool hasMultipleLayers = activeDoc is not null && activeDoc.Layers.AllLayers.Count > 1;
 		DeleteLayer.Sensitive = hasMultipleLayers;
 		image.Flatten.Sensitive = hasMultipleLayers;
+                AddNewGroup.Sensitive = activeDoc != null;
 		AddChildLayer.Sensitive = activeDoc != null;
 
 		bool canMergeDown = activeDoc?.Layers.CanMoveCurrentLayerDown () ?? false;
@@ -555,6 +565,21 @@ public sealed class LayerActions
 			doc.Layers.GetPosition (l));
 		doc.History.PushNewItem (hist);
 	}
+
+        private void HandlePintaCoreActionsLayersAddNewGroupActivated (object sender, EventArgs e)
+        {
+                Document doc = workspace.ActiveDocument;
+                tools.Commit ();
+
+                GroupLayer layer = doc.Layers.AddNewGroup (Translations.GetString ("Group"));
+
+                AddLayerHistoryItem hist = new (
+                        Resources.Icons.LayerGroup,
+                        Translations.GetString ("Add New Group"),
+                        layer,
+                        doc.Layers.GetPosition (layer));
+                doc.History.PushNewItem (hist);
+        }
 
 	private void HandlePintaCoreActionsLayersAddChildLayerActivated (object sender, EventArgs e)
 	{

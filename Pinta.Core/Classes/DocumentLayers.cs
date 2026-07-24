@@ -166,6 +166,46 @@ public sealed class DocumentLayers
 		return layer;
 	}
 
+        public GroupLayer CreateGroupLayer (
+                string? name = null,
+                int? width = null,
+                int? height = null)
+        {
+                // Translators: {0} is a unique id for new layers, e.g. "Layer 2".
+                name ??= Translations.GetString ("Layer {0}", layer_name_int++);
+                width ??= document.ImageSize.Width;
+                height ??= document.ImageSize.Height;
+
+                ImageSurface surface = CairoExtensions.CreateImageSurface (Format.Argb32, width.Value, height.Value);
+                GroupLayer layer = new (surface) { Name = name };
+
+                return layer;
+        }
+
+        /// <summary>
+        /// Creates a new group and adds it to the Layer collection after the
+        /// currently selected layer, making it the new selected layer.
+        /// </summary>
+        public GroupLayer AddNewGroup (string name)
+        {
+                GroupLayer layer =
+                        string.IsNullOrEmpty (name)
+                        ? CreateGroupLayer ()
+                        : CreateGroupLayer (name);
+
+                LayerPosition position =
+                        current_user_layer is null
+                        ? new LayerPosition (null, user_layers.Count)
+                        : GetNextSiblingPosition (CurrentUserLayer);
+
+                Insert (layer, position);
+                current_user_layer = layer;
+
+                SelectedLayerChanged?.Invoke (this, EventArgs.Empty);
+
+                return layer;
+        }
+
 	/// <summary>
 	/// Creates a new SelectionLayer.
 	/// </summary>
@@ -524,7 +564,9 @@ public sealed class DocumentLayers
 	{
 		// Translators: this is the auto-generated name for a duplicated layer.
 		// {0} is the name of the source layer. Example: "Layer 3 copy".
-		UserLayer layer = CreateLayer (Translations.GetString ("{0} copy", source.Name));
+                UserLayer layer = source is GroupLayer
+                        ? CreateGroupLayer (Translations.GetString ("{0} copy", source.Name))
+                        : CreateLayer (Translations.GetString ("{0} copy", source.Name));
 
 		using Context g = new (layer.Surface);
 		g.SetSourceSurface (source.Surface, 0, 0);

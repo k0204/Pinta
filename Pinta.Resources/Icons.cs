@@ -44,6 +44,7 @@ public static class StandardIcons
 	public const string FormatJustifyRight = "format-justify-right-symbolic";
 	public const string FormatTextItalic = "format-text-italic-symbolic";
 	public const string FormatTextUnderline = "format-text-underline-symbolic";
+        public const string Folder = "folder-symbolic";
 
 	public const string EditCopy = "edit-copy-symbolic";
 	public const string EditCut = "edit-cut-symbolic";
@@ -204,6 +205,7 @@ public static class Icons
 	public const string LayerImport = "layer-import-symbolic";
 	public const string LayerMergeDown = "layers-merge-down-symbolic";
 	public const string LayerNew = "layers-add-layer-symbolic";
+        public const string LayerGroup = StandardIcons.Folder;
 	public const string LayerProperties = "document-properties-symbolic";
 	public const string LayerRotateZoom = "layers-rotate-zoom-symbolic";
 

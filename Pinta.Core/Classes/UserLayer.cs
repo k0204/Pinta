@@ -35,7 +35,7 @@ namespace Pinta.Core;
 /// A UserLayer is a Layer that the user interacts with directly. Each UserLayer contains special layers
 /// and some other special variables that allow for re-editability of various things.
 /// </summary>
-public sealed class UserLayer : Layer
+public class UserLayer : Layer
 {
 	private readonly List<UserLayer> children = [];
 
@@ -148,7 +148,7 @@ public sealed class UserLayer : Layer
 		}
 	}
 
-	internal IEnumerable<Layer> GetOwnLayersToPaint ()
+        internal virtual IEnumerable<Layer> GetOwnLayersToPaint ()
 	{
 		yield return this;
 

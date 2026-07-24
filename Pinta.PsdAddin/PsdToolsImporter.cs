@@ -81,14 +81,18 @@ internal sealed class PsdToolsImporter : IImageImporter
 	{
 		for (int index = 0; index < nodes.Count; index++) {
 			PsdImportLayerNode node = nodes[index];
-			UserLayer layer = document.Layers.CreateLayer (string.IsNullOrWhiteSpace (node.Name) ? Translations.GetString ("Layer") : node.Name);
+                        string name = string.IsNullOrWhiteSpace (node.Name) ? Translations.GetString ("Layer") : node.Name;
+                        UserLayer layer = IsContainerNode (node)
+                                ? document.Layers.CreateGroupLayer (name)
+                                : document.Layers.CreateLayer (name);
 
 			layer.Hidden = node.Hidden;
 			layer.Opacity = Math.Clamp (node.Opacity, 0.0, 1.0);
 			layer.BlendMode = ToBlendMode (node.BlendMode);
 			layer.Expanded = true;
 
-			LoadSurface (IOPath.Combine (outputDirectory, node.Surface), layer);
+                        if (layer is not GroupLayer)
+                                LoadSurface (IOPath.Combine (outputDirectory, node.Surface), layer);
 			document.Layers.Insert (layer, new LayerPosition (parent, index));
 			layersById[node.Id] = layer;
 
@@ -139,6 +143,12 @@ internal sealed class PsdToolsImporter : IImageImporter
 			_ => BlendMode.Normal,
 		};
 	}
+
+        private static bool IsContainerNode (PsdImportLayerNode node)
+        {
+                string kind = node.Kind.Trim ().ToLowerInvariant ();
+                return kind is "group" or "artboard" or "psdimage";
+        }
 
 	private static PsdImportManifest LoadManifest (string outputDirectory)
 	{
