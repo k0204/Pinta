@@ -58,6 +58,10 @@ public abstract class SelectTool : BaseTool
 
 	protected abstract void DrawShape (Document document, RectangleD r, Layer l);
 
+	protected virtual void OnSelectionCompleted (Document document)
+	{
+	}
+
 	protected override void OnBuildToolBar (Gtk.Box tb)
 	{
 		base.OnBuildToolBar (tb);
@@ -118,6 +122,7 @@ public abstract class SelectTool : BaseTool
 			}
 
 			handle.EndDrag ();
+			OnSelectionCompleted (document);
 		} else {
 			// If the user didn't move the mouse, they want to deselect
 

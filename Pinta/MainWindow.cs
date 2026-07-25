@@ -506,12 +506,14 @@ internal sealed class MainWindow
 		toolbox_scroll.HasFrame = false;
 		toolbox_scroll.OverlayScrolling = true;
 		toolbox_scroll.WindowPlacement = Gtk.CornerType.BottomRight;
+		toolbox_scroll.MinContentWidth = 48;
+		toolbox_scroll.MaxContentWidth = 48;
+		toolbox_scroll.PropagateNaturalWidth = true;
 
-		container.Append (toolbox_scroll);
 		PintaCore.Chrome.InitializeToolBox (toolbox);
 
 		// Dock widget
-		dock = Dock.New ();
+		dock = Dock.New (app, window_shell.Window);
 		dock.Hexpand = true;
 		dock.Halign = Gtk.Align.Fill;
 		PintaCore.Chrome.InitializeDock (dock);
@@ -520,6 +522,10 @@ internal sealed class MainWindow
 		canvas_pad = new CanvasPad ();
 		canvas_pad.Initialize (dock);
 		PintaCore.Chrome.InitializeImageTabsNotebook (canvas_pad.Notebook);
+
+		DockItem toolbox_item = DockItem.New (toolbox_scroll, "Toolbox", Resources.Icons.ToolPaintBrush);
+		toolbox_item.Label = Translations.GetString ("Tools");
+		dock.AddItem (toolbox_item, DockPlacement.Left);
 
 		// Layer pad
 		LayersPad layers_pad = new (PintaCore.Actions.Layers);
@@ -546,7 +552,10 @@ internal sealed class MainWindow
 		PintaCore.Actions.View.ToolBar.Value = PintaCore.Settings.GetSetting (SettingNames.TOOLBAR_SHOWN, true);
 		PintaCore.Actions.View.MenuBar.Value = IsUsingMenuBar ();
 		PintaCore.Actions.View.StatusBar.Value = PintaCore.Settings.GetSetting (SettingNames.STATUSBAR_SHOWN, true);
-		PintaCore.Actions.View.ToolBox.Value = PintaCore.Settings.GetSetting (SettingNames.TOOLBOX_SHOWN, true);
+		PintaCore.Actions.View.ToolBox.Value = dock.IsItemVisible ("Toolbox");
+		PintaCore.Actions.View.LayersWindow.Value = dock.IsItemVisible ("Layers");
+		PintaCore.Actions.View.HistoryWindow.Value = dock.IsItemVisible ("History");
+		PintaCore.Actions.View.ResourcesWindow.Value = dock.IsItemVisible ("Resources");
 		PintaCore.Actions.View.ImageTabs.Value = PintaCore.Settings.GetSetting (SettingNames.IMAGE_TABS_SHOWN, true);
 		PintaCore.Actions.View.ToolWindows.Value = PintaCore.Settings.GetSetting (SettingNames.TOOL_WINDOWS_SHOWN, true);
 
@@ -579,7 +588,6 @@ internal sealed class MainWindow
 		PintaCore.Settings.PutSetting (SettingNames.TOOLBAR_SHOWN, PintaCore.Actions.View.ToolBar.Value);
 		PintaCore.Settings.PutSetting (SettingNames.MENUBAR_SHOWN, PintaCore.Actions.View.MenuBar.Value);
 		PintaCore.Settings.PutSetting (SettingNames.STATUSBAR_SHOWN, PintaCore.Actions.View.StatusBar.Value);
-		PintaCore.Settings.PutSetting (SettingNames.TOOLBOX_SHOWN, PintaCore.Actions.View.ToolBox.Value);
 		PintaCore.Settings.PutSetting (SettingNames.LAST_DIALOG_DIRECTORY, PintaCore.RecentFiles.LastDialogDirectory?.GetUri () ?? "");
 
 		if (PintaCore.Tools.CurrentTool is BaseTool tool)

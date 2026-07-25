@@ -25,10 +25,6 @@
 // THE SOFTWARE.
 
 using System;
-using System.Collections.Generic;
-using System.Net.Http;
-using System.Text;
-using System.Text.Json;
 using System.Threading.Tasks;
 
 namespace Pinta.Core;
@@ -59,10 +55,8 @@ public sealed class LayerActions
 	private readonly ImageActions image;
 	private readonly AdjustmentsActions adjustments;
 	private readonly EffectsActions effects;
+	private readonly AI.CharacterBorderRecognitionService border_recognition;
 	private bool detect_border_running;
-
-	private static readonly Uri border_detection_base_uri = new ("http://127.0.0.1:8001/");
-	private static readonly HttpClient border_detection_client = new () { Timeout = TimeSpan.FromMinutes (6) };
 
 	public LayerActions (
 		ChromeManager chrome,
@@ -177,6 +171,7 @@ public sealed class LayerActions
 		this.image = image;
 		this.adjustments = adjustments;
 		this.effects = effects;
+		border_recognition = new ();
 	}
 
 	public void RegisterActions (Gtk.Application app)
@@ -349,10 +344,15 @@ public sealed class LayerActions
 		Document doc = workspace.ActiveDocument;
 		tools.Commit ();
 
-		RectangleI box =
-			doc.Selection.Visible
-			? doc.GetSelectedBounds (canvasOnly: true)
-			: new RectangleI (0, 0, doc.ImageSize.Width, doc.ImageSize.Height);
+		if (!doc.Selection.Visible) {
+			await chrome.ShowMessageDialog (
+				chrome.MainWindow,
+				Translations.GetString ("Detect Border"),
+				Translations.GetString ("Select an area before detecting the border."));
+			return;
+		}
+
+		RectangleI box = doc.GetSelectedBounds (canvasOnly: true);
 
 		if (box.IsEmpty) {
 			await chrome.ShowMessageDialog (
@@ -362,31 +362,57 @@ public sealed class LayerActions
 			return;
 		}
 
+		using Adw.MessageDialog confirmation = Adw.MessageDialog.New (
+			chrome.MainWindow,
+			Translations.GetString ("Detect Border"),
+			Translations.GetString ("Detect the border in the selected area?"));
+		const string cancel_response = "cancel";
+		const string confirm_response = "detect";
+		confirmation.AddResponse (cancel_response, Translations.GetString ("_Cancel"));
+		confirmation.AddResponse (confirm_response, Translations.GetString ("_Detect"));
+		confirmation.SetResponseAppearance (confirm_response, Adw.ResponseAppearance.Suggested);
+		confirmation.DefaultResponse = confirm_response;
+		confirmation.CloseResponse = cancel_response;
+		if (await confirmation.RunAsync () != confirm_response)
+			return;
+
 		detect_border_running = true;
 		EnableOrDisableLayerActions (null, EventArgs.Empty);
 		chrome.SetStatusBarText (Translations.GetString ("Detecting border..."));
 
 		try {
 			byte[] sourcePng = CreateDocumentPng (doc);
-			byte[] layerPng = await DetectBorderLayerAsync (sourcePng, box);
+			AI.CharacterBorderRecognitionResult result = await border_recognition.RecognizeAsync (sourcePng, box);
 
-			UserLayer layer = doc.Layers.AddNewLayer (Translations.GetString ("Detected Border"));
-			DrawPngOnLayer (layerPng, layer);
-
-			AddLayerHistoryItem hist = new (
+			CompoundHistoryItem hist = new (
 				Resources.Icons.EffectsStylizeOutline,
-				Translations.GetString ("Detect Border"),
-				layer,
-				doc.Layers.GetPosition (layer));
+				Translations.GetString ("Detect Border"));
 
-			doc.Layers.SetCurrentUserLayer (layer);
+			UserLayer detectedLayer = doc.Layers.AddNewLayer (Translations.GetString ("Detected Border"));
+			DrawPngOnLayer (result.PartPng, detectedLayer);
+			hist.Push (new AddLayerHistoryItem (
+				Resources.Icons.EffectsStylizeOutline,
+				Translations.GetString ("Detected Border"),
+				detectedLayer,
+				doc.Layers.GetPosition (detectedLayer)));
+
+			UserLayer controlLayer = doc.Layers.AddNewLayer (Translations.GetString ("Border Control"));
+			DrawRecognitionControl (result.MaskPng, controlLayer, box);
+			controlLayer.Opacity = 0.65;
+			hist.Push (new AddLayerHistoryItem (
+				Resources.Icons.EffectsStylizeOutline,
+				Translations.GetString ("Border Control"),
+				controlLayer,
+				doc.Layers.GetPosition (controlLayer)));
+
+			doc.Layers.SetCurrentUserLayer (controlLayer);
 			doc.History.PushNewItem (hist);
 			doc.Workspace.Invalidate ();
 		} catch (Exception ex) {
 			await chrome.ShowErrorDialog (
 				chrome.MainWindow,
 				Translations.GetString ("Detect Border Failed"),
-				Translations.GetString ("Start SpineSplitAnimation on port 8001, then try again."),
+				Translations.GetString ("Start the local character recognition service on port 8001, then try again."),
 				ex.ToString ());
 		} finally {
 			detect_border_running = false;
@@ -411,55 +437,30 @@ public sealed class LayerActions
 		context.DrawPixbuf (pixbuf, PointD.Zero);
 	}
 
-	private static async Task<byte[]> DetectBorderLayerAsync (byte[] sourcePng, RectangleI box)
+	private static void DrawRecognitionControl (byte[] maskPng, UserLayer layer, RectangleI box)
 	{
-		string jobId = await CreateBorderDetectionJobAsync (sourcePng);
-		string imageUrl = await CreateBorderDetectionPartAsync (jobId, box);
-		return await border_detection_client.GetByteArrayAsync (new Uri (border_detection_base_uri, imageUrl.TrimStart ('/')));
-	}
+		using GLib.Bytes bytes = GLib.Bytes.New (maskPng);
+		using Gio.MemoryInputStream stream = Gio.MemoryInputStream.NewFromBytes (bytes);
+		using GdkPixbuf.Pixbuf pixbuf = GdkPixbuf.Pixbuf.NewFromStream (stream, cancellable: null)!;
+		using Cairo.ImageSurface mask = CairoExtensions.CreateImageSurface (
+			Cairo.Format.Argb32,
+			layer.Surface.Width,
+			layer.Surface.Height);
+		using (Cairo.Context context = new (mask))
+			context.DrawPixbuf (pixbuf, PointD.Zero);
 
-	private static async Task<string> CreateBorderDetectionJobAsync (byte[] sourcePng)
-	{
-		using MultipartFormDataContent content = new ();
-		using ByteArrayContent image = new (sourcePng);
-		image.Headers.ContentType = new ("image/png");
-		content.Add (image, "file", "pinta.png");
-
-		using HttpResponseMessage response = await border_detection_client.PostAsync (new Uri (border_detection_base_uri, "api/jobs"), content);
-		using JsonDocument json = JsonDocument.Parse (await ReadApiResponseAsync (response));
-		return json.RootElement.GetProperty ("job_id").GetString () ?? throw new InvalidOperationException ("Missing job_id");
-	}
-
-	private static async Task<string> CreateBorderDetectionPartAsync (string jobId, RectangleI box)
-	{
-		var payload = new Dictionary<string, object> {
-			["name"] = "Detected Border",
-			["segment_prompt"] = "object",
-			["box"] = new[] { box.X, box.Y, box.X + box.Width, box.Y + box.Height },
-			["part_type"] = "other",
-		};
-
-		using StringContent content = new (JsonSerializer.Serialize (payload), Encoding.UTF8, "application/json");
-		using HttpResponseMessage response = await border_detection_client.PostAsync (new Uri (border_detection_base_uri, $"api/jobs/{jobId}/parts"), content);
-		using JsonDocument json = JsonDocument.Parse (await ReadApiResponseAsync (response));
-		return json.RootElement.GetProperty ("part").GetProperty ("image_url").GetString () ?? throw new InvalidOperationException ("Missing image_url");
-	}
-
-	private static async Task<string> ReadApiResponseAsync (HttpResponseMessage response)
-	{
-		string body = await response.Content.ReadAsStringAsync ();
-		if (response.IsSuccessStatusCode)
-			return body;
-
-		string detail = body;
-		try {
-			using JsonDocument json = JsonDocument.Parse (body);
-			if (json.RootElement.TryGetProperty ("detail", out JsonElement detailElement))
-				detail = detailElement.ToString ();
-		} catch (JsonException) {
+		ReadOnlySpan<ColorBgra> maskPixels = mask.GetReadOnlyPixelData ();
+		Span<ColorBgra> controlPixels = layer.Surface.GetPixelData ();
+		int width = layer.Surface.Width;
+		for (int y = box.Top; y < box.Bottom; y++) {
+			for (int x = box.Left; x < box.Right; x++) {
+				int index = y * width + x;
+				controlPixels[index] = maskPixels[index].R >= 128
+					? ColorBgra.Red
+					: ColorBgra.Yellow;
+			}
 		}
-
-		throw new InvalidOperationException ($"{(int) response.StatusCode} {response.ReasonPhrase}: {detail}");
+		layer.Surface.MarkDirty (box);
 	}
 
 	private void HandlePintaCoreActionsLayersFlipVerticalActivated (object sender, EventArgs e)

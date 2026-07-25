@@ -40,6 +40,10 @@ public sealed class ViewActions
 	public ToggleCommand ToolBar { get; }
 	public ToggleCommand ImageTabs { get; }
 	public ToggleCommand ToolWindows { get; }
+	public ToggleCommand LayersWindow { get; }
+	public ToggleCommand HistoryWindow { get; }
+	public ToggleCommand ResourcesWindow { get; }
+	public Command ResetDockLayout { get; }
 	public Command EditCanvasGrid { get; }
 	public ToggleCommand MenuBar { get; }
 	public ToggleCommand StatusBar { get; }
@@ -120,6 +124,30 @@ public sealed class ViewActions
 			null,
 			shortcuts: ["F12"]);
 
+		LayersWindow = new ToggleCommand (
+			"LayersWindow",
+			Translations.GetString ("Layers"),
+			null,
+			null);
+
+		HistoryWindow = new ToggleCommand (
+			"HistoryWindow",
+			Translations.GetString ("History"),
+			null,
+			null);
+
+		ResourcesWindow = new ToggleCommand (
+			"ResourcesWindow",
+			Translations.GetString ("Resources"),
+			null,
+			null);
+
+		ResetDockLayout = new Command (
+			"ResetDockLayout",
+			Translations.GetString ("Reset Panel Layout"),
+			null,
+			null);
+
 		EditCanvasGrid = new Command (
 			"EditCanvasGrid",
 			Translations.GetString ("Canvas Grid..."),
@@ -174,6 +202,9 @@ public sealed class ViewActions
 		ToolBar.Value = true;
 		ImageTabs.Value = true;
 		ToolWindows.Value = true;
+		LayersWindow.Value = true;
+		HistoryWindow.Value = true;
+		ResourcesWindow.Value = true;
 		StatusBar.Value = true;
 		ToolBox.Value = true;
 
@@ -237,6 +268,10 @@ public sealed class ViewActions
 		show_hide_menu.AppendItem (ToolBox.CreateMenuItem ());
 		show_hide_menu.AppendItem (ImageTabs.CreateMenuItem ());
 		show_hide_menu.AppendItem (ToolWindows.CreateMenuItem ());
+		show_hide_menu.AppendItem (LayersWindow.CreateMenuItem ());
+		show_hide_menu.AppendItem (HistoryWindow.CreateMenuItem ());
+		show_hide_menu.AppendItem (ResourcesWindow.CreateMenuItem ());
+		show_hide_menu.AppendItem (ResetDockLayout.CreateMenuItem ());
 		if (mainToolbarPresent) show_hide_menu.AppendItem (ToolBar.CreateMenuItem ());
 
 		Gio.Menu show_hide_section = Gio.Menu.New ();
@@ -272,6 +307,10 @@ public sealed class ViewActions
 			ToolBox,
 			ImageTabs,
 			ToolWindows,
+			LayersWindow,
+			HistoryWindow,
+			ResourcesWindow,
+			ResetDockLayout,
 		]);
 
 		// TODO: Make `Command`s

@@ -2120,6 +2120,10 @@ msgstr "刷新"
 msgid "Released under the MIT X11 License."
 msgstr "以 MIT X11 许可证发行。"
 
+#: ../Pinta.Tools/Tools/DetectBorderTool.cs:113
+msgid "Recognize"
+msgstr "识别"
+
 #: ../Pinta.Effects/Effects/ReliefEffect.cs:40
 msgid "Relief"
 msgstr "醒目"

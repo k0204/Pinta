@@ -43,15 +43,23 @@ internal sealed class ToolBoxToggledAction : IActionHandler
 	void IActionHandler.Initialize ()
 	{
 		view.ToolBox.Toggled += Activated;
+		((Docking.Dock) chrome.Dock).ItemVisibilityChanged += HandleVisibilityChanged;
 	}
 
 	void IActionHandler.Uninitialize ()
 	{
 		view.ToolBox.Toggled -= Activated;
+		((Docking.Dock) chrome.Dock).ItemVisibilityChanged -= HandleVisibilityChanged;
 	}
 
 	private void Activated (bool value, bool interactive)
 	{
-		chrome.ToolBox.Visible = value;
+		((Docking.Dock) chrome.Dock).SetItemVisible ("Toolbox", value);
+	}
+
+	private void HandleVisibilityChanged (object? sender, Docking.DockItemVisibilityChangedEventArgs e)
+	{
+		if (e.ItemName == "Toolbox")
+			view.ToolBox.Value = e.Visible;
 	}
 }

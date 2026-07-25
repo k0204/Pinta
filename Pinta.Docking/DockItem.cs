@@ -2,7 +2,7 @@
 // Author:
 //       Cameron White <cameronwhite91@gmail.com>
 //
-// Copyright (c) 2020 Cameron White
+// Copyright (c) 2020 Jonathan Pobst
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -23,81 +23,41 @@
 // THE SOFTWARE.
 
 using System;
-using System.Diagnostics.CodeAnalysis;
 using Pinta.Core;
-using Pinta.Resources;
 
 namespace Pinta.Docking;
 
 /// <summary>
-/// A dock item contains a single child widget, and can be docked at
-/// various locations.
+/// Content hosted by the dock layout. A dock item has one stable identity and can
+/// move between tab groups, split regions, and floating windows.
 /// </summary>
 [GObject.Subclass<Gtk.Box>]
 public sealed partial class DockItem
 {
-	private Gtk.Label label_widget;
-	private Gtk.Stack button_stack;
-	private Gtk.Button minimize_button;
-	private Gtk.Button maximize_button;
+	private string label = string.Empty;
 
-	/// <summary>
-	/// Unique identifier for the dock item. Used e.g. when saving the dock layout to disk.
-	/// </summary>
 	public string UniqueName { get; private set; } = string.Empty;
-
-	/// <summary>
-	/// Icon name for the dock item, used when minimized.
-	/// </summary>
 	public string IconName { get; private set; } = string.Empty;
+	public bool Locked { get; private set; }
+	internal DockPlacement DefaultPlacement { get; set; }
 
-	/// <summary>
-	/// Visible label for the dock item.
-	/// </summary>
 	public string Label {
-		get => label_widget.GetLabel ();
-		set => label_widget.SetLabel (value);
+		get => label;
+		set {
+			if (label == value)
+				return;
+			label = value;
+			LabelChanged?.Invoke (this, EventArgs.Empty);
+		}
 	}
 
-	/// <summary>
-	/// Triggered when the minimize button is pressed.
-	/// </summary>
-	public event EventHandler? MinimizeClicked;
+	public event EventHandler? LabelChanged;
 
-	/// <summary>
-	/// Triggered when the maximize button is pressed.
-	/// </summary>
-	public event EventHandler? MaximizeClicked;
-
-	[MemberNotNull (nameof (label_widget))]
-	[MemberNotNull (nameof (button_stack))]
-	[MemberNotNull (nameof (minimize_button))]
-	[MemberNotNull (nameof (maximize_button))]
 	partial void Initialize ()
 	{
-		Gtk.Button minimizeButton = CreateMinimizeButton ();
-		Gtk.Button maximizeButton = CreateMaximizeButton ();
-
-		Gtk.Stack buttonStack = Gtk.Stack.New ();
-		buttonStack.AddChild (minimizeButton);
-		buttonStack.AddChild (maximizeButton);
-
-		Gtk.Label labelWidget = CreateLabelWidget ();
-
-		// --- Initialization (Gtk.Box)
-
 		SetOrientation (Gtk.Orientation.Vertical);
-
-		// TODO - support dragging into floating panel?
-
-		// --- References to keep
-
-		minimize_button = minimizeButton;
-		maximize_button = maximizeButton;
-
-		button_stack = buttonStack;
-
-		label_widget = labelWidget;
+		Hexpand = true;
+		Vexpand = true;
 	}
 
 	public static DockItem New (
@@ -107,91 +67,23 @@ public sealed partial class DockItem
 		bool locked = false)
 	{
 		DockItem item = NewWithProperties ([]);
-
 		item.UniqueName = uniqueName;
 		item.IconName = iconName;
+		item.Locked = locked;
 
-		if (!locked) {
-			item.minimize_button.OnClicked += (o, args) => item.Minimize ();
-			item.maximize_button.OnClicked += (o, args) => item.Maximize ();
-
-			const int padding = 8;
-			item.label_widget.MarginStart = item.label_widget.MarginEnd = padding;
-			item.label_widget.Hexpand = true;
-			item.label_widget.Halign = Gtk.Align.Start;
-
-			Gtk.Box titleLayout = GtkExtensions.BoxHorizontal ([
-				item.label_widget,
-				item.button_stack]);
-
-			item.Append (titleLayout);
-		}
-
-		child.Valign = Gtk.Align.Fill;
+		child.Hexpand = true;
 		child.Vexpand = true;
+		child.Halign = Gtk.Align.Fill;
+		child.Valign = Gtk.Align.Fill;
 		item.Append (child);
-
 		return item;
 	}
 
-	private Gtk.Button CreateMinimizeButton ()
-	{
-		Gtk.Button result = Gtk.Button.NewFromIconName (StandardIcons.WindowMinimize);
-		result.AddCssClass (AdwaitaStyles.Flat);
-		return result;
-	}
-
-	private Gtk.Button CreateMaximizeButton ()
-	{
-		Gtk.Button result = Gtk.Button.NewFromIconName (StandardIcons.WindowMaximize);
-		result.AddCssClass (AdwaitaStyles.Flat);
-		return result;
-	}
-
-	private static Gtk.Label CreateLabelWidget ()
-	{
-		const int padding = 8;
-
-		Gtk.Label result = Gtk.Label.New (null);
-		result.MarginStart = result.MarginEnd = padding;
-		result.Hexpand = true;
-		result.Halign = Gtk.Align.Start;
-
-		return result;
-	}
-
-	/// <summary>
-	/// Create a toolbar and add it to the bottom of the dock item.
-	/// </summary>
 	public Gtk.Box AddToolBar ()
 	{
 		Gtk.Box toolbar = GtkExtensions.CreateToolBar ();
 		toolbar.Spacing = -4;
 		Append (toolbar);
 		return toolbar;
-	}
-
-	/// <summary>
-	/// Minimize the dock item.
-	/// </summary>
-	public void Minimize ()
-	{
-		if (button_stack.VisibleChild == maximize_button)
-			return;
-
-		button_stack.VisibleChild = maximize_button;
-		MinimizeClicked?.Invoke (this, new EventArgs ());
-	}
-
-	/// <summary>
-	/// Maximize the dock item.
-	/// </summary>
-	public void Maximize ()
-	{
-		if (button_stack.VisibleChild == minimize_button)
-			return;
-
-		button_stack.VisibleChild = minimize_button;
-		MaximizeClicked?.Invoke (this, new EventArgs ());
 	}
 }

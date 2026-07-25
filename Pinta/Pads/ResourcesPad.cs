@@ -1,7 +1,6 @@
 using System;
 using System.IO;
 using System.Linq;
-using System.Text;
 using Pinta.Core;
 using Pinta.Docking;
 
@@ -130,9 +129,7 @@ internal sealed class ResourcesPad : IDockPad
 		if (!isDirectory) {
 			Gtk.DragSource dragSource = Gtk.DragSource.New ();
 			dragSource.Actions = Gdk.DragAction.Copy;
-			dragSource.OnPrepare += (_, _) => Gdk.ContentProvider.NewForBytes (
-				"text/uri-list",
-				GLib.Bytes.New (Encoding.UTF8.GetBytes ($"{Gio.FileHelper.NewForPath (path).GetUri ()}\r\n")));
+			dragSource.OnPrepare += (_, _) => CreateFileListProvider (path);
 			button.AddController (dragSource);
 		}
 		button.OnClicked += (_, _) => {
@@ -144,6 +141,14 @@ internal sealed class ResourcesPad : IDockPad
 			}
 		};
 		return button;
+	}
+
+	private static Gdk.ContentProvider CreateFileListProvider (string path)
+	{
+		using Gdk.FileList files = Gdk.FileList.NewFromArray ([Gio.FileHelper.NewForPath (path)], 1);
+		using GObject.Value value = new (Gdk.FileList.GetGType ());
+		value.SetBoxed (files.Handle.DangerousGetHandle ());
+		return Gdk.ContentProvider.NewForValue (value);
 	}
 
 	private static void AddReferenceLayer (string path)

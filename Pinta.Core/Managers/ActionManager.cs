@@ -118,8 +118,6 @@ public sealed class ActionManager
 		toolbar.Append (GtkExtensions.CreateToolBarSeparator ());
 		toolbar.Append (Image.CropToSelection.CreateToolBarItem ());
 		toolbar.Append (Edit.Deselect.CreateToolBarItem ());
-		toolbar.Append (GtkExtensions.CreateToolBarSeparator ());
-		toolbar.Append (Layers.DetectBorder.CreateToolBarItem ());
 	}
 
 	public void CreateHeaderToolBar (Adw.HeaderBar header)
@@ -140,8 +138,6 @@ public sealed class ActionManager
 		header.PackStart (GtkExtensions.CreateToolBarSeparator ());
 		header.PackStart (Image.CropToSelection.CreateToolBarItem ());
 		header.PackStart (Edit.Deselect.CreateToolBarItem ());
-		header.PackStart (GtkExtensions.CreateToolBarSeparator ());
-		header.PackStart (Layers.DetectBorder.CreateToolBarItem ());
 	}
 
 	public void CreateStatusBar (Gtk.Box statusbar, WorkspaceManager workspaceManager)

@@ -52,6 +52,7 @@ public sealed class CoreToolsExtension : IExtension
 
 		PintaCore.Tools.AddTool (new MoveSelectedTool (services));
 		PintaCore.Tools.AddTool (new MoveSelectionTool (services));
+		PintaCore.Tools.AddTool (new DetectBorderTool (services));
 		PintaCore.Tools.AddTool (new ZoomTool (services));
 		PintaCore.Tools.AddTool (new PanTool (services));
 		PintaCore.Tools.AddTool (new RectangleSelectTool (services));
@@ -84,6 +85,7 @@ public sealed class CoreToolsExtension : IExtension
 
 		PintaCore.Tools.RemoveInstanceOfTool<MoveSelectedTool> ();
 		PintaCore.Tools.RemoveInstanceOfTool<MoveSelectionTool> ();
+		PintaCore.Tools.RemoveInstanceOfTool<DetectBorderTool> ();
 		PintaCore.Tools.RemoveInstanceOfTool<ZoomTool> ();
 		PintaCore.Tools.RemoveInstanceOfTool<PanTool> ();
 		PintaCore.Tools.RemoveInstanceOfTool<RectangleSelectTool> ();
