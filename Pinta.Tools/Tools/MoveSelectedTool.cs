@@ -58,17 +58,19 @@ public sealed class MoveSelectedTool : BaseTransformTool
 	public override int Priority => 5;
 
 	protected override RectangleD GetSourceRectangle (Document document)
-		=> document.Selection.GetBounds ();
+		=> document.Selection.Visible
+		? document.Selection.GetBounds ()
+		: Utility.GetAlphaBounds (document.Layers.CurrentUserLayer.Surface).ToDouble ();
+
+	protected override bool ShouldShowTransformHandle (Document document)
+		=> TransformControlsVisible && document.Layers.CurrentUserLayer.IsEditable;
 
 	protected override void OnStartTransform (Document document)
 	{
 		base.OnStartTransform (document);
 
-		// If there is no selection, select the whole image.
-		if (document.Selection.SelectionPolygons.Count == 0) {
-			RectangleD imageBounds = new (0, 0, document.ImageSize.Width, document.ImageSize.Height);
-			document.Selection.CreateRectangleSelection (imageBounds);
-		}
+		if (!document.Selection.Visible)
+			document.Selection.CreateRectangleSelection (Utility.GetAlphaBounds (document.Layers.CurrentUserLayer.Surface).ToDouble ());
 
 		original_selection = document.Selection.Clone ();
 		original_transform.InitMatrix (document.Layers.SelectionLayer.Transform);

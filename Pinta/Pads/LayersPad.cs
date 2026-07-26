@@ -53,6 +53,7 @@ internal sealed class LayersPad : IDockPad
 		Gio.Menu flip_section = Gio.Menu.New ();
 		flip_section.AppendItem (layer_actions.FlipHorizontal.CreateMenuItem ());
 		flip_section.AppendItem (layer_actions.FlipVertical.CreateMenuItem ());
+		flip_section.AppendItem (layer_actions.ResizeLayer.CreateMenuItem ());
 		flip_section.AppendItem (layer_actions.RotateZoom.CreateMenuItem ());
 
 		Gio.Menu prop_section = Gio.Menu.New ();

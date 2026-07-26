@@ -44,6 +44,7 @@ public sealed class LayerActions
 	public Command Cutout { get; }
 	public Command FlipHorizontal { get; }
 	public Command FlipVertical { get; }
+	public Command ResizeLayer { get; }
 	public Command RotateZoom { get; }
 	public Command MoveLayerUp { get; }
 	public Command MoveLayerDown { get; }
@@ -144,6 +145,12 @@ public sealed class LayerActions
 			null,
 			Resources.Icons.LayerFlipVertical);
 
+		ResizeLayer = new Command (
+			"resizelayer",
+			Translations.GetString ("Resize Layer..."),
+			null,
+			Resources.Icons.ImageResize);
+
 		RotateZoom = new Command (
 			"RotateZoom",
 			Translations.GetString ("Rotate / Zoom Layer..."),
@@ -202,6 +209,7 @@ public sealed class LayerActions
 
 			FlipHorizontal,
 			FlipVertical,
+			ResizeLayer,
 			RotateZoom,
 
 			Properties,
@@ -253,6 +261,7 @@ public sealed class LayerActions
 		MoveLayerUp.Sensitive = activeDoc?.Layers.CanMoveCurrentLayerUp () ?? false;
 		FlipHorizontal.Sensitive = currentEditable;
 		FlipVertical.Sensitive = currentEditable;
+		ResizeLayer.Sensitive = currentEditable;
 		RotateZoom.Sensitive = currentEditable;
 		adjustments.ToggleActionsSensitive (currentEditable);
 		effects.ToggleActionsSensitive (currentEditable);
@@ -287,21 +296,22 @@ public sealed class LayerActions
 
 		try {
 			byte[] sourcePng = CreateLayerPng (doc, sourceLayer);
-			string size = GetGptImageRequestSize (doc.ImageSize);
 			string debugDir = CreateCutoutDebugDirectory ();
+			SaveCutoutDebugLog (debugDir, $"AI cutout client: document_size={doc.ImageSize.Width}x{doc.ImageSize.Height}, source_layer={sourceLayer.Name}, source_bytes={sourcePng.Length}");
 			SaveCutoutDebugPng (debugDir, "source.png", sourcePng);
-			AI.BackgroundCutoutResult result = await background_cutout.GenerateAsync (
+			AI.BackgroundCutoutResult result = await GenerateCutoutWithRetryAsync (
 				sourcePng,
-				size,
+				doc.ImageSize,
 				SetCutoutProgress,
 				(fileName, png) => SaveCutoutDebugPng (debugDir, fileName, png),
+				message => SaveCutoutDebugLog (debugDir, message),
 				cts.Token);
 
 			SetCutoutProgress (Translations.GetString ("Creating transparent layer..."), 0.85);
 			using Cairo.ImageSurface white = LoadPngAsSurface (result.WhiteBackgroundPng, doc.ImageSize);
 			using Cairo.ImageSurface black = LoadPngAsSurface (result.BlackBackgroundPng, doc.ImageSize);
 			UserLayer cutoutLayer = doc.Layers.AddNewLayer (Translations.GetString ("Transparent Cutout"));
-			CreateTransparentCutout (white, black, cutoutLayer.Surface);
+			CreateTransparentCutout (sourceLayer.Surface, white, black, cutoutLayer.Surface);
 			SaveCutoutDebugSurface (debugDir, "transparent-cutout.png", cutoutLayer.Surface);
 			Console.WriteLine ($"AI cutout debug images saved: {debugDir}");
 
@@ -344,6 +354,54 @@ public sealed class LayerActions
 			progress.Progress = Math.Clamp (value, 0.0, 1.0);
 			chrome.SetStatusBarText (text);
 		}
+	}
+
+	private async Task<AI.BackgroundCutoutResult> GenerateCutoutWithRetryAsync (
+		byte[] sourcePng,
+		Size targetSize,
+		Action<string, double> reportProgress,
+		Action<string, byte[]> saveResult,
+		Action<string> log,
+		CancellationToken cancellationToken)
+	{
+		for (int attempt = 1; ; attempt++) {
+			try {
+				if (attempt > 1)
+					reportProgress (Translations.GetString ("Retrying cutout..."), 0.1);
+
+				return await background_cutout.GenerateAsync (
+					sourcePng,
+					targetSize,
+					reportProgress,
+					saveResult,
+					log,
+					cancellationToken);
+			} catch (Exception ex) when (ex is not OperationCanceledException) {
+				log ($"AI cutout request failed: attempt={attempt}, error={ex}");
+				if (!await ConfirmCutoutRetryAsync (ex))
+					throw new OperationCanceledException (cancellationToken);
+
+				log ($"AI cutout retry confirmed: next_attempt={attempt + 1}, error={ex.Message}");
+			}
+		}
+	}
+
+	private async Task<bool> ConfirmCutoutRetryAsync (Exception ex)
+	{
+		Console.Error.WriteLine ("Pinta: Cutout request failed\n{0}", ex);
+
+		using Adw.MessageDialog confirmation = Adw.MessageDialog.New (
+			chrome.MainWindow,
+			Translations.GetString ("Cutout Failed"),
+			Translations.GetString ("The image request failed. Try the request again?"));
+		const string cancel_response = "cancel";
+		const string retry_response = "retry";
+		confirmation.AddResponse (cancel_response, Translations.GetString ("_Cancel"));
+		confirmation.AddResponse (retry_response, Translations.GetString ("_Retry"));
+		confirmation.SetResponseAppearance (retry_response, Adw.ResponseAppearance.Suggested);
+		confirmation.DefaultResponse = retry_response;
+		confirmation.CloseResponse = cancel_response;
+		return await confirmation.RunAsync () == retry_response;
 	}
 
 	private void HandleUnlockReferenceActivated (object sender, EventArgs e)
@@ -564,6 +622,17 @@ public sealed class LayerActions
 		}
 	}
 
+	private static void SaveCutoutDebugLog (string directory, string message)
+	{
+		try {
+			File.AppendAllText (
+				Path.Combine (directory, "log.txt"),
+				$"{DateTime.Now:O} {message}{Environment.NewLine}");
+		} catch (Exception ex) {
+			Console.WriteLine ($"Warning: failed to save AI cutout debug log: {ex.Message}");
+		}
+	}
+
 	private static void SaveCutoutDebugSurface (string directory, string fileName, Cairo.ImageSurface surface)
 	{
 		try {
@@ -572,14 +641,6 @@ public sealed class LayerActions
 		} catch (Exception ex) {
 			Console.WriteLine ($"Warning: failed to save AI cutout debug image '{fileName}': {ex.Message}");
 		}
-	}
-
-	private static string GetGptImageRequestSize (Size imageSize)
-	{
-		if (imageSize.Width <= 0 || imageSize.Height <= 0)
-			return "1024x1024";
-
-		return $"{imageSize.Width}x{imageSize.Height}";
 	}
 
 	private static Cairo.ImageSurface LoadPngAsSurface (byte[] png, Size targetSize)
@@ -602,32 +663,34 @@ public sealed class LayerActions
 	}
 
 	private static void CreateTransparentCutout (
+		Cairo.ImageSurface source,
 		Cairo.ImageSurface white,
 		Cairo.ImageSurface black,
 		Cairo.ImageSurface destination)
 	{
+		const int alpha_noise_floor = 24;
+
+		ReadOnlySpan<ColorBgra> sourcePixels = source.GetReadOnlyPixelData ();
 		ReadOnlySpan<ColorBgra> whitePixels = white.GetReadOnlyPixelData ();
 		ReadOnlySpan<ColorBgra> blackPixels = black.GetReadOnlyPixelData ();
 		Span<ColorBgra> destinationPixels = destination.GetPixelData ();
 
 		for (int i = 0; i < destinationPixels.Length; i++) {
+			ColorBgra s = sourcePixels[i];
 			ColorBgra w = whitePixels[i];
 			ColorBgra b = blackPixels[i];
 
-			int matte = (
-				Math.Clamp (w.R - b.R, 0, 255) +
-				Math.Clamp (w.G - b.G, 0, 255) +
-				Math.Clamp (w.B - b.B, 0, 255)) / 3;
-			int alpha = 255 - matte;
+			int matte = Math.Max (
+				Math.Clamp (w.R - b.R, 0, 255),
+				Math.Max (
+					Math.Clamp (w.G - b.G, 0, 255),
+					Math.Clamp (w.B - b.B, 0, 255)));
+			int alpha = Math.Min (255 - matte, s.A);
 
 			destinationPixels[i] =
-				alpha <= 0
+				alpha <= alpha_noise_floor || s.A == 0
 				? ColorBgra.Transparent
-				: ColorBgra.FromBgraClamped (
-					b.B * 255 / alpha,
-					b.G * 255 / alpha,
-					b.R * 255 / alpha,
-					alpha);
+				: s.NewAlpha ((byte) alpha);
 		}
 
 		destination.MarkDirty ();

@@ -34,4 +34,9 @@ internal static class SettingNames
 	internal const string RESIZE_IMAGE_WIDTH = "resize-image-width";
 	internal const string RESIZE_IMAGE_HEIGHT = "resize-image-height";
 	internal const string RESIZE_IMAGE_RESAMPLING = "resize-image-resampling";
+
+	internal const string RESIZE_LAYER_MAINTAIN_ASPECT = "resize-layer-maintain-aspect";
+	internal const string RESIZE_LAYER_USE_PERCENTAGE = "resize-layer-use-percentage";
+	internal const string RESIZE_LAYER_PERCENTAGE = "resize-layer-percentage";
+	internal const string RESIZE_LAYER_RESAMPLING = "resize-layer-resampling";
 }

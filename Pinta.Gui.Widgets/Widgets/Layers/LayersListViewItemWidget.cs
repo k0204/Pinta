@@ -432,6 +432,7 @@ public sealed partial class LayersListViewItemWidget
 		Gio.Menu flipSection = Gio.Menu.New ();
 		flipSection.AppendItem (actions.FlipHorizontal.CreateMenuItem ());
 		flipSection.AppendItem (actions.FlipVertical.CreateMenuItem ());
+		flipSection.AppendItem (actions.ResizeLayer.CreateMenuItem ());
 		flipSection.AppendItem (actions.RotateZoom.CreateMenuItem ());
 
 		Gio.Menu propertiesSection = Gio.Menu.New ();

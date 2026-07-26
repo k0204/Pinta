@@ -59,6 +59,9 @@ public class RectangleHandle : IToolHandle
 
 	public void Draw (Gtk.Snapshot snapshot)
 	{
+		if (DrawOutline)
+			DrawRectangleOutline (snapshot);
+
 		foreach (MoveHandle handle in handles.Values)
 			handle.Draw (snapshot);
 	}
@@ -70,6 +73,7 @@ public class RectangleHandle : IToolHandle
 	/// clamping to an empty rectangle.
 	/// </summary>
 	public bool InvertIfNegative { get; init; }
+	public bool DrawOutline { get; init; }
 
 	/// <summary>
 	/// Whether the user is currently dragging a corner of the rectangle.
@@ -183,6 +187,24 @@ public class RectangleHandle : IToolHandle
 		handles[HandlePoint.Up].CanvasPosition = new PointD (center.X, start_pt.Y);
 		handles[HandlePoint.Right].CanvasPosition = new PointD (end_pt.X, center.Y);
 		handles[HandlePoint.Down].CanvasPosition = new PointD (center.X, end_pt.Y);
+	}
+
+	private void DrawRectangleOutline (Gtk.Snapshot snapshot)
+	{
+		RectangleD rect = Rectangle;
+		PointD upperLeft = workspace.CanvasPointToView (rect.Location ());
+		PointD lowerRight = workspace.CanvasPointToView (rect.EndLocation ());
+
+		Gsk.PathBuilder pathBuilder = Gsk.PathBuilder.New ();
+		pathBuilder.MoveTo ((float) upperLeft.X, (float) upperLeft.Y);
+		pathBuilder.LineTo ((float) lowerRight.X, (float) upperLeft.Y);
+		pathBuilder.LineTo ((float) lowerRight.X, (float) lowerRight.Y);
+		pathBuilder.LineTo ((float) upperLeft.X, (float) lowerRight.Y);
+		pathBuilder.Close ();
+
+		Gsk.Stroke stroke = Gsk.Stroke.New (lineWidth: 1.0f);
+		Gdk.RGBA color = new () { Red = 1, Green = 1, Blue = 1, Alpha = 0.8f };
+		snapshot.AppendStroke (pathBuilder.ToPath (), stroke, color);
 	}
 
 	private void UpdateHandleUnderPoint (PointD viewPos)

@@ -438,6 +438,7 @@ internal sealed class MainWindow
 		if (window_shell.HeaderBar is not null) {
 			var headerBar = window_shell.HeaderBar;
 			headerBar.PackEnd (CreateAiAccountButton ());
+			headerBar.PackEnd (CreateAiRequestSettingsButton ());
 
 			headerBar.PackEnd (GtkExtensions.CreateMenuButton (
 				this.menu_bar,
@@ -469,7 +470,33 @@ internal sealed class MainWindow
 			var main_toolbar = window_shell.CreateToolBar ("main_toolbar");
 			PintaCore.Actions.CreateToolBar (main_toolbar);
 			main_toolbar.Append (GtkExtensions.CreateToolBarSeparator ());
+			main_toolbar.Append (CreateAiRequestSettingsButton ());
 			main_toolbar.Append (CreateAiAccountButton ());
+		}
+	}
+
+	private static Gtk.Button CreateAiRequestSettingsButton ()
+	{
+		Gtk.Button button = Gtk.Button.NewFromIconName ("preferences-system-symbolic");
+		button.TooltipText = Translations.GetString ("AI Request Settings");
+		button.OnClicked += async (_, _) => await ShowAiRequestSettingsAsync ();
+		return button;
+	}
+
+	private static async Task ShowAiRequestSettingsAsync ()
+	{
+		using AiRequestSettingsDialog dialog = AiRequestSettingsDialog.New (
+			PintaCore.Chrome.MainWindow,
+			PintaCore.Settings);
+
+		try {
+			if (await dialog.RunAsync () != Gtk.ResponseType.Ok)
+				return;
+
+			dialog.Save (PintaCore.Settings);
+			PintaCore.Settings.DoSaveSettingsBeforeQuit ();
+		} finally {
+			dialog.Destroy ();
 		}
 	}
 

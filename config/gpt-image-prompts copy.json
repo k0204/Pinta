@@ -1,0 +1,4 @@
+{
+  "whiteBackgroundPrompt": "Edit only the background. Replace every background area, cast shadow, reflection, halo, watermark, and unrelated scenery with pure white (#FFFFFF). Preserve the foreground subject pixels as much as possible: same canvas, position, scale, shape, colors, lighting, edges, and details. Do not crop, resize, repaint, stylize, recolor, or move the subject.",
+  "blackBackgroundPrompt": "Starting from this white-background image, edit only the pure white background to pure black (#000000). Preserve the foreground subject pixels as much as possible: same canvas, position, scale, shape, colors, lighting, edges, and details. Do not crop, resize, repaint, stylize, recolor, or move the subject."
+}

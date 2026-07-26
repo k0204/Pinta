@@ -134,7 +134,8 @@ All requests in this section include `Authorization: Bearer <token>`.
   - `file`: PNG image, sent as `pinta.png`
   - `size`: Agnes image size, one of `1K`, `2K`, `3K`, or `4K`
   - `ratio`: Agnes image ratio, one of `1:1`, `3:4`, `4:3`, `16:9`, `9:16`, `2:3`, `3:2`, or `21:9`
-- Response JSON includes `operation`, `prompt`, `size`, `ratio`, `resolution`, `result_url`, `result_b64_json`, and `agnes_response`. The server requests `b64_json` from Agnes for this endpoint so Pinta does not need to download private external image URLs.
+- Response: `202 Accepted` with an image job object. Poll `GET /api/images/jobs/{id}` and read `GET /api/images/jobs/{id}/result` when completed.
+- Result JSON includes `operation`, `prompt`, `size`, `ratio`, `resolution`, `result_url`, `result_b64_json`, and `agnes_response`. The server requests `b64_json` from Agnes for this endpoint so Pinta does not need to download private external image URLs.
 
 ### Generate Black Background
 
@@ -145,7 +146,8 @@ All requests in this section include `Authorization: Bearer <token>`.
   - `file`: PNG image, sent as `pinta.png`
   - `size`: Agnes image size, one of `1K`, `2K`, `3K`, or `4K`
   - `ratio`: Agnes image ratio, one of `1:1`, `3:4`, `4:3`, `16:9`, `9:16`, `2:3`, `3:2`, or `21:9`
-- Response JSON includes `operation`, `prompt`, `size`, `ratio`, `resolution`, `result_url`, `result_b64_json`, and `agnes_response`. The server requests `b64_json` from Agnes for this endpoint so Pinta does not need to download private external image URLs.
+- Response: `202 Accepted` with an image job object. Poll `GET /api/images/jobs/{id}` and read `GET /api/images/jobs/{id}/result` when completed.
+- Result JSON includes `operation`, `prompt`, `size`, `ratio`, `resolution`, `result_url`, `result_b64_json`, and `agnes_response`. The server requests `b64_json` from Agnes for this endpoint so Pinta does not need to download private external image URLs.
 
 ### Generate Validated Cutout Background Pair
 
@@ -156,14 +158,16 @@ All requests in this section include `Authorization: Bearer <token>`.
   - `file`: PNG image, sent as `pinta.png`
   - `size`: Agnes image size, one of `1K`, `2K`, `3K`, or `4K`
   - `ratio`: Agnes image ratio, one of `1:1`, `3:4`, `4:3`, `16:9`, `9:16`, `2:3`, `3:2`, or `21:9`
-- Response JSON includes `white_result_b64_json`, `black_result_b64_json`, `prompt`, `size`, `ratio`, `resolution`, and `agnes_response`.
+- Response: `202 Accepted` with an image job object containing `id`, `status`, `operation`, and job metadata.
+- Client behavior: polls `GET /api/images/jobs/{id}` while status is `queued` or `processing`. When status is `completed`, it reads `GET /api/images/jobs/{id}/result`.
+- Result JSON includes `white_result_b64_json`, `black_result_b64_json`, `prompt`, `size`, `ratio`, `resolution`, and `agnes_response`.
 - Server behavior: generates the white-background image and black-background image from the original upload, then returns both images without pixel comparison.
 
 ## GPT Image Background Cutout
 
 All requests in this section include `Authorization: Bearer <token>`.
 
-The client stores background prompts in `config/gpt-image-prompts.json` and rereads the file immediately before each white- or black-background request, so prompt changes do not require restarting Pinta.
+The client stores background prompts in `config/gpt-image-prompts.json` and reads the file at the start of each cutout run, so prompt changes apply to the next cutout.
 
 ### Generate Image
 
@@ -173,6 +177,7 @@ The client stores background prompts in `config/gpt-image-prompts.json` and rere
 - Form fields:
   - `file`: PNG image, sent as `pinta.png`
   - `size`: concrete output size, for example `1024x1024`
+  - `provider`: GPT image provider ID, currently `zzswitch` or `lukyface`; if omitted, the server uses its configured default provider
   - `prompt`: image prompt text
 - Response: `202 Accepted` with an image job object containing `id`, `status`, `operation`, and job metadata.
 - Client behavior: polls `GET /api/images/jobs/{id}` while status is `queued` or `processing`. When status is `completed`, it reads `GET /api/images/jobs/{id}/result`.
@@ -181,7 +186,9 @@ The client stores background prompts in `config/gpt-image-prompts.json` and rere
 
 ### Client Cutout Flow
 
-- The layer row `抠图` button renders the selected layer to PNG.
-- The client sends that PNG with the white prompt to `/api/gpt-images` first and saves the returned image.
-- The client then sends the white image with the black prompt to `/api/gpt-images`.
-- The client diffs the saved white and black results to create a new transparent layer after both images are available.
+- The layer row cutout button renders the selected layer to PNG.
+- The AI Request Settings dialog selects `agnes` or `gpt-image`; GPT Image also selects `zzswitch` or `lukyface` as the request `provider`.
+- With Agnes selected, the client sends one request to `/api/agnes-images/cutout-backgrounds` using `2K` and the closest supported aspect ratio.
+- With GPT Image selected, the client sends the source PNG with the white prompt to `/api/gpt-images`, then sends the white result with the black prompt to the same endpoint. Both requests include the selected `provider`.
+- The client resizes returned images to the document size when needed.
+- The client diffs the saved white and black results for alpha, applies that alpha to the original layer pixels, and creates a new transparent layer after both images are available. AI output is not used for foreground color.

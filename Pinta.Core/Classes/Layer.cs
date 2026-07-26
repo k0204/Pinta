@@ -178,6 +178,15 @@ public class Layer : ObservableObject
 		Size old_size,
 		Size new_size)
 	{
+		ApplyTransform (xform, old_size, new_size, null);
+	}
+
+	public virtual void ApplyTransform (
+		Matrix xform,
+		Size old_size,
+		Size new_size,
+		ResamplingMode? resamplingMode)
+	{
 		ImageSurface dest = CairoExtensions.CreateImageSurface (
 			Format.Argb32,
 			new_size.Width,
@@ -186,7 +195,10 @@ public class Layer : ObservableObject
 		using Context g = new (dest);
 
 		g.Transform (xform);
-		g.SetSourceSurface (Surface, 0, 0);
+		if (resamplingMode.HasValue)
+			g.SetSourceSurface (Surface, resamplingMode.Value);
+		else
+			g.SetSourceSurface (Surface, 0, 0);
 
 		g.Paint ();
 

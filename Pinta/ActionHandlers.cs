@@ -76,6 +76,7 @@ public sealed class ActionHandlers
 
 			// Layers
 			new LayerPropertiesAction (chrome, actions.Layers, workspace),
+			new ResizeLayerAction (actions.Layers, chrome, workspace, settings, tools),
 			new RotateZoomLayerAction (chrome, actions.Layers, workspace, tools),
 
 			// View
@@ -173,6 +174,7 @@ public sealed class ActionHandlers
 		PintaCore.Actions.Layers.Cutout.Sensitive = editableLayer;
 		PintaCore.Actions.Layers.FlipHorizontal.Sensitive = editableLayer;
 		PintaCore.Actions.Layers.FlipVertical.Sensitive = editableLayer;
+		PintaCore.Actions.Layers.ResizeLayer.Sensitive = editableLayer;
 		PintaCore.Actions.Layers.RotateZoom.Sensitive = editableLayer;
 		PintaCore.Actions.Layers.MoveLayerUp.Sensitive = enable;
 		PintaCore.Actions.Layers.MoveLayerDown.Sensitive = enable;

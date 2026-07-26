@@ -493,4 +493,32 @@ public static class Utility
 
 		return result;
 	}
+
+	public static RectangleI GetAlphaBounds (ImageSurface image)
+	{
+		ReadOnlySpan<ColorBgra> pixels = image.GetReadOnlyPixelData ();
+		int left = image.Width;
+		int top = image.Height;
+		int right = -1;
+		int bottom = -1;
+
+		for (int y = 0; y < image.Height; y++) {
+			ReadOnlySpan<ColorBgra> row = pixels.Slice (y * image.Width, image.Width);
+
+			for (int x = 0; x < row.Length; x++) {
+				if (row[x].A == 0)
+					continue;
+
+				left = Math.Min (left, x);
+				top = Math.Min (top, y);
+				right = Math.Max (right, x);
+				bottom = Math.Max (bottom, y);
+			}
+		}
+
+		if (right < left || bottom < top)
+			return new RectangleI (0, 0, image.Width, image.Height);
+
+		return new RectangleI (left, top, right - left + 1, bottom - top + 1);
+	}
 }

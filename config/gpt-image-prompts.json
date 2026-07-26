@@ -1,4 +1,4 @@
 {
-  "whiteBackgroundPrompt": "将图片背景修改为纯白色，不要修改任何绘制信息。",
-  "blackBackgroundPrompt": "将背景修改为纯黑色，不要修改任何绘制信息。只需要将白色背景修改为黑色背景。"
+  "whiteBackgroundPrompt": "Edit only the background. Replace every background area, cast shadow, reflection, halo, watermark, and unrelated scenery with pure white (#FFFFFF). Preserve the foreground subject pixels as much as possible: same canvas, position, scale, shape, colors, lighting, edges, and details. Do not crop, resize, repaint, stylize, recolor, or move the subject. 薄纱后的背景需要完全去掉不要出现身后的窗户墙体",
+  "blackBackgroundPrompt": "Starting from this white-background image, edit only the pure white background to pure black (#000000). Preserve the foreground subject pixels as much as possible: same canvas, position, scale, shape, colors, lighting, edges, and details. Do not crop, resize, repaint, stylize, recolor, or move the subject."
 }

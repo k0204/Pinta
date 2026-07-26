@@ -90,11 +90,20 @@ public class UserLayer : Layer
 		Size old_size,
 		Size new_size)
 	{
-		base.ApplyTransform (xform, old_size, new_size);
+		ApplyTransform (xform, old_size, new_size, null);
+	}
+
+	public override void ApplyTransform (
+		Matrix xform,
+		Size old_size,
+		Size new_size,
+		ResamplingMode? resamplingMode)
+	{
+		base.ApplyTransform (xform, old_size, new_size, resamplingMode);
 
 		foreach (ReEditableLayer rel in ReEditableLayers) {
 			if (rel.IsLayerSetup)
-				rel.Layer.ApplyTransform (xform, old_size, new_size);
+				rel.Layer.ApplyTransform (xform, old_size, new_size, resamplingMode);
 		}
 	}
 

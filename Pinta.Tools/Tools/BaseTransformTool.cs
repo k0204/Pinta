@@ -25,6 +25,7 @@
 // THE SOFTWARE.
 
 using System;
+using System.Collections.Generic;
 using Cairo;
 using Pinta.Core;
 
@@ -39,13 +40,48 @@ public abstract class BaseTransformTool : BaseTool
 	private bool is_dragging = false;
 	private bool is_rotating = false;
 	private bool is_scaling = false;
+	private bool is_scaling_handle = false;
 	private bool using_mouse = false;
+	private readonly IWorkspaceService workspace;
+	private readonly RectangleHandle transform_handle;
+	private Gtk.CheckButton? show_transform_controls;
 
 	/// <summary>
 	/// Initializes a new instance of the <see cref="BaseTransformTool"/> class.
 	/// </summary>
 	public BaseTransformTool (IServiceProvider services) : base (services)
 	{
+		workspace = services.GetService<IWorkspaceService> ();
+		transform_handle = new (workspace) {
+			DrawOutline = true,
+			InvertIfNegative = true,
+		};
+	}
+
+	public override IEnumerable<IToolHandle> Handles => [transform_handle];
+
+	protected bool TransformControlsVisible => show_transform_controls?.Active ?? true;
+
+	protected override void OnBuildToolBar (Gtk.Box toolbar)
+	{
+		show_transform_controls ??= Gtk.CheckButton.NewWithLabel (Translations.GetString ("Show transform controls"));
+		show_transform_controls.Active = Settings.GetSetting (SettingNames.SHOW_TRANSFORM_CONTROLS, true);
+		show_transform_controls.OnToggled += (_, _) => {
+			UpdateTransformHandle (workspace.HasOpenDocuments ? workspace.ActiveDocument : null);
+			workspace.Invalidate ();
+		};
+
+		toolbar.Append (show_transform_controls);
+
+		base.OnBuildToolBar (toolbar);
+	}
+
+	protected override void OnSaveSettings (ISettingsService settings)
+	{
+		base.OnSaveSettings (settings);
+
+		if (show_transform_controls is not null)
+			settings.PutSetting (SettingNames.SHOW_TRANSFORM_CONTROLS, show_transform_controls.Active);
 	}
 
 	protected override void OnMouseDown (
@@ -60,7 +96,9 @@ public abstract class BaseTransformTool : BaseTool
 		if (!document.Workspace.PointInCanvas (e.PointDouble))
 			return;
 
-		if (e.MouseButton == MouseButton.Right)
+		if (e.MouseButton == MouseButton.Left && transform_handle.Active && transform_handle.BeginDrag (e.PointDouble, document.ImageSize))
+			is_scaling_handle = true;
+		else if (e.MouseButton == MouseButton.Right)
 			is_rotating = true;
 		else if (e.IsControlPressed)
 			is_scaling = true;
@@ -76,8 +114,11 @@ public abstract class BaseTransformTool : BaseTool
 		Document document,
 		ToolMouseEventArgs e)
 	{
-		if (!IsActive || !using_mouse)
+		if (!IsActive || !using_mouse) {
+			UpdateTransformHandle (document);
+			SetCursor (transform_handle.GetCursorAtPoint (e.WindowPoint) ?? DefaultCursor);
 			return;
+		}
 
 		bool constrain = e.IsShiftPressed;
 
@@ -97,7 +138,16 @@ public abstract class BaseTransformTool : BaseTool
 
 		transform.InitIdentity ();
 
-		if (is_scaling) {
+		if (is_scaling_handle) {
+			transform_handle.UpdateDrag (e.PointDouble, e.IsShiftPressed);
+			RectangleD newRect = transform_handle.Rectangle;
+
+			transform.Translate (newRect.X, newRect.Y);
+			transform.Scale (
+				newRect.Width / source_rect.Width,
+				newRect.Height / source_rect.Height);
+			transform.Translate (-source_rect.X, -source_rect.Y);
+		} else if (is_scaling) {
 
 			double sx = (c1.X + dx) / c1.X;
 			double sy = (c1.Y + dy) / c1.Y;
@@ -209,10 +259,53 @@ public abstract class BaseTransformTool : BaseTool
 		is_dragging = false;
 		is_rotating = false;
 		is_scaling = false;
+		is_scaling_handle = false;
 		using_mouse = false;
+		if (transform_handle.IsDragging)
+			transform_handle.EndDrag ();
+		UpdateTransformHandle (document);
 	}
 
 	private bool IsActive
-		=> is_dragging || is_rotating || is_scaling;
+		=> is_dragging || is_rotating || is_scaling || is_scaling_handle;
+
+	protected override void OnActivated (Document? document)
+	{
+		base.OnActivated (document);
+		UpdateTransformHandle (document);
+	}
+
+	protected override void OnDeactivated (Document? document, BaseTool? newTool)
+	{
+		base.OnDeactivated (document, newTool);
+		transform_handle.Active = false;
+	}
+
+	protected override void OnAfterUndo (Document document)
+	{
+		base.OnAfterUndo (document);
+		UpdateTransformHandle (document);
+	}
+
+	protected override void OnAfterRedo (Document document)
+	{
+		base.OnAfterRedo (document);
+		UpdateTransformHandle (document);
+	}
+
+	protected virtual bool ShouldShowTransformHandle (Document document)
+		=> TransformControlsVisible && document.Selection.Visible;
+
+	protected void UpdateTransformHandle (Document? document)
+	{
+		if (document is null || !ShouldShowTransformHandle (document)) {
+			transform_handle.Active = false;
+			return;
+		}
+
+		RectangleD rect = GetSourceRectangle (document);
+		transform_handle.Rectangle = rect;
+		transform_handle.Active = rect.Width > 0 && rect.Height > 0;
+	}
 }
 
