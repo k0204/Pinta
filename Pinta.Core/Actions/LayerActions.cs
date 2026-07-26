@@ -311,7 +311,7 @@ public sealed class LayerActions
 			using Cairo.ImageSurface white = LoadPngAsSurface (result.WhiteBackgroundPng, doc.ImageSize);
 			using Cairo.ImageSurface black = LoadPngAsSurface (result.BlackBackgroundPng, doc.ImageSize);
 			UserLayer cutoutLayer = doc.Layers.AddNewLayer (Translations.GetString ("Transparent Cutout"));
-			CreateTransparentCutout (sourceLayer.Surface, white, black, cutoutLayer.Surface);
+			CreateTransparentCutout (white, black, cutoutLayer.Surface);
 			SaveCutoutDebugSurface (debugDir, "transparent-cutout.png", cutoutLayer.Surface);
 			Console.WriteLine ($"AI cutout debug images saved: {debugDir}");
 
@@ -663,20 +663,17 @@ public sealed class LayerActions
 	}
 
 	private static void CreateTransparentCutout (
-		Cairo.ImageSurface source,
 		Cairo.ImageSurface white,
 		Cairo.ImageSurface black,
 		Cairo.ImageSurface destination)
 	{
 		const int alpha_noise_floor = 24;
 
-		ReadOnlySpan<ColorBgra> sourcePixels = source.GetReadOnlyPixelData ();
 		ReadOnlySpan<ColorBgra> whitePixels = white.GetReadOnlyPixelData ();
 		ReadOnlySpan<ColorBgra> blackPixels = black.GetReadOnlyPixelData ();
 		Span<ColorBgra> destinationPixels = destination.GetPixelData ();
 
 		for (int i = 0; i < destinationPixels.Length; i++) {
-			ColorBgra s = sourcePixels[i];
 			ColorBgra w = whitePixels[i];
 			ColorBgra b = blackPixels[i];
 
@@ -685,12 +682,16 @@ public sealed class LayerActions
 				Math.Max (
 					Math.Clamp (w.G - b.G, 0, 255),
 					Math.Clamp (w.B - b.B, 0, 255)));
-			int alpha = Math.Min (255 - matte, s.A);
+			int alpha = 255 - matte;
 
 			destinationPixels[i] =
-				alpha <= alpha_noise_floor || s.A == 0
+				alpha <= alpha_noise_floor
 				? ColorBgra.Transparent
-				: s.NewAlpha ((byte) alpha);
+				: ColorBgra.FromBgraClamped (
+					Math.Min (b.B, alpha),
+					Math.Min (b.G, alpha),
+					Math.Min (b.R, alpha),
+					alpha);
 		}
 
 		destination.MarkDirty ();
