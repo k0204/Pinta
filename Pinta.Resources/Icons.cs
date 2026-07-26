@@ -58,6 +58,7 @@ public static class StandardIcons
 
 	public const string HelpAbout = "help-about-symbolic";
 	public const string HelpBrowser = "help-browser-symbolic";
+	public const string User = "avatar-default-symbolic";
 
 	public const string ImageGeneric = "image-x-generic-symbolic";
 	public const string ImageMissing = "image-missing-symbolic";

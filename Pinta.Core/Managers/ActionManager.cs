@@ -42,6 +42,7 @@ public sealed class ActionManager
 
 	private readonly SystemManager system;
 	private readonly ChromeManager chrome;
+	private readonly AI.AiAuthService ai_auth;
 	public ActionManager (
 		ChromeManager chrome,
 		ImageConverterManager imageFormats,
@@ -50,7 +51,8 @@ public sealed class ActionManager
 		RecentFileManager recentFiles,
 		SystemManager system,
 		ToolManager tools,
-		WorkspaceManager workspace)
+		WorkspaceManager workspace,
+		AI.AiAuthService aiAuth)
 	{
 		// --- Action handlers that don't depend on other handlers
 
@@ -67,7 +69,7 @@ public sealed class ActionManager
 		FileActions file = new (system, app);
 		HelpActions help = new (system, app);
 		ImageActions image = new (tools, workspace, view);
-		LayerActions layers = new (chrome, imageFormats, recentFiles, tools, workspace, image, adjustments, effects);
+		LayerActions layers = new (chrome, imageFormats, recentFiles, tools, workspace, image, adjustments, effects, aiAuth);
 
 		// --- References to keep
 
@@ -85,6 +87,7 @@ public sealed class ActionManager
 
 		this.system = system;
 		this.chrome = chrome;
+		ai_auth = aiAuth;
 	}
 
 	public void CreateToolBar (Gtk.Box toolbar)
@@ -166,6 +169,23 @@ public sealed class ActionManager
 		workspaceManager.SelectionChanged += delegate {
 			var bounds = workspaceManager.HasOpenDocuments ? workspaceManager.ActiveDocument.Selection.GetBounds () : new RectangleD ();
 			selection_size.SetText ($"{bounds.Width}, {bounds.Height}");
+		};
+
+		Gtk.Button aiAccountButton = Gtk.Button.NewFromIconName (Resources.StandardIcons.User);
+		aiAccountButton.TooltipText = ai_auth.AccountSummary;
+		aiAccountButton.OnClicked += (_, _) => App.AiAccount.Activate ();
+		statusbar.Append (aiAccountButton);
+		Gtk.Label aiAccount = Gtk.Label.New (ai_auth.AccountSummary);
+		aiAccount.Xalign = 0.0f;
+		aiAccount.Halign = Gtk.Align.Start;
+		aiAccount.WidthChars = 42;
+		aiAccount.Ellipsize = Pango.EllipsizeMode.End;
+		aiAccount.TooltipText = ai_auth.AccountSummary;
+		statusbar.Append (aiAccount);
+		ai_auth.AccountChanged += (_, _) => {
+			aiAccount.SetText (ai_auth.AccountSummary);
+			aiAccount.TooltipText = ai_auth.AccountSummary;
+			aiAccountButton.TooltipText = ai_auth.AccountSummary;
 		};
 
 		// Document zoom widget

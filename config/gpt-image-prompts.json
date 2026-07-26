@@ -1,0 +1,4 @@
+{
+  "whiteBackgroundPrompt": "将图片背景修改为纯白色，不要修改任何绘制信息。",
+  "blackBackgroundPrompt": "将背景修改为纯黑色，不要修改任何绘制信息。只需要将白色背景修改为黑色背景。"
+}

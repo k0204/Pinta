@@ -42,6 +42,7 @@ public sealed class ActionHandlers
 		RecentFileManager recentFiles = PintaCore.RecentFiles;
 		ImageConverterManager imageFormats = PintaCore.ImageFormats;
 		SettingsManager settings = PintaCore.Settings;
+		Pinta.Core.AI.AiAuthService aiAuth = PintaCore.AiAuth;
 		SystemManager system = PintaCore.System;
 		ToolManager tools = PintaCore.Tools;
 		PaletteManager palette = PintaCore.Palette;
@@ -92,6 +93,7 @@ public sealed class ActionHandlers
 			new SaveAllDocumentsAction (actions.Window, workspace),
 
 			// Help
+			new AiAccountAction (actions.App, chrome, aiAuth),
 			new AboutDialogAction (actions.App, chrome, applicationVersion),
 			new KeyboardShortcutsDialogAction (actions.App, actions, chrome, tools),
 		];
@@ -168,6 +170,7 @@ public sealed class ActionHandlers
 		PintaCore.Actions.Layers.MergeLayerDown.Sensitive = enable;
 		PintaCore.Actions.Layers.ImportFromFile.Sensitive = enable;
 		PintaCore.Actions.Layers.DetectBorder.Sensitive = enable;
+		PintaCore.Actions.Layers.Cutout.Sensitive = editableLayer;
 		PintaCore.Actions.Layers.FlipHorizontal.Sensitive = editableLayer;
 		PintaCore.Actions.Layers.FlipVertical.Sensitive = editableLayer;
 		PintaCore.Actions.Layers.RotateZoom.Sensitive = editableLayer;

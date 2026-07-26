@@ -45,7 +45,7 @@ if ($Clean) {
 $commonArgs = @(
     'Pinta.sln',
     '-c', $Configuration,
-    '-p:MinGWFolder=' + $mingwFolder,
+    "-p:MinGWFolder=$mingwFolder",
     '-p:BuildTranslations=true'
 )
 

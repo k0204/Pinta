@@ -147,6 +147,7 @@ public sealed partial class LayersListViewItemWidget
         private Gtk.Image layer_icon;
 	private Gtk.DrawingArea item_thumbnail;
 	private Gtk.Label item_label;
+	private Gtk.Button cutout_button;
         private Gtk.Image visible_button;
 	private LayerDropHint drop_hint = LayerDropHint.None;
 	private int drop_preview_depth;
@@ -162,6 +163,7 @@ public sealed partial class LayersListViewItemWidget
 
 	[MemberNotNull (nameof (item_thumbnail))]
 	[MemberNotNull (nameof (item_label))]
+	[MemberNotNull (nameof (cutout_button))]
         [MemberNotNull (nameof (layer_icon))]
 	[MemberNotNull (nameof (visible_button))]
 	[MemberNotNull (nameof (disclosure_button))]
@@ -195,6 +197,14 @@ public sealed partial class LayersListViewItemWidget
 		itemLabel.Halign = Gtk.Align.Start;
 		itemLabel.Hexpand = true;
 		itemLabel.Ellipsize = Pango.EllipsizeMode.End;
+
+		Gtk.Button cutoutButton = Gtk.Button.NewWithLabel (Translations.GetString ("抠图"));
+		cutoutButton.Valign = Gtk.Align.Center;
+		cutoutButton.TooltipText = Translations.GetString ("生成透明抠图");
+		cutoutButton.OnClicked += (_, _) => {
+			SelectCurrentLayer ();
+			PintaCore.Actions.Layers.Cutout.Activate ();
+		};
 
                 Gtk.Image visibleButton = Gtk.Image.New ();
                 visibleButton.WidthRequest = 16;
@@ -232,6 +242,7 @@ public sealed partial class LayersListViewItemWidget
                 hierarchyContent.Hexpand = true;
                 hierarchyContent.Append (disclosureButton);
                 hierarchyContent.Append (dragContent);
+                hierarchyContent.Append (cutoutButton);
                 itemRow.Append (hierarchyContent);
 
 		Gtk.Overlay rowOverlay = Gtk.Overlay.New ();
@@ -247,9 +258,10 @@ public sealed partial class LayersListViewItemWidget
 		disclosure_button = disclosureButton;
 		drop_preview = dropPreview;
                 hierarchy_content = hierarchyContent;
-                layer_icon = layerIcon;
+		layer_icon = layerIcon;
 		item_thumbnail = itemThumbnail;
 		item_label = itemLabel;
+		cutout_button = cutoutButton;
 		visible_button = visibleButton;
 	}
 
@@ -481,6 +493,7 @@ public sealed partial class LayersListViewItemWidget
 				? item.UserLayer!.ReferenceMissing ? Translations.GetString ("Referenced image is missing") : Translations.GetString ("Referenced layer is locked")
 				: null;
 			layer_icon.Visible = isGroup || isReference;
+			cutout_button.Sensitive = item.UserLayer?.IsEditable == true;
                 visible_button.IconName = item.Visible ? Resources.StandardIcons.ViewReveal : Resources.StandardIcons.ViewConceal;
 		visible_button.TooltipText = item.Visible
 			? Translations.GetString ("Hide Layer")

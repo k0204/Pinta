@@ -40,6 +40,7 @@ public static class PintaCore
 	public static RecentFileManager RecentFiles { get; }
 	public static ResourceManager Resources { get; }
 	public static SettingsManager Settings { get; }
+	public static AI.AiAuthService AiAuth { get; }
 	public static SystemManager System { get; }
 	public static ToolManager Tools { get; }
 	public static WorkspaceManager Workspace { get; }
@@ -70,6 +71,7 @@ public static class PintaCore
 		ResourceManager resources = new ();
 		SystemManager system = new ();
 		SettingsManager settings = new ();
+		AI.AiAuthService aiAuth = new (settings);
 		ChromeManager chrome = new ();
 		PaintBrushManager paintBrushes = new ();
 		PaletteFormatManager paletteFormats = new ();
@@ -81,7 +83,7 @@ public static class PintaCore
 		WorkspaceManager workspace = new (system, chrome, imageFormats);
 		ToolManager tools = new (workspace, chrome);
 		PaletteManager palette = new (settings, paletteFormats);
-		ActionManager actions = new (chrome, imageFormats, paletteFormats, palette, recentFiles, system, tools, workspace);
+		ActionManager actions = new (chrome, imageFormats, paletteFormats, palette, recentFiles, system, tools, workspace, aiAuth);
 		LivePreviewManager livePreview = new (workspace, tools, system, chrome);
 		EffectsManager effects = new (actions, chrome, livePreview);
 		CanvasGridManager canvasGrid = new (workspace, settings);
@@ -91,6 +93,7 @@ public static class PintaCore
 		ServiceManager services = new ();
 		services.AddService<IResourceService> (resources);
 		services.AddService<ISettingsService> (settings);
+		services.AddService (aiAuth);
 		services.AddService (actions);
 		services.AddService<IWorkspaceService> (workspace);
 		services.AddService<IPaintBrushService> (paintBrushes);
@@ -111,6 +114,7 @@ public static class PintaCore
 		Resources = resources;
 		System = system;
 		Settings = settings;
+		AiAuth = aiAuth;
 		Actions = actions;
 		Workspace = workspace;
 		PaintBrushes = paintBrushes;

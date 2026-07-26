@@ -26,8 +26,10 @@
 
 using System;
 using System.Linq;
+using System.Threading.Tasks;
 using Mono.Addins;
 using Pinta.Core;
+using Pinta.Core.AI;
 using Pinta.Docking;
 using Pinta.Gui.Widgets;
 using Pinta.Resources;
@@ -98,6 +100,7 @@ internal sealed class MainWindow
 
 		// Load the user's previous settings
 		LoadUserSettings ();
+		_ = RestoreAiAccountAsync ();
 		PintaCore.Actions.App.BeforeQuit += delegate { SaveUserSettings (); };
 
 		// We support drag and drop for URIs, which are converted into a Gdk.FileList.
@@ -434,6 +437,8 @@ internal sealed class MainWindow
 	{
 		if (window_shell.HeaderBar is not null) {
 			var headerBar = window_shell.HeaderBar;
+			headerBar.PackEnd (CreateAiAccountButton ());
+
 			headerBar.PackEnd (GtkExtensions.CreateMenuButton (
 				this.menu_bar,
 				Resources.StandardIcons.OpenMenu,
@@ -463,7 +468,22 @@ internal sealed class MainWindow
 		} else {
 			var main_toolbar = window_shell.CreateToolBar ("main_toolbar");
 			PintaCore.Actions.CreateToolBar (main_toolbar);
+			main_toolbar.Append (GtkExtensions.CreateToolBarSeparator ());
+			main_toolbar.Append (CreateAiAccountButton ());
 		}
+	}
+
+	private static Gtk.Button CreateAiAccountButton ()
+	{
+		Gtk.Button button = Gtk.Button.NewFromIconName (Resources.StandardIcons.User);
+		button.TooltipText = PintaCore.AiAuth.AccountSummary;
+		button.OnClicked += (_, _) => PintaCore.Actions.App.AiAccount.Activate ();
+
+		PintaCore.AiAuth.AccountChanged += (_, _) => {
+			button.TooltipText = PintaCore.AiAuth.AccountSummary;
+		};
+
+		return button;
 	}
 
 	private void CreateToolToolBar ()
@@ -567,6 +587,22 @@ internal sealed class MainWindow
 
 		int color_scheme = PintaCore.Settings.GetSetting (SettingNames.COLOR_SCHEME, 0);
 		PintaCore.Actions.View.ColorScheme.Activate (GLib.Variant.NewInt32 (color_scheme));
+	}
+
+	private static async Task RestoreAiAccountAsync ()
+	{
+		if (!PintaCore.AiAuth.IsLoggedIn)
+			return;
+
+		try {
+			await PintaCore.AiAuth.RefreshAccountSummaryAsync ();
+			PintaCore.Settings.DoSaveSettingsBeforeQuit ();
+		} catch (AiAuthenticationException) {
+			PintaCore.Settings.DoSaveSettingsBeforeQuit ();
+			PintaCore.Actions.App.AiAccount.Activate ();
+		} catch (Exception ex) {
+			Console.Error.WriteLine (ex);
+		}
 	}
 
 	private void SaveUserSettings ()

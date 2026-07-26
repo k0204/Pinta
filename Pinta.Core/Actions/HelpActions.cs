@@ -82,6 +82,9 @@ public sealed class HelpActions
 		menu.AppendItem (Bugs.CreateMenuItem ());
 		menu.AppendItem (Translate.CreateMenuItem ());
 
+		if (system.OperatingSystem != OS.Mac)
+			application.AddCommand (app.AiAccount);
+
 		application.AddCommands ([
 			Contents,
 			Website,

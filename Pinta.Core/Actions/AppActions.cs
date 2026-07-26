@@ -31,6 +31,7 @@ namespace Pinta.Core;
 public sealed class AppActions
 {
 	public Command About { get; }
+	public Command AiAccount { get; }
 	public Command KeyboardShortcuts { get; }
 	public Command Exit { get; }
 
@@ -43,6 +44,11 @@ public sealed class AppActions
 			Translations.GetString ("About"),
 			null,
 			Resources.StandardIcons.HelpAbout);
+		AiAccount = new Command (
+			"aiaccount",
+			Translations.GetString ("AI Account..."),
+			Translations.GetString ("Login or register for AI features"),
+			Resources.StandardIcons.User);
 		KeyboardShortcuts = new Command (
 			"keyboardshortcuts",
 			Translations.GetString ("Keyboard Shortcuts"),
@@ -61,6 +67,7 @@ public sealed class AppActions
 	{
 		app.AddCommands ([
 			About,
+			AiAccount,
 			KeyboardShortcuts,
 			Exit]);
 	}

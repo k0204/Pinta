@@ -25,6 +25,8 @@
 // THE SOFTWARE.
 
 using System;
+using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Pinta.Core;
@@ -39,6 +41,7 @@ public sealed class LayerActions
 	public Command MergeLayerDown { get; }
 	public Command ImportFromFile { get; }
 	public Command DetectBorder { get; }
+	public Command Cutout { get; }
 	public Command FlipHorizontal { get; }
 	public Command FlipVertical { get; }
 	public Command RotateZoom { get; }
@@ -56,7 +59,9 @@ public sealed class LayerActions
 	private readonly AdjustmentsActions adjustments;
 	private readonly EffectsActions effects;
 	private readonly AI.CharacterBorderRecognitionService border_recognition;
+	private readonly AI.BackgroundCutoutService background_cutout;
 	private bool detect_border_running;
+	private bool cutout_running;
 
 	public LayerActions (
 		ChromeManager chrome,
@@ -66,7 +71,8 @@ public sealed class LayerActions
 		WorkspaceManager workspace,
 		ImageActions image,
 		AdjustmentsActions adjustments,
-		EffectsActions effects)
+		EffectsActions effects,
+		AI.AiAuthService aiAuth)
 	{
 		AddNewLayer = new Command (
 			"addnewlayer",
@@ -120,6 +126,12 @@ public sealed class LayerActions
 			Translations.GetString ("Detect border and create a new layer"),
 			Resources.Icons.EffectsStylizeOutline);
 
+		Cutout = new Command (
+			"backgroundcutout",
+			Translations.GetString ("抠图"),
+			Translations.GetString ("生成白色底图和黑色底图，然后创建透明图层"),
+			Resources.Icons.ColorModeTransparency);
+
 		FlipHorizontal = new Command (
 			"fliplayerhorizontal",
 			Translations.GetString ("Flip Horizontal"),
@@ -171,7 +183,8 @@ public sealed class LayerActions
 		this.image = image;
 		this.adjustments = adjustments;
 		this.effects = effects;
-		border_recognition = new ();
+		border_recognition = new (aiAuth);
+		background_cutout = new (aiAuth);
 	}
 
 	public void RegisterActions (Gtk.Application app)
@@ -185,6 +198,7 @@ public sealed class LayerActions
 			MergeLayerDown,
 			ImportFromFile,
 			DetectBorder,
+			Cutout,
 
 			FlipHorizontal,
 			FlipVertical,
@@ -211,6 +225,7 @@ public sealed class LayerActions
 		FlipVertical.Activated += HandlePintaCoreActionsLayersFlipVerticalActivated;
 		ImportFromFile.Activated += HandlePintaCoreActionsLayersImportFromFileActivated;
 		DetectBorder.Activated += HandlePintaCoreActionsLayersDetectBorderActivated;
+		Cutout.Activated += HandlePintaCoreActionsLayersCutoutActivated;
 		UnlockReference.Activated += HandleUnlockReferenceActivated;
 
 		workspace.LayerTreeChanged += EnableOrDisableLayerActions;
@@ -243,6 +258,92 @@ public sealed class LayerActions
 		effects.ToggleActionsSensitive (currentEditable);
 		UnlockReference.Sensitive = activeDoc?.Layers.CurrentUserLayer.IsReference == true && !activeDoc.Layers.CurrentUserLayer.ReferenceMissing;
 		DetectBorder.Sensitive = activeDoc is not null && !detect_border_running;
+		Cutout.Sensitive = currentEditable && !cutout_running;
+	}
+
+	private async void HandlePintaCoreActionsLayersCutoutActivated (object sender, EventArgs e)
+	{
+		if (cutout_running)
+			return;
+
+		Document doc = workspace.ActiveDocument;
+		UserLayer sourceLayer = doc.Layers.CurrentUserLayer;
+		if (!sourceLayer.IsEditable)
+			return;
+
+		tools.Commit ();
+		cutout_running = true;
+		EnableOrDisableLayerActions (null, EventArgs.Empty);
+		using CancellationTokenSource cts = new ();
+		IProgressDialog progress = chrome.ProgressDialog;
+		progress.Title = Translations.GetString ("Cutout");
+		progress.Text = Translations.GetString ("Preparing image...");
+		progress.Progress = 0.05;
+		progress.Canceled += HandleProgressCanceled;
+		progress.Show ();
+		chrome.MainWindowBusy = true;
+		SetCutoutProgress (Translations.GetString ("Preparing image..."), 0.05);
+		bool clearStatus = true;
+
+		try {
+			byte[] sourcePng = CreateLayerPng (doc, sourceLayer);
+			string size = GetGptImageRequestSize (doc.ImageSize);
+			string debugDir = CreateCutoutDebugDirectory ();
+			SaveCutoutDebugPng (debugDir, "source.png", sourcePng);
+			AI.BackgroundCutoutResult result = await background_cutout.GenerateAsync (
+				sourcePng,
+				size,
+				SetCutoutProgress,
+				(fileName, png) => SaveCutoutDebugPng (debugDir, fileName, png),
+				cts.Token);
+
+			SetCutoutProgress (Translations.GetString ("Creating transparent layer..."), 0.85);
+			using Cairo.ImageSurface white = LoadPngAsSurface (result.WhiteBackgroundPng, doc.ImageSize);
+			using Cairo.ImageSurface black = LoadPngAsSurface (result.BlackBackgroundPng, doc.ImageSize);
+			UserLayer cutoutLayer = doc.Layers.AddNewLayer (Translations.GetString ("Transparent Cutout"));
+			CreateTransparentCutout (white, black, cutoutLayer.Surface);
+			SaveCutoutDebugSurface (debugDir, "transparent-cutout.png", cutoutLayer.Surface);
+			Console.WriteLine ($"AI cutout debug images saved: {debugDir}");
+
+			doc.History.PushNewItem (new AddLayerHistoryItem (
+				Resources.Icons.ColorModeTransparency,
+				Translations.GetString ("Cutout"),
+				cutoutLayer,
+				doc.Layers.GetPosition (cutoutLayer)));
+			doc.Workspace.Invalidate ();
+
+			SetCutoutProgress (Translations.GetString ("Refreshing balance..."), 0.95);
+			await PintaCore.AiAuth.RefreshAccountSummaryAsync (cts.Token);
+			PintaCore.Settings.DoSaveSettingsBeforeQuit ();
+			SetCutoutProgress (Translations.GetString ("Cutout complete."), 1.0);
+		} catch (OperationCanceledException) {
+			clearStatus = false;
+			chrome.SetStatusBarText (Translations.GetString ("Cutout canceled."));
+		} catch (Exception ex) {
+			await chrome.ShowErrorDialog (
+				chrome.MainWindow,
+				Translations.GetString ("Cutout Failed"),
+				Translations.GetString ("One of the background images was retried but still failed. Check the API server logs, balance, and login status, then try again."),
+				ex.ToString ());
+		} finally {
+			progress.Canceled -= HandleProgressCanceled;
+			progress.Hide ();
+			chrome.MainWindowBusy = false;
+			cutout_running = false;
+			EnableOrDisableLayerActions (null, EventArgs.Empty);
+			if (clearStatus)
+				chrome.SetStatusBarText (string.Empty);
+		}
+
+		void HandleProgressCanceled (object? sender, EventArgs args)
+			=> cts.Cancel ();
+
+		void SetCutoutProgress (string text, double value)
+		{
+			progress.Text = text;
+			progress.Progress = Math.Clamp (value, 0.0, 1.0);
+			chrome.SetStatusBarText (text);
+		}
 	}
 
 	private void HandleUnlockReferenceActivated (object sender, EventArgs e)
@@ -426,6 +527,110 @@ public sealed class LayerActions
 		using Cairo.ImageSurface source = doc.GetFlattenedImage ();
 		using GdkPixbuf.Pixbuf pixbuf = source.ToPixbuf ();
 		return pixbuf.SaveToBuffer ("png");
+	}
+
+	private static byte[] CreateLayerPng (Document doc, UserLayer sourceLayer)
+	{
+		using Cairo.ImageSurface source = CairoExtensions.CreateImageSurface (
+			Cairo.Format.Argb32,
+			doc.ImageSize.Width,
+			doc.ImageSize.Height);
+		using (Cairo.Context context = new (source)) {
+			foreach (Layer layer in sourceLayer.GetLayersToPaint ())
+				layer.Draw (context);
+		}
+
+		source.MarkDirty ();
+		using GdkPixbuf.Pixbuf pixbuf = source.ToPixbuf ();
+		return pixbuf.SaveToBuffer ("png");
+	}
+
+	private static string CreateCutoutDebugDirectory ()
+	{
+		string root = Path.Combine (
+			AppContext.BaseDirectory,
+			"ai-cutout-logs",
+			DateTime.Now.ToString ("yyyyMMdd-HHmmss-fff"));
+		Directory.CreateDirectory (root);
+		return root;
+	}
+
+	private static void SaveCutoutDebugPng (string directory, string fileName, byte[] png)
+	{
+		try {
+			File.WriteAllBytes (Path.Combine (directory, fileName), png);
+		} catch (Exception ex) {
+			Console.WriteLine ($"Warning: failed to save AI cutout debug image '{fileName}': {ex.Message}");
+		}
+	}
+
+	private static void SaveCutoutDebugSurface (string directory, string fileName, Cairo.ImageSurface surface)
+	{
+		try {
+			using GdkPixbuf.Pixbuf pixbuf = surface.ToPixbuf ();
+			File.WriteAllBytes (Path.Combine (directory, fileName), pixbuf.SaveToBuffer ("png"));
+		} catch (Exception ex) {
+			Console.WriteLine ($"Warning: failed to save AI cutout debug image '{fileName}': {ex.Message}");
+		}
+	}
+
+	private static string GetGptImageRequestSize (Size imageSize)
+	{
+		if (imageSize.Width <= 0 || imageSize.Height <= 0)
+			return "1024x1024";
+
+		return $"{imageSize.Width}x{imageSize.Height}";
+	}
+
+	private static Cairo.ImageSurface LoadPngAsSurface (byte[] png, Size targetSize)
+	{
+		using GLib.Bytes bytes = GLib.Bytes.New (png);
+		using Gio.MemoryInputStream stream = Gio.MemoryInputStream.NewFromBytes (bytes);
+		using GdkPixbuf.Pixbuf pixbuf = GdkPixbuf.Pixbuf.NewFromStream (stream, cancellable: null)!;
+		Cairo.ImageSurface surface = CairoExtensions.CreateImageSurface (
+			Cairo.Format.Argb32,
+			targetSize.Width,
+			targetSize.Height);
+
+		using Cairo.Context context = new (surface);
+		context.Scale (
+			targetSize.Width / (double) pixbuf.Width,
+			targetSize.Height / (double) pixbuf.Height);
+		context.DrawPixbuf (pixbuf, PointD.Zero);
+		surface.MarkDirty ();
+		return surface;
+	}
+
+	private static void CreateTransparentCutout (
+		Cairo.ImageSurface white,
+		Cairo.ImageSurface black,
+		Cairo.ImageSurface destination)
+	{
+		ReadOnlySpan<ColorBgra> whitePixels = white.GetReadOnlyPixelData ();
+		ReadOnlySpan<ColorBgra> blackPixels = black.GetReadOnlyPixelData ();
+		Span<ColorBgra> destinationPixels = destination.GetPixelData ();
+
+		for (int i = 0; i < destinationPixels.Length; i++) {
+			ColorBgra w = whitePixels[i];
+			ColorBgra b = blackPixels[i];
+
+			int matte = (
+				Math.Clamp (w.R - b.R, 0, 255) +
+				Math.Clamp (w.G - b.G, 0, 255) +
+				Math.Clamp (w.B - b.B, 0, 255)) / 3;
+			int alpha = 255 - matte;
+
+			destinationPixels[i] =
+				alpha <= 0
+				? ColorBgra.Transparent
+				: ColorBgra.FromBgraClamped (
+					b.B * 255 / alpha,
+					b.G * 255 / alpha,
+					b.R * 255 / alpha,
+					alpha);
+		}
+
+		destination.MarkDirty ();
 	}
 
 	private static void DrawPngOnLayer (byte[] png, UserLayer layer)
