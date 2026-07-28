@@ -4,6 +4,7 @@ public static class AiRequestSettings
 {
 	public const string AgnesService = "agnes";
 	public const string GptImageService = "gpt-image";
+	public const string BaiduService = "baidu";
 	public const string ZzswitchProvider = "zzswitch";
 	public const string LukyfaceProvider = "lukyface";
 
@@ -13,7 +14,7 @@ public static class AiRequestSettings
 	public static string GetImageService (ISettingsService settings)
 	{
 		string value = settings.GetSetting (image_service_key, GptImageService);
-		return value is AgnesService or GptImageService ? value : GptImageService;
+		return value is AgnesService or GptImageService or BaiduService ? value : GptImageService;
 	}
 
 	public static string GetGptProvider (ISettingsService settings)
@@ -22,7 +23,10 @@ public static class AiRequestSettings
 		return value is ZzswitchProvider or LukyfaceProvider ? value : LukyfaceProvider;
 	}
 
-	public static void Save (ISettingsService settings, string imageService, string gptProvider)
+	public static void Save (
+		ISettingsService settings,
+		string imageService,
+		string gptProvider)
 	{
 		settings.PutSetting (image_service_key, imageService);
 		settings.PutSetting (gpt_provider_key, gptProvider);

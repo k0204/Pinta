@@ -200,7 +200,7 @@ public sealed partial class LayersListViewItemWidget
 
 		Gtk.Button cutoutButton = Gtk.Button.NewWithLabel (Translations.GetString ("抠图"));
 		cutoutButton.Valign = Gtk.Align.Center;
-		cutoutButton.TooltipText = Translations.GetString ("生成透明抠图");
+		cutoutButton.TooltipText = Translations.GetString ("Choose an image API and operation");
 		cutoutButton.OnClicked += (_, _) => {
 			SelectCurrentLayer ();
 			PintaCore.Actions.Layers.Cutout.Activate ();
@@ -240,9 +240,9 @@ public sealed partial class LayersListViewItemWidget
 
                 Gtk.Box hierarchyContent = Gtk.Box.New (Gtk.Orientation.Horizontal, 3);
                 hierarchyContent.Hexpand = true;
-                hierarchyContent.Append (disclosureButton);
-                hierarchyContent.Append (dragContent);
-                hierarchyContent.Append (cutoutButton);
+			hierarchyContent.Append (disclosureButton);
+			hierarchyContent.Append (dragContent);
+			hierarchyContent.Append (cutoutButton);
                 itemRow.Append (hierarchyContent);
 
 		Gtk.Overlay rowOverlay = Gtk.Overlay.New ();

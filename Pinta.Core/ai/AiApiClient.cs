@@ -68,13 +68,15 @@ public sealed class AiApiClient
 		string formName,
 		string fileName,
 		CancellationToken cancellationToken = default,
-		IEnumerable<KeyValuePair<string, string>>? fields = null)
+		IEnumerable<KeyValuePair<string, string>>? fields = null,
+		IEnumerable<(byte[] Data, string FormName, string FileName)>? additionalFiles = null)
 	{
 		KeyValuePair<string, string>[] savedFields = fields?.ToArray () ?? [];
+		(byte[] Data, string FormName, string FileName)[] savedFiles = additionalFiles?.ToArray () ?? [];
 		return await SendForStringAsync (
 			HttpMethod.Post,
 			path,
-			() => CreatePngContent (png, formName, fileName, savedFields),
+			() => CreatePngContent (png, formName, fileName, savedFields, savedFiles),
 			cancellationToken);
 	}
 
@@ -148,16 +150,24 @@ public sealed class AiApiClient
 		byte[] png,
 		string formName,
 		string fileName,
-		IEnumerable<KeyValuePair<string, string>> fields)
+		IEnumerable<KeyValuePair<string, string>> fields,
+		IEnumerable<(byte[] Data, string FormName, string FileName)> additionalFiles)
 	{
 		MultipartFormDataContent content = new ();
 		foreach (KeyValuePair<string, string> field in fields)
 			content.Add (new StringContent (field.Value), field.Key);
 
+		AddPng (content, png, formName, fileName);
+		foreach ((byte[] data, string additionalFormName, string additionalFileName) in additionalFiles)
+			AddPng (content, data, additionalFormName, additionalFileName);
+		return content;
+	}
+
+	private static void AddPng (MultipartFormDataContent content, byte[] png, string formName, string fileName)
+	{
 		ByteArrayContent image = new (png);
 		image.Headers.ContentType = new ("image/png");
 		content.Add (image, formName, fileName);
-		return content;
 	}
 
 	private static bool IsTransientStatus (HttpResponseMessage response)

@@ -116,7 +116,7 @@ internal sealed class MainClass
 
 		app.OnActivate += (_, _) => {
 			main_window.Activate ();
-			OpenFilesFromCommandLine (files);
+			OpenFilesFromCommandLine (main_window, files);
 
 			// For debugging, run the garbage collector much more frequently.
 			// This can be useful to detect certain memory management issues in the GTK bindings.
@@ -133,7 +133,7 @@ internal sealed class MainClass
 		app.RunWithSynchronizationContext (null);
 	}
 
-	private static void OpenFilesFromCommandLine (IEnumerable<string> files)
+	private static void OpenFilesFromCommandLine (MainWindow mainWindow, IEnumerable<string> files)
 	{
 		// Ignore the process serial number parameter on Mac OS X
 		if (PintaCore.System.OperatingSystem == OS.Mac && files.Any ()) {
@@ -146,7 +146,7 @@ internal sealed class MainClass
 			foreach (var file in files) {
 				PintaCore.Workspace.OpenFile (Gio.FileHelper.NewForCommandlineArg (file));
 			}
-		} else {
+		} else if (!mainWindow.RestoreFileSession ()) {
 			// Create a blank document
 			PintaCore.Workspace.NewDocument (
 				new Core.Size (800, 600),

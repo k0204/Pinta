@@ -55,6 +55,7 @@ public abstract class BaseTransformTool : BaseTool
 		transform_handle = new (workspace) {
 			DrawOutline = true,
 			InvertIfNegative = true,
+			PreserveAspectRatio = true,
 		};
 	}
 
@@ -177,6 +178,7 @@ public abstract class BaseTransformTool : BaseTool
 		}
 
 		OnUpdateTransform (document, transform);
+		UpdateTransformHandle (document);
 	}
 
 	protected override void OnMouseUp (
@@ -225,6 +227,7 @@ public abstract class BaseTransformTool : BaseTool
 
 		transform.Translate (dx, dy);
 		OnUpdateTransform (document, transform);
+		UpdateTransformHandle (document);
 
 		return true;
 	}
@@ -272,13 +275,26 @@ public abstract class BaseTransformTool : BaseTool
 	protected override void OnActivated (Document? document)
 	{
 		base.OnActivated (document);
+		workspace.SelectedLayerChanged += HandleTransformTargetChanged;
+		workspace.SelectionChanged += HandleTransformTargetChanged;
 		UpdateTransformHandle (document);
 	}
 
 	protected override void OnDeactivated (Document? document, BaseTool? newTool)
 	{
 		base.OnDeactivated (document, newTool);
+		workspace.SelectedLayerChanged -= HandleTransformTargetChanged;
+		workspace.SelectionChanged -= HandleTransformTargetChanged;
 		transform_handle.Active = false;
+	}
+
+	private void HandleTransformTargetChanged (object? sender, EventArgs e)
+	{
+		if (IsActive)
+			return;
+
+		UpdateTransformHandle (workspace.HasOpenDocuments ? workspace.ActiveDocument : null);
+		workspace.Invalidate ();
 	}
 
 	protected override void OnAfterUndo (Document document)

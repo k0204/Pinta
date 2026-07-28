@@ -9,16 +9,17 @@ using Pinta.Core;
 
 namespace Pinta.Core.AI;
 
-public sealed record BackgroundCutoutResult (
-	byte[] WhiteBackgroundPng,
-	byte[] BlackBackgroundPng);
-
 public sealed class BackgroundCutoutService
 {
 	private readonly AiApiClient api;
-	private const string agnes_cutout_path = "api/agnes-images/cutout-backgrounds";
-	private const string agnes_image_size = "2K";
+	private const string agnes_image_path = "api/agnes-images";
 	private const string gpt_image_path = "api/gpt-images";
+	private const string baidu_image_path = "api/baidu-images";
+	private const int gpt_size_multiple = 16;
+	private const int gpt_min_pixels = 655_360;
+	private const int gpt_max_pixels = 8_294_400;
+	private const int gpt_max_edge = 3_840;
+	private const int gpt_max_aspect_ratio = 3;
 	private const string prompt_config_file = "gpt-image-prompts.json";
 	private const string default_white_prompt = "Edit only the background. Replace every background area, cast shadow, reflection, halo, watermark, and unrelated scenery with pure white (#FFFFFF). Preserve the foreground subject pixels as much as possible: same canvas, position, scale, shape, colors, lighting, edges, and details. Do not crop, resize, repaint, stylize, recolor, or move the subject.";
 	private const string default_black_prompt = "Starting from this white-background image, edit only the pure white background to pure black (#000000). Preserve the foreground subject pixels as much as possible: same canvas, position, scale, shape, colors, lighting, edges, and details. Do not crop, resize, repaint, stylize, recolor, or move the subject.";
@@ -27,13 +28,61 @@ public sealed class BackgroundCutoutService
 		PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
 		WriteIndented = true,
 	};
+	private static readonly Size[] agnes_image_sizes = [
+		new (1024, 1024), new (2048, 2048), new (3072, 3072), new (4096, 4096),
+		new (864, 1152), new (1728, 2304), new (2592, 3456), new (3456, 4608),
+		new (1152, 864), new (2304, 1728), new (3456, 2592), new (4608, 3456),
+		new (1312, 736), new (2624, 1472), new (3936, 2208), new (5248, 2944),
+		new (736, 1312), new (1472, 2624), new (2208, 3936), new (2944, 5248),
+		new (832, 1248), new (1664, 2496), new (2496, 3744), new (3328, 4992),
+		new (1248, 832), new (2496, 1664), new (3744, 2496), new (4992, 3328),
+		new (1568, 672), new (3136, 1344), new (4704, 2016), new (6272, 2688),
+	];
 
 	public BackgroundCutoutService (AiAuthService auth)
 	{
 		api = new (auth);
 	}
 
-	public async Task<BackgroundCutoutResult> GenerateAsync (
+	public Task<byte[]> GenerateWhiteAsync (
+		byte[] sourcePng,
+		Size targetSize,
+		string additionalPrompt,
+		IReadOnlyList<(byte[] Png, string FileName)> referenceImages,
+		Action<string, double>? reportProgress = null,
+		Action<string, byte[]>? saveResult = null,
+		Action<string>? log = null,
+		CancellationToken cancellationToken = default)
+		=> GenerateAsync (
+			sourcePng,
+			targetSize,
+			whiteBackground: true,
+			additionalPrompt,
+			referenceImages,
+			reportProgress,
+			saveResult,
+			log,
+			cancellationToken);
+
+	public Task<byte[]> GenerateBlackAsync (
+		byte[] whiteBackgroundPng,
+		Size targetSize,
+		Action<string, double>? reportProgress = null,
+		Action<string, byte[]>? saveResult = null,
+		Action<string>? log = null,
+		CancellationToken cancellationToken = default)
+		=> GenerateAsync (
+			whiteBackgroundPng,
+			targetSize,
+			whiteBackground: false,
+			additionalPrompt: string.Empty,
+			referenceImages: [],
+			reportProgress,
+			saveResult,
+			log,
+			cancellationToken);
+
+	public async Task<byte[]> GenerateBaiduCutoutAsync (
 		byte[] sourcePng,
 		Size targetSize,
 		Action<string, double>? reportProgress = null,
@@ -41,168 +90,86 @@ public sealed class BackgroundCutoutService
 		Action<string>? log = null,
 		CancellationToken cancellationToken = default)
 	{
-		string imageService = AiRequestSettings.GetImageService (PintaCore.Settings);
-		Log (log, $"AI cutout start: service={imageService}, source_size={FormatSize (GetPngSize (sourcePng))}, source_bytes={sourcePng.Length}, target_size={FormatSize (targetSize)}");
-
-		BackgroundCutoutResult rawResult;
-		if (imageService == AiRequestSettings.AgnesService) {
-			rawResult = await GenerateAgnesAsync (sourcePng, targetSize, reportProgress, saveResult, log, cancellationToken);
-		} else {
-			string provider = AiRequestSettings.GetGptProvider (PintaCore.Settings);
-			rawResult = await GenerateGptAsync (sourcePng, targetSize, provider, reportProgress, saveResult, log, cancellationToken);
-		}
-
-		reportProgress?.Invoke (Translations.GetString ("Normalizing AI images..."), 0.65);
-		byte[] white = NormalizePngSize (rawResult.WhiteBackgroundPng, targetSize, Translations.GetString ("white background"), log);
-		byte[] black = NormalizePngSize (rawResult.BlackBackgroundPng, targetSize, Translations.GetString ("black background"), log);
-		saveResult?.Invoke ("white-background.png", white);
-		saveResult?.Invoke ("black-background.png", black);
-
-		return new (white, black);
-	}
-
-	private async Task<BackgroundCutoutResult> GenerateGptAsync (
-		byte[] sourcePng,
-		Size targetSize,
-		string provider,
-		Action<string, double>? reportProgress,
-		Action<string, byte[]>? saveResult,
-		Action<string>? log,
-		CancellationToken cancellationToken)
-	{
-		string size = GetGptImageRequestSize (targetSize);
-		BackgroundCutoutPromptConfig promptConfig = ReadPromptConfig ();
-		byte[] white = await GenerateBackgroundAsync (
-			gpt_image_path,
-			sourcePng,
-			size,
-			provider,
-			promptConfig.WhiteBackgroundPrompt,
-			Translations.GetString ("white background"),
-			"white-background.png",
-			0.2,
-			reportProgress,
-			saveResult,
-			log,
-			cancellationToken);
-
-		byte[] black = await GenerateBackgroundAsync (
-			gpt_image_path,
-			white,
-			size,
-			provider,
-			promptConfig.BlackBackgroundPrompt,
-			Translations.GetString ("black background"),
-			"black-background.png",
-			0.45,
-			reportProgress,
-			saveResult,
-			log,
-			cancellationToken);
-
-		return new (white, black);
-	}
-
-	private async Task<BackgroundCutoutResult> GenerateAgnesAsync (
-		byte[] sourcePng,
-		Size targetSize,
-		Action<string, double>? reportProgress,
-		Action<string, byte[]>? saveResult,
-		Action<string>? log,
-		CancellationToken cancellationToken)
-	{
-		string ratio = GetAgnesImageRatio (targetSize);
-		KeyValuePair<string, string>[] fields = [
-			new ("size", agnes_image_size),
-			new ("ratio", ratio),
-		];
-
-		reportProgress?.Invoke ($"Generating cutout backgrounds ({agnes_image_size}, {ratio})...", 0.2);
-		Log (log, $"AI image request: name=cutout backgrounds, path={agnes_cutout_path}, file=pinta.png, input_size={FormatSize (GetPngSize (sourcePng))}, input_bytes={sourcePng.Length}, form_size={agnes_image_size}, ratio={ratio}");
+		string name = Translations.GetString ("transparent cutout");
+		string size = FormatSize (targetSize);
+		reportProgress?.Invoke (Translations.GetString ("Requesting Baidu human segmentation..."), 0.25);
 		using JsonDocument json = await RunImageJobAsync (
-			agnes_cutout_path,
+			baidu_image_path,
 			sourcePng,
-			fields,
-			"cutout backgrounds",
-			agnes_image_size,
+			[],
+			name,
+			size,
 			log,
-			cancellationToken);
+			cancellationToken,
+			[]);
+		if (!TryReadImage (json.RootElement, "result_b64_json", out byte[]? rawResult))
+			throw new InvalidOperationException ("Baidu response did not include a foreground image.");
 
-		JsonElement root = json.RootElement;
-		if (!TryReadImage (root, "white_result_b64_json", out byte[]? white) ||
-			!TryReadImage (root, "black_result_b64_json", out byte[]? black))
-			throw new InvalidOperationException ("Agnes cutout response did not include both background images.");
-
-		Log (log, $"AI image response: name=cutout backgrounds, white_size={FormatSize (GetPngSize (white!))}, black_size={FormatSize (GetPngSize (black!))}, form_size={ReadStringProperty (root, "size")}, ratio={ReadStringProperty (root, "ratio")}");
-		reportProgress?.Invoke (Translations.GetString ("Saving AI images..."), 0.55);
-		saveResult?.Invoke ("white-background.raw.png", white!);
-		saveResult?.Invoke ("black-background.raw.png", black!);
-		return new (white!, black!);
+		saveResult?.Invoke ("transparent-cutout.raw.png", rawResult!);
+		byte[] normalized = NormalizePngSize (rawResult!, targetSize, targetSize, PointI.Zero, name, log);
+		saveResult?.Invoke ("transparent-cutout.png", normalized);
+		return normalized;
 	}
 
-	private async Task<byte[]> GenerateBackgroundAsync (
-		string path,
-		byte[] png,
-		string size,
-		string provider,
-		string prompt,
-		string name,
-		string fileName,
-		double progressStart,
+	private async Task<byte[]> GenerateAsync (
+		byte[] sourcePng,
+		Size targetSize,
+		bool whiteBackground,
+		string additionalPrompt,
+		IReadOnlyList<(byte[] Png, string FileName)> referenceImages,
 		Action<string, double>? reportProgress,
 		Action<string, byte[]>? saveResult,
 		Action<string>? log,
 		CancellationToken cancellationToken)
 	{
-		reportProgress?.Invoke ($"Generating {name} ({size})...", progressStart);
-		byte[] rawResult = await GenerateBackgroundOnceAsync (path, png, size, provider, prompt, name, log, cancellationToken);
-		reportProgress?.Invoke ($"Saving {name}...", progressStart + 0.1);
-		saveResult?.Invoke (GetRawResultFileName (fileName), rawResult);
-		return rawResult;
-	}
+		BackgroundCutoutPromptConfig promptConfig = ReadPromptConfig ();
+		string prompt = whiteBackground
+			? AppendPrompt (promptConfig.WhiteBackgroundPrompt, additionalPrompt)
+			: promptConfig.BlackBackgroundPrompt;
+		string name = Translations.GetString (whiteBackground ? "white background" : "black background");
+		string fileName = whiteBackground ? "white-background.png" : "black-background.png";
+		string imageService = AiRequestSettings.GetImageService (PintaCore.Settings);
+		Size requestSize = GetImageRequestSize (imageService, targetSize);
+		string size = FormatSize (requestSize);
+		byte[] requestPng = PadPng (sourcePng, requestSize, whitePadding: !whiteBackground, out PointI contentOffset);
+		string path = imageService == AiRequestSettings.AgnesService ? agnes_image_path : gpt_image_path;
+		KeyValuePair<string, string>[] fields = imageService == AiRequestSettings.AgnesService
+			? [new ("size", size), new ("prompt", prompt)]
+			: [new ("size", size), new ("provider", AiRequestSettings.GetGptProvider (PintaCore.Settings)), new ("prompt", prompt)];
 
-	private async Task<byte[]> GenerateBackgroundOnceAsync (
-		string path,
-		byte[] png,
-		string size,
-		string provider,
-		string prompt,
-		string name,
-		Action<string>? log,
-		CancellationToken cancellationToken)
-	{
-		KeyValuePair<string, string>[] fields = [
-			new ("size", size),
-			new ("provider", provider),
-			new ("prompt", prompt),
-		];
+		(byte[] Data, string FormName, string FileName)[] additionalFiles = new (byte[], string, string)[referenceImages.Count];
+		for (int i = 0; i < referenceImages.Count; i++)
+			additionalFiles[i] = (referenceImages[i].Png, "reference_files", referenceImages[i].FileName);
 
-		Log (log, $"AI image request: name={name}, path={path}, provider={provider}, file=pinta.png, input_size={FormatSize (GetPngSize (png))}, input_bytes={png.Length}, form_size={size}, prompt_bytes={System.Text.Encoding.UTF8.GetByteCount (prompt)}");
+		Log (log, $"AI background start: service={imageService}, name={name}, source_size={FormatSize (GetPngSize (sourcePng))}, source_bytes={sourcePng.Length}, target_size={FormatSize (targetSize)}, request_size={size}, content_offset={contentOffset.X},{contentOffset.Y}, references={referenceImages.Count}");
+		reportProgress?.Invoke ($"Generating {name} ({size})...", 0.25);
 		using JsonDocument json = await RunImageJobAsync (
 			path,
-			png,
+			requestPng,
 			fields,
 			name,
 			size,
 			log,
-			cancellationToken);
+			cancellationToken,
+			additionalFiles);
 
 		JsonElement root = json.RootElement;
-
-		if (TryReadImage (root, "result_b64_json", out byte[]? result)) {
-			Log (log, $"AI image response: name={name}, source=result_b64_json, returned_size={FormatSize (GetPngSize (result!))}, returned_bytes={result!.Length}, form_size={ReadStringProperty (root, "size")}");
-			return result!;
-		}
-
-		if (root.TryGetProperty ("result_url", out JsonElement urlElement) &&
+		byte[] rawResult;
+		if (TryReadImage (root, "result_b64_json", out byte[]? result))
+			rawResult = result!;
+		else if (root.TryGetProperty ("result_url", out JsonElement urlElement) &&
 			urlElement.GetString () is string url &&
-			!string.IsNullOrWhiteSpace (url)) {
-			byte[] downloaded = await api.GetBytesAsync (url, cancellationToken);
-			Log (log, $"AI image response: name={name}, source=result_url, returned_size={FormatSize (GetPngSize (downloaded))}, returned_bytes={downloaded.Length}, form_size={ReadStringProperty (root, "size")}, url={url}");
-			return downloaded;
-		}
+			!string.IsNullOrWhiteSpace (url))
+			rawResult = await api.GetBytesAsync (url, cancellationToken);
+		else
+			throw new InvalidOperationException ("Image response did not include a result image.");
 
-		throw new InvalidOperationException ("Image response did not include a result image.");
+		Log (log, $"AI image response: name={name}, returned_size={FormatSize (GetPngSize (rawResult))}, returned_bytes={rawResult.Length}, form_size={ReadStringProperty (root, "size")}");
+		saveResult?.Invoke (GetRawResultFileName (fileName), rawResult);
+		reportProgress?.Invoke (Translations.GetString ("Normalizing AI image..."), 0.7);
+		byte[] normalized = NormalizePngSize (rawResult, targetSize, requestSize, contentOffset, name, log);
+		saveResult?.Invoke (fileName, normalized);
+		return normalized;
 	}
 
 	private async Task<JsonDocument> RunImageJobAsync (
@@ -212,7 +179,8 @@ public sealed class BackgroundCutoutService
 		string name,
 		string size,
 		Action<string>? log,
-		CancellationToken cancellationToken)
+		CancellationToken cancellationToken,
+		IEnumerable<(byte[] Data, string FormName, string FileName)> additionalFiles)
 	{
 		using JsonDocument job = JsonDocument.Parse (await api.PostPngAsync (
 			path,
@@ -220,7 +188,8 @@ public sealed class BackgroundCutoutService
 			"file",
 			"pinta.png",
 			cancellationToken,
-			fields));
+			fields,
+			additionalFiles));
 		string jobId = job.RootElement.GetProperty ("id").GetString ()
 			?? throw new InvalidOperationException ("Image response did not include a job id.");
 		Log (log, $"AI image job accepted: name={name}, job_id={jobId}, form_size={size}");
@@ -279,45 +248,99 @@ public sealed class BackgroundCutoutService
 		return config;
 	}
 
+	private static string AppendPrompt (string prompt, string additionalPrompt)
+		=> string.IsNullOrWhiteSpace (additionalPrompt)
+			? prompt
+			: $"{prompt}\n\nAdditional instructions: {additionalPrompt.Trim ()}";
+
 	private static string GetPromptConfigPath ()
 		=> Path.Combine (AppContext.BaseDirectory, "config", prompt_config_file);
 
-	private static string GetGptImageRequestSize (Size imageSize)
+	private static Size GetImageRequestSize (string imageService, Size imageSize)
 	{
 		if (imageSize.Width <= 0 || imageSize.Height <= 0)
-			return "1024x1024";
+			return new (1024, 1024);
 
-		return $"{imageSize.Width}x{imageSize.Height}";
+		return imageService == AiRequestSettings.AgnesService
+			? GetAgnesImageRequestSize (imageSize)
+			: GetGptImageRequestSize (imageSize);
 	}
 
-	private static string GetAgnesImageRatio (Size imageSize)
+	private static Size GetAgnesImageRequestSize (Size imageSize)
 	{
-		if (imageSize.Width <= 0 || imageSize.Height <= 0)
-			return "1:1";
+		Size? closest = null;
+		double closestDistance = double.MaxValue;
+		foreach (Size candidate in agnes_image_sizes) {
+			if (candidate.Width < imageSize.Width || candidate.Height < imageSize.Height)
+				continue;
 
-		double aspect = (double) imageSize.Width / imageSize.Height;
-		(string Name, double Value)[] ratios = [
-			("1:1", 1.0),
-			("3:4", 3.0 / 4.0),
-			("4:3", 4.0 / 3.0),
-			("16:9", 16.0 / 9.0),
-			("9:16", 9.0 / 16.0),
-			("2:3", 2.0 / 3.0),
-			("3:2", 3.0 / 2.0),
-			("21:9", 21.0 / 9.0),
-		];
-		(string Name, double Value) closest = ratios[0];
-		foreach ((string Name, double Value) ratio in ratios) {
-			if (Math.Abs (ratio.Value - aspect) < Math.Abs (closest.Value - aspect))
-				closest = ratio;
+			double distance = Math.Pow ((double) candidate.Width / imageSize.Width - 1, 2)
+				+ Math.Pow ((double) candidate.Height / imageSize.Height - 1, 2);
+			if (distance < closestDistance) {
+				closest = candidate;
+				closestDistance = distance;
+			}
 		}
 
-		return closest.Name;
+		return closest ?? throw new InvalidOperationException ("Image is larger than every supported Agnes image size.");
+	}
+
+	private static Size GetGptImageRequestSize (Size imageSize)
+	{
+		Size? closest = null;
+		double closestDistance = double.MaxValue;
+		int firstWidth = RoundUp (imageSize.Width, gpt_size_multiple);
+		for (int width = firstWidth; width <= gpt_max_edge; width += gpt_size_multiple) {
+			int minimumHeight = Math.Max (imageSize.Height, Math.Max (
+				(int) Math.Ceiling ((double) gpt_min_pixels / width),
+				(int) Math.Ceiling ((double) width / gpt_max_aspect_ratio)));
+			int height = RoundUp (minimumHeight, gpt_size_multiple);
+			if (height > gpt_max_edge || width * height > gpt_max_pixels || height > width * gpt_max_aspect_ratio)
+				continue;
+
+			double distance = Math.Pow ((double) width / imageSize.Width - 1, 2)
+				+ Math.Pow ((double) height / imageSize.Height - 1, 2);
+			if (distance < closestDistance) {
+				closest = new (width, height);
+				closestDistance = distance;
+			}
+		}
+
+		return closest ?? throw new InvalidOperationException ("Image cannot be padded to a supported GPT Image size.");
+	}
+
+	private static int RoundUp (int value, int multiple)
+		=> checked((value + multiple - 1) / multiple * multiple);
+
+	private static byte[] PadPng (byte[] png, Size requestSize, bool whitePadding, out PointI contentOffset)
+	{
+		using GdkPixbuf.Pixbuf pixbuf = LoadPixbuf (png);
+		if (pixbuf.Width > requestSize.Width || pixbuf.Height > requestSize.Height)
+			throw new InvalidOperationException ("Image is larger than the selected request size.");
+
+		contentOffset = new ((requestSize.Width - pixbuf.Width) / 2, (requestSize.Height - pixbuf.Height) / 2);
+		if (pixbuf.Width == requestSize.Width && pixbuf.Height == requestSize.Height)
+			return png;
+
+		using Cairo.ImageSurface surface = CairoExtensions.CreateImageSurface (Cairo.Format.Argb32, requestSize.Width, requestSize.Height);
+		if (whitePadding) {
+			using Cairo.Context context = new (surface);
+			context.SetSourceColor (new Cairo.Color (1, 1, 1));
+			context.Paint ();
+		} else {
+			surface.Clear ();
+		}
+		using (Cairo.Context context = new (surface))
+			context.DrawPixbuf (pixbuf, contentOffset.X, contentOffset.Y);
+		using GdkPixbuf.Pixbuf padded = surface.ToPixbuf ();
+		return padded.SaveToBuffer ("png");
 	}
 
 	private static byte[] NormalizePngSize (
 		byte[] png,
 		Size targetSize,
+		Size requestSize,
+		PointI contentOffset,
 		string name,
 		Action<string>? log)
 	{
@@ -326,6 +349,16 @@ public sealed class BackgroundCutoutService
 		if (returnedSize == targetSize) {
 			Log (log, $"AI image normalize: name={name}, action=none, size={FormatSize (returnedSize)}, bytes={png.Length}");
 			return png;
+		}
+		if (returnedSize == requestSize && targetSize.Width <= returnedSize.Width && targetSize.Height <= returnedSize.Height) {
+			using Cairo.ImageSurface surface = CairoExtensions.CreateImageSurface (Cairo.Format.Argb32, targetSize.Width, targetSize.Height);
+			surface.Clear ();
+			using (Cairo.Context context = new (surface))
+				context.DrawPixbuf (pixbuf, -contentOffset.X, -contentOffset.Y);
+			using GdkPixbuf.Pixbuf cropped = surface.ToPixbuf ();
+			byte[] croppedResult = cropped.SaveToBuffer ("png");
+			Log (log, $"AI image normalize: name={name}, action=center-crop, from={FormatSize (returnedSize)}, to={FormatSize (targetSize)}, offset={contentOffset.X},{contentOffset.Y}, raw_bytes={png.Length}, normalized_bytes={croppedResult.Length}");
+			return croppedResult;
 		}
 
 		using GdkPixbuf.Pixbuf scaled = pixbuf.ScaleSimple (

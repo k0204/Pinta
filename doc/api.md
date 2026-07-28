@@ -1,6 +1,6 @@
 # API Documentation
 
-Default API server: `http://101.42.29.148:8080/`
+Default API server: `http://localhost:8080/`
 
 ## Usage Costs
 
@@ -9,12 +9,17 @@ The server deducts user balance according to `config/usageCosts.json` in the API
 - `/api/images/jobs:thumbnail`: default cost `1`
 - `/api/images/jobs:grayscale`: default cost `1`
 - `/api/images/jobs:invert`: default cost `1`
-- `/api/agnes-images/white-background`: default cost `10`
-- `/api/agnes-images/black-background`: default cost `8`
-- `/api/agnes-images/cutout-backgrounds`: default cost `18`
+- `/api/agnes-images`: default cost `18`
 - `/api/gpt-images`: default cost configured by the server
+- `/api/baidu-images`: default cost `1`
 
 Requests with insufficient balance return `402 Payment Required`.
+
+## Image Job Retention
+
+- Uploaded source and reference images are deleted after processing.
+- Completed and failed job results remain available for `IMAGE_RESULT_RETENTION_HOURS`, which defaults to `24` hours.
+- Expired result files and job records are removed when the next image job starts.
 
 ## Authentication
 
@@ -121,74 +126,59 @@ All requests in this section include `Authorization: Bearer <token>` when a toke
 - Path: value returned by `image_url` or `mask_url`
 - Response: PNG bytes
 
-## Agnes Background Cutout
+## Image Editing
 
 All requests in this section include `Authorization: Bearer <token>`.
-
-### Generate White Background
-
-- Method: `POST`
-- Path: `/api/agnes-images/white-background`
-- Content type: `multipart/form-data`
-- Form fields:
-  - `file`: PNG image, sent as `pinta.png`
-  - `size`: Agnes image size, one of `1K`, `2K`, `3K`, or `4K`
-  - `ratio`: Agnes image ratio, one of `1:1`, `3:4`, `4:3`, `16:9`, `9:16`, `2:3`, `3:2`, or `21:9`
-- Response: `202 Accepted` with an image job object. Poll `GET /api/images/jobs/{id}` and read `GET /api/images/jobs/{id}/result` when completed.
-- Result JSON includes `operation`, `prompt`, `size`, `ratio`, `resolution`, `result_url`, `result_b64_json`, and `agnes_response`. The server requests `b64_json` from Agnes for this endpoint so Pinta does not need to download private external image URLs.
-
-### Generate Black Background
-
-- Method: `POST`
-- Path: `/api/agnes-images/black-background`
-- Content type: `multipart/form-data`
-- Form fields:
-  - `file`: PNG image, sent as `pinta.png`
-  - `size`: Agnes image size, one of `1K`, `2K`, `3K`, or `4K`
-  - `ratio`: Agnes image ratio, one of `1:1`, `3:4`, `4:3`, `16:9`, `9:16`, `2:3`, `3:2`, or `21:9`
-- Response: `202 Accepted` with an image job object. Poll `GET /api/images/jobs/{id}` and read `GET /api/images/jobs/{id}/result` when completed.
-- Result JSON includes `operation`, `prompt`, `size`, `ratio`, `resolution`, `result_url`, `result_b64_json`, and `agnes_response`. The server requests `b64_json` from Agnes for this endpoint so Pinta does not need to download private external image URLs.
-
-### Generate Validated Cutout Background Pair
-
-- Method: `POST`
-- Path: `/api/agnes-images/cutout-backgrounds`
-- Content type: `multipart/form-data`
-- Form fields:
-  - `file`: PNG image, sent as `pinta.png`
-  - `size`: Agnes image size, one of `1K`, `2K`, `3K`, or `4K`
-  - `ratio`: Agnes image ratio, one of `1:1`, `3:4`, `4:3`, `16:9`, `9:16`, `2:3`, `3:2`, or `21:9`
-- Response: `202 Accepted` with an image job object containing `id`, `status`, `operation`, and job metadata.
-- Client behavior: polls `GET /api/images/jobs/{id}` while status is `queued` or `processing`. When status is `completed`, it reads `GET /api/images/jobs/{id}/result`.
-- Result JSON includes `white_result_b64_json`, `black_result_b64_json`, `prompt`, `size`, `ratio`, `resolution`, and `agnes_response`.
-- Server behavior: generates the white-background image and black-background image from the original upload, then returns both images without pixel comparison.
-
-## GPT Image Background Cutout
-
-All requests in this section include `Authorization: Bearer <token>`.
-
-The client stores background prompts in `config/gpt-image-prompts.json` and reads the file at the start of each cutout run, so prompt changes apply to the next cutout.
 
 ### Generate Image
 
 - Method: `POST`
-- Path: `/api/gpt-images`
+- Path: `/api/agnes-images` or `/api/gpt-images`
 - Content type: `multipart/form-data`
 - Form fields:
   - `file`: PNG image, sent as `pinta.png`
-  - `size`: concrete output size, for example `1024x1024`
-  - `provider`: GPT image provider ID, currently `zzswitch` or `lukyface`; if omitted, the server uses its configured default provider
+  - `reference_files`: optional repeated PNG files used as visual references
   - `prompt`: image prompt text
+  - `provider`: GPT provider ID (`zzswitch` or `lukyface`), sent only to `/api/gpt-images`
+  - `size`: concrete output size, for example `1024x1024`; its constraints depend on the selected endpoint
 - Response: `202 Accepted` with an image job object containing `id`, `status`, `operation`, and job metadata.
 - Client behavior: polls `GET /api/images/jobs/{id}` while status is `queued` or `processing`. When status is `completed`, it reads `GET /api/images/jobs/{id}/result`.
-- Result JSON includes `operation`, `prompt`, `provider`, `model`, `quality`, `size`, `result_url`, `result_b64_json`, and `gpt_response`.
+- Both endpoints return `operation`, `prompt`, `provider`, `model`, `size`, `result_url`, and `result_b64_json`, plus their provider-specific raw response.
+- Agnes requests use the closest configured Agnes resolution that can contain the source image. Supported resolutions are the configured `1K` through `4K` sizes for ratios `1:1`, `3:4`, `4:3`, `16:9`, `9:16`, `2:3`, `3:2`, and `21:9`.
+- GPT Image requests use dimensions divisible by `16`, between `655360` and `8294400` pixels, with a maximum edge of `3840` and a maximum aspect ratio of `3:1`.
 - Failed jobs return `status: failed` and an `error_message` from the job status endpoint.
 
-### Client Cutout Flow
+The client stores background prompts in `config/gpt-image-prompts.json` and reads the file at the start of each background request, so prompt changes apply to the next request.
 
-- The layer row cutout button renders the selected layer to PNG.
-- The AI Request Settings dialog selects `agnes` or `gpt-image`; GPT Image also selects `zzswitch` or `lukyface` as the request `provider`.
-- With Agnes selected, the client sends one request to `/api/agnes-images/cutout-backgrounds` using `2K` and the closest supported aspect ratio.
-- With GPT Image selected, the client sends the source PNG with the white prompt to `/api/gpt-images`, then sends the white result with the black prompt to the same endpoint. Both requests include the selected `provider`.
-- The client resizes returned images to the document size when needed.
-- The client diffs the saved white and black results for alpha, applies that alpha to the original layer pixels, and creates a new transparent layer after both images are available. AI output is not used for foreground color.
+## Baidu Human Segmentation
+
+All client requests in this section include `Authorization: Bearer <token>`. Baidu credentials exist only on the API server in `config/baiduConfig.json`. `BAIDU_CONFIG_PATH` optionally selects another config file.
+
+### Create Cutout Job
+
+- Method: `POST`
+- Path: `/api/baidu-images`
+- Content type: `multipart/form-data`
+- Form fields:
+  - `file`: PNG image, sent as `pinta.png`
+- Response: `202 Accepted` with an image job object. The client polls the standard image job endpoints.
+- Result JSON:
+  - `operation`: `baidu_cutout`
+  - `provider`: `baidu`
+  - `result_b64_json`: Base64-encoded transparent PNG returned from Baidu's `foreground` field
+  - `person_num`: number of detected people
+- Server behavior: obtains and caches the Baidu access token, sends `type=foreground` to Baidu, and never exposes Baidu credentials or access tokens to the client.
+- Limits: the server accepts JPEG and PNG; after Base64 and URL encoding the request image must not exceed 4 MB; shortest edge is at least 50 px and longest edge is at most 4096 px. Invalid input is rejected before balance deduction.
+- Scope: this endpoint segments people. It is not a general object cutout endpoint.
+
+### Client Background Cleanup and Cutout Flow
+
+- Each layer row has one cutout button. Clicking it opens AI Request Settings with `agnes`, `gpt-image`, and `baidu` as peer services.
+- Agnes and GPT Image show `生成白图` and `抠图` operations. Baidu shows only `抠图`.
+- Operation buttons immediately save the selected service and close the dialog; there are no separate Cancel or Save buttons.
+- White-image generation opens the additional prompt/reference dialog, sends the selected layer and references to Agnes or GPT Image, and creates a white-background layer.
+- Agnes/GPT cutout treats the selected layer as the white-background input, generates a black-background image, and diffs the pair into a transparent layer.
+- Baidu cutout sends the selected layer to `/api/baidu-images` and creates one transparent layer from `result_b64_json`.
+- The GPT provider setting is shown only for `gpt-image`.
+- Both services use the same image, prompt, and size field names, but the client selects sizes according to each service's own constraints. Only GPT Image receives a provider field.
+- If the document size is unsupported, the client chooses the closest supported size that can contain it, pads the source image equally on each side to center it, and center-crops the result back to the document size. It only resizes as a fallback when a provider returns an unexpected size.

@@ -36,6 +36,7 @@ public sealed class AppActions
 	public Command Exit { get; }
 
 	public event EventHandler? BeforeQuit;
+	public event EventHandler? BeforeQuitAttempt;
 
 	public AppActions ()
 	{
@@ -79,5 +80,10 @@ public sealed class AppActions
 	public void RaiseBeforeQuit ()
 	{
 		BeforeQuit?.Invoke (this, EventArgs.Empty);
+	}
+
+	public void RaiseBeforeQuitAttempt ()
+	{
+		BeforeQuitAttempt?.Invoke (this, EventArgs.Empty);
 	}
 }

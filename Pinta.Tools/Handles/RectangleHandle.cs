@@ -30,6 +30,7 @@ public class RectangleHandle : IToolHandle
 	private readonly Dictionary<HandlePoint, MoveHandle> handles;
 	private MoveHandle? active_handle;
 	private PointD? drag_start_pos;
+	private double drag_aspect_ratio = 1.0;
 
 	public RectangleHandle (IWorkspaceService workspace)
 	{
@@ -74,6 +75,7 @@ public class RectangleHandle : IToolHandle
 	/// </summary>
 	public bool InvertIfNegative { get; init; }
 	public bool DrawOutline { get; init; }
+	public bool PreserveAspectRatio { get; init; }
 
 	/// <summary>
 	/// Whether the user is currently dragging a corner of the rectangle.
@@ -109,6 +111,10 @@ public class RectangleHandle : IToolHandle
 		if (active_handle is null)
 			return false;
 
+		RectangleD rect = Rectangle;
+		drag_aspect_ratio = PreserveAspectRatio && rect.Height > 0
+			? rect.Width / rect.Height
+			: 1.0;
 		drag_start_pos = viewPos;
 		return true;
 	}
@@ -220,13 +226,13 @@ public class RectangleHandle : IToolHandle
 
 	private bool IsHigherThanWide ()
 	{
-		return end_pt.X - start_pt.X <= end_pt.Y - start_pt.Y;
+		return (end_pt.X - start_pt.X) / drag_aspect_ratio <= end_pt.Y - start_pt.Y;
 	}
 
 	private void ExpandUniformlyX ()
 	{
 		double x_average = (start_pt.X + end_pt.X) / 2;
-		double y_distance = (end_pt.Y - start_pt.Y) / 2;
+		double y_distance = (end_pt.Y - start_pt.Y) * drag_aspect_ratio / 2;
 
 		start_pt = start_pt with { X = x_average - y_distance };
 		end_pt = end_pt with { X = x_average + y_distance };
@@ -235,7 +241,7 @@ public class RectangleHandle : IToolHandle
 	private void ExpandUniformlyY ()
 	{
 		double y_average = (start_pt.Y + end_pt.Y) / 2;
-		double x_distance = (end_pt.X - start_pt.X) / 2;
+		double x_distance = (end_pt.X - start_pt.X) / drag_aspect_ratio / 2;
 
 		start_pt = start_pt with { Y = y_average - x_distance };
 		end_pt = end_pt with { Y = y_average + x_distance };
@@ -251,9 +257,9 @@ public class RectangleHandle : IToolHandle
 
 				if (shiftPressed) {
 					if (IsHigherThanWide ()) {
-						start_pt = start_pt with { X = end_pt.X - end_pt.Y + start_pt.Y };
+						start_pt = start_pt with { X = end_pt.X - (end_pt.Y - start_pt.Y) * drag_aspect_ratio };
 					} else {
-						start_pt = start_pt with { Y = end_pt.Y - end_pt.X + start_pt.X };
+						start_pt = start_pt with { Y = end_pt.Y - (end_pt.X - start_pt.X) / drag_aspect_ratio };
 					}
 				}
 				return;
@@ -264,9 +270,9 @@ public class RectangleHandle : IToolHandle
 
 				if (shiftPressed) {
 					if (IsHigherThanWide ())
-						start_pt = start_pt with { X = end_pt.X - end_pt.Y + start_pt.Y };
+						start_pt = start_pt with { X = end_pt.X - (end_pt.Y - start_pt.Y) * drag_aspect_ratio };
 					else
-						end_pt = end_pt with { Y = start_pt.Y + end_pt.X - start_pt.X };
+						end_pt = end_pt with { Y = start_pt.Y + (end_pt.X - start_pt.X) / drag_aspect_ratio };
 				}
 				return;
 
@@ -276,9 +282,9 @@ public class RectangleHandle : IToolHandle
 
 				if (shiftPressed) {
 					if (IsHigherThanWide ())
-						end_pt = end_pt with { X = start_pt.X + end_pt.Y - start_pt.Y };
+						end_pt = end_pt with { X = start_pt.X + (end_pt.Y - start_pt.Y) * drag_aspect_ratio };
 					else
-						start_pt = start_pt with { Y = end_pt.Y - end_pt.X + start_pt.X };
+						start_pt = start_pt with { Y = end_pt.Y - (end_pt.X - start_pt.X) / drag_aspect_ratio };
 				}
 				return;
 
@@ -287,9 +293,9 @@ public class RectangleHandle : IToolHandle
 
 				if (shiftPressed) {
 					if (IsHigherThanWide ())
-						end_pt = end_pt with { X = start_pt.X + end_pt.Y - start_pt.Y };
+						end_pt = end_pt with { X = start_pt.X + (end_pt.Y - start_pt.Y) * drag_aspect_ratio };
 					else
-						end_pt = end_pt with { Y = start_pt.Y + end_pt.X - start_pt.X };
+						end_pt = end_pt with { Y = start_pt.Y + (end_pt.X - start_pt.X) / drag_aspect_ratio };
 				}
 				return;
 

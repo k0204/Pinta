@@ -24,6 +24,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
+using System;
 using Pinta.Core;
 using Pinta.Docking;
 using Pinta.Gui.Widgets;
@@ -33,6 +34,9 @@ namespace Pinta;
 internal sealed class LayersPad : IDockPad
 {
 	private readonly LayerActions layer_actions;
+	private Gtk.SpinButton opacity_spinner = null!;
+	private bool updating_opacity;
+
 	internal LayersPad (LayerActions layerActions)
 	{
 		layer_actions = layerActions;
@@ -41,8 +45,33 @@ internal sealed class LayersPad : IDockPad
 	public void Initialize (Dock workspace)
 	{
 		LayersListView layers = LayersListView.New ();
+		layers.Vexpand = true;
+
+		Gtk.Label opacityLabel = Gtk.Label.New (Translations.GetString ("Opacity:"));
+		opacityLabel.Halign = Gtk.Align.Start;
+
+		opacity_spinner = Gtk.SpinButton.NewWithRange (0, 100, 1);
+		opacity_spinner.Adjustment!.PageIncrement = 10;
+		opacity_spinner.ClimbRate = 1;
+		opacity_spinner.Value = 100;
+		opacity_spinner.WidthRequest = 84;
+		opacity_spinner.OnValueChanged += HandleOpacityChanged;
+
+		Gtk.Box opacityRow = Gtk.Box.New (Gtk.Orientation.Horizontal, 6);
+		opacityRow.MarginTop = 6;
+		opacityRow.MarginBottom = 6;
+		opacityRow.MarginStart = 6;
+		opacityRow.MarginEnd = 6;
+		opacityRow.Append (opacityLabel);
+		opacityRow.Append (opacity_spinner);
+		opacityRow.Append (Gtk.Label.New ("%"));
+
+		Gtk.Box content = Gtk.Box.New (Gtk.Orientation.Vertical, 0);
+		content.Append (opacityRow);
+		content.Append (layers);
+
 		DockItem layers_item = DockItem.New (
-			child: layers,
+			child: content,
 			uniqueName: "Layers",
 			iconName: Resources.Icons.LayerDuplicate
 		);
@@ -83,5 +112,50 @@ internal sealed class LayersPad : IDockPad
 		]);
 
 		workspace.AddItem (layers_item, DockPlacement.Right);
+
+		PintaCore.Workspace.ActiveDocumentChanged += HandleOpacityTargetChanged;
+		PintaCore.Workspace.SelectedLayerChanged += HandleOpacityTargetChanged;
+		PintaCore.Workspace.LayerPropertyChanged += HandleOpacityTargetChanged;
+		UpdateOpacityControl ();
+	}
+
+	private void HandleOpacityChanged (object? sender, EventArgs e)
+	{
+		if (updating_opacity || !PintaCore.Workspace.HasOpenDocuments)
+			return;
+
+		Document document = PintaCore.Workspace.ActiveDocument;
+		UserLayer layer = document.Layers.CurrentUserLayer;
+		double opacity = opacity_spinner.Value / 100d;
+		if (layer.Opacity == opacity)
+			return;
+
+		LayerProperties initial = new (layer.Name, layer.Hidden, layer.Opacity, layer.BlendMode);
+		LayerProperties updated = initial with { Opacity = opacity };
+		layer.Opacity = opacity;
+		if (document.Layers.ShowSelectionLayer)
+			document.Layers.SelectionLayer.Opacity = opacity;
+
+		document.History.PushNewItem (new UpdateLayerPropertiesHistoryItem (
+			Resources.Icons.LayerProperties,
+			Translations.GetString ("Layer Opacity"),
+			layer,
+			initial,
+			updated));
+		document.Workspace.Invalidate ();
+	}
+
+	private void HandleOpacityTargetChanged (object? sender, EventArgs e)
+		=> UpdateOpacityControl ();
+
+	private void UpdateOpacityControl ()
+	{
+		updating_opacity = true;
+		bool hasLayer = PintaCore.Workspace.HasOpenDocuments;
+		opacity_spinner.Sensitive = hasLayer;
+		opacity_spinner.Value = hasLayer
+			? Math.Round (PintaCore.Workspace.ActiveDocument.Layers.CurrentUserLayer.Opacity * 100)
+			: 100;
+		updating_opacity = false;
 	}
 }

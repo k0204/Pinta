@@ -25,7 +25,10 @@
 // THE SOFTWARE.
 
 using System;
+using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Text.Json;
 using System.Threading.Tasks;
 using Mono.Addins;
 using Pinta.Core;
@@ -50,6 +53,25 @@ internal sealed class MainWindow
 
 	private int main_thread_id = -1;
 	private Gtk.DropTarget drop_target = null!;
+	private bool session_restored;
+	private bool suppress_tab_change;
+	private int deferred_document_position = -1;
+
+	private sealed class DeferredDocumentViewContent : IDockNotebookItem
+	{
+		public DeferredDocumentViewContent (string path)
+		{
+			Path = path;
+			Widget = Gtk.Box.New (Gtk.Orientation.Vertical, 0);
+		}
+
+		public string Path { get; }
+		public Gtk.Widget Widget { get; }
+		public string Label => System.IO.Path.GetFileName (Path);
+		public event EventHandler? LabelChanged { add { } remove { } }
+	}
+
+	private sealed record FileSession (string[] Paths, string? ActivePath);
 
 	public MainWindow (Adw.Application app)
 	{
@@ -101,6 +123,7 @@ internal sealed class MainWindow
 		// Load the user's previous settings
 		LoadUserSettings ();
 		_ = RestoreAiAccountAsync ();
+		PintaCore.Actions.App.BeforeQuitAttempt += delegate { SaveFileSession (); };
 		PintaCore.Actions.App.BeforeQuit += delegate { SaveUserSettings (); };
 
 		// We support drag and drop for URIs, which are converted into a Gdk.FileList.
@@ -137,12 +160,21 @@ internal sealed class MainWindow
 	{
 		var tab = FindTabWithCanvas ((CanvasWindow) e.Document.Workspace.CanvasWindow);
 
-		if (tab != null)
-			canvas_pad.Notebook.RemoveTab (tab);
+		if (tab != null) {
+			suppress_tab_change = true;
+			try {
+				canvas_pad.Notebook.RemoveTab (tab);
+			} finally {
+				suppress_tab_change = false;
+			}
+		}
 	}
 
 	private void DockNotebook_TabClosed (object? sender, TabClosedEventArgs e)
 	{
+		if (e.Item is DeferredDocumentViewContent)
+			return;
+
 		var view = (DocumentViewContent) e.Item;
 
 		int index = PintaCore.Workspace.OpenDocuments.IndexOf (view.Document);
@@ -161,10 +193,18 @@ internal sealed class MainWindow
 
 	private void DockNotebook_ActiveTabChanged (object? sender, EventArgs e)
 	{
+		if (suppress_tab_change)
+			return;
+
 		var item = canvas_pad.Notebook.ActiveItem;
 
 		if (item == null)
 			return;
+
+		if (item is DeferredDocumentViewContent deferred) {
+			OpenDeferredDocument (deferred);
+			return;
+		}
 
 		var view = (DocumentViewContent) item;
 
@@ -178,7 +218,25 @@ internal sealed class MainWindow
 		var doc = e.Document;
 
 		var notebook = canvas_pad.Notebook;
-		int selected_index = notebook.ActiveItemIndex;
+		if (deferred_document_position < 0 && doc.File?.GetPath () is string path) {
+			List<IDockNotebookItem> tabs = notebook.Items.ToList ();
+			int placeholderIndex = tabs.FindIndex (item =>
+				item is DeferredDocumentViewContent deferred &&
+				string.Equals (deferred.Path, path, StringComparison.OrdinalIgnoreCase));
+			if (placeholderIndex >= 0) {
+				suppress_tab_change = true;
+				try {
+					notebook.RemoveTab (tabs[placeholderIndex]);
+				} finally {
+					suppress_tab_change = false;
+				}
+				deferred_document_position = placeholderIndex;
+			}
+		}
+		int selected_index = deferred_document_position >= 0
+			? deferred_document_position - 1
+			: notebook.ActiveItemIndex;
+		deferred_document_position = -1;
 
 		CanvasWindow canvas = CanvasWindow.New (
 			PintaCore.Chrome,
@@ -438,7 +496,6 @@ internal sealed class MainWindow
 		if (window_shell.HeaderBar is not null) {
 			var headerBar = window_shell.HeaderBar;
 			headerBar.PackEnd (CreateAiAccountButton ());
-			headerBar.PackEnd (CreateAiRequestSettingsButton ());
 
 			headerBar.PackEnd (GtkExtensions.CreateMenuButton (
 				this.menu_bar,
@@ -470,33 +527,7 @@ internal sealed class MainWindow
 			var main_toolbar = window_shell.CreateToolBar ("main_toolbar");
 			PintaCore.Actions.CreateToolBar (main_toolbar);
 			main_toolbar.Append (GtkExtensions.CreateToolBarSeparator ());
-			main_toolbar.Append (CreateAiRequestSettingsButton ());
 			main_toolbar.Append (CreateAiAccountButton ());
-		}
-	}
-
-	private static Gtk.Button CreateAiRequestSettingsButton ()
-	{
-		Gtk.Button button = Gtk.Button.NewFromIconName ("preferences-system-symbolic");
-		button.TooltipText = Translations.GetString ("AI Request Settings");
-		button.OnClicked += async (_, _) => await ShowAiRequestSettingsAsync ();
-		return button;
-	}
-
-	private static async Task ShowAiRequestSettingsAsync ()
-	{
-		using AiRequestSettingsDialog dialog = AiRequestSettingsDialog.New (
-			PintaCore.Chrome.MainWindow,
-			PintaCore.Settings);
-
-		try {
-			if (await dialog.RunAsync () != Gtk.ResponseType.Ok)
-				return;
-
-			dialog.Save (PintaCore.Settings);
-			PintaCore.Settings.DoSaveSettingsBeforeQuit ();
-		} finally {
-			dialog.Destroy ();
 		}
 	}
 
@@ -658,6 +689,90 @@ internal sealed class MainWindow
 
 		PintaCore.Settings.DoSaveSettingsBeforeQuit ();
 	}
+
+	private void SaveFileSession ()
+	{
+		string[] paths = canvas_pad.Notebook.Items
+			.Select (GetSessionPath)
+			.Where (path => path is not null)
+			.Cast<string> ()
+			.Distinct (StringComparer.OrdinalIgnoreCase)
+			.ToArray ();
+		string? activePath = canvas_pad.Notebook.ActiveItem is IDockNotebookItem active
+			? GetSessionPath (active)
+			: null;
+
+		PintaCore.Settings.PutSetting (
+			SettingNames.OPEN_FILE_SESSION,
+			JsonSerializer.Serialize (new FileSession (paths, activePath)));
+	}
+
+	public bool RestoreFileSession ()
+	{
+		if (session_restored)
+			return PintaCore.Workspace.HasOpenDocuments || canvas_pad.Notebook.Items.Any ();
+		session_restored = true;
+
+		FileSession? session;
+		try {
+			string json = PintaCore.Settings.GetSetting (SettingNames.OPEN_FILE_SESSION, string.Empty);
+			session = string.IsNullOrWhiteSpace (json)
+				? null
+				: JsonSerializer.Deserialize<FileSession> (json);
+		} catch (JsonException) {
+			return false;
+		}
+
+		string[] paths = session?.Paths
+			.Where (File.Exists)
+			.Distinct (StringComparer.OrdinalIgnoreCase)
+			.ToArray () ?? [];
+		if (paths.Length == 0)
+			return false;
+
+		string activePath = paths.FirstOrDefault (path => string.Equals (path, session?.ActivePath, StringComparison.OrdinalIgnoreCase))
+			?? paths[0];
+		if (!PintaCore.Workspace.OpenFile (Gio.FileHelper.NewForPath (activePath)))
+			return false;
+
+		IDockNotebookItem activeItem = canvas_pad.Notebook.ActiveItem!;
+		suppress_tab_change = true;
+		try {
+			for (int i = 0; i < paths.Length; i++)
+				if (!string.Equals (paths[i], activePath, StringComparison.OrdinalIgnoreCase))
+					canvas_pad.Notebook.InsertTab (new DeferredDocumentViewContent (paths[i]), i);
+			canvas_pad.Notebook.ActiveItem = activeItem;
+		} finally {
+			suppress_tab_change = false;
+		}
+
+		return true;
+	}
+
+	private void OpenDeferredDocument (DeferredDocumentViewContent deferred)
+	{
+		int position = canvas_pad.Notebook.ActiveItemIndex;
+		suppress_tab_change = true;
+		try {
+			canvas_pad.Notebook.RemoveTab (deferred);
+		} finally {
+			suppress_tab_change = false;
+		}
+
+		if (!File.Exists (deferred.Path))
+			return;
+
+		deferred_document_position = position;
+		if (!PintaCore.Workspace.OpenFile (Gio.FileHelper.NewForPath (deferred.Path)))
+			deferred_document_position = -1;
+	}
+
+	private static string? GetSessionPath (IDockNotebookItem item)
+		=> item switch {
+			DeferredDocumentViewContent deferred => deferred.Path,
+			DocumentViewContent view => view.Document.File?.GetPath (),
+			_ => null,
+		};
 
 	#region Action Handlers
 	private bool HandleCloseRequest (object o, EventArgs args)

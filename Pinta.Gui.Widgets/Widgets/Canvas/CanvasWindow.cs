@@ -601,24 +601,21 @@ public sealed partial class CanvasWindow
         {
                 state = default;
 
-                if (!this.TranslateCoordinates (Canvas, rootPoint, out PointD viewPoint))
+                if (!this.TranslateCoordinates (guide_overlay, rootPoint, out PointD overlayPoint))
                         return false;
 
-                PointD canvasPoint = document.Workspace.ViewPointToCanvas (viewPoint);
-                if (!document.Workspace.PointInCanvas (canvasPoint))
-                        return false;
-
-                double tolerance = GUIDE_HIT_TOLERANCE_VIEW / Math.Max (document.Workspace.Scale, 0.01);
+                PointD canvasOrigin = GetCanvasOriginInViewport ();
+                double scale = document.Workspace.Scale;
                 double bestDistance = double.MaxValue;
                 bool found = false;
 
                 for (int i = 0; i < document.Guides.Items.Count; i++) {
                         DocumentGuide guide = document.Guides.Items[i];
                         double distance = guide.Orientation == GuideOrientation.Horizontal
-                                ? Math.Abs (guide.Position - canvasPoint.Y)
-                                : Math.Abs (guide.Position - canvasPoint.X);
+                                ? Math.Abs (canvasOrigin.Y + guide.Position * scale - overlayPoint.Y)
+                                : Math.Abs (canvasOrigin.X + guide.Position * scale - overlayPoint.X);
 
-                        if (distance > tolerance || distance >= bestDistance)
+                        if (distance > GUIDE_HIT_TOLERANCE_VIEW || distance >= bestDistance)
                                 continue;
 
                         bestDistance = distance;
@@ -657,10 +654,14 @@ public sealed partial class CanvasWindow
         {
                 GuideDragState state = guide_drag_state!.Value;
 
-                if (!this.TranslateCoordinates (Canvas, rootPoint, out PointD viewPoint))
+                if (!this.TranslateCoordinates (guide_overlay, rootPoint, out PointD overlayPoint))
                         return;
 
-                PointD canvasPoint = document.Workspace.ViewPointToCanvas (viewPoint);
+                PointD canvasOrigin = GetCanvasOriginInViewport ();
+                double scale = document.Workspace.Scale;
+                PointD canvasPoint = new (
+                        (overlayPoint.X - canvasOrigin.X) / scale,
+                        (overlayPoint.Y - canvasOrigin.Y) / scale);
                 current_canvas_pos = canvasPoint;
                 horizontal_ruler.Position = canvasPoint.X;
                 vertical_ruler.Position = canvasPoint.Y;

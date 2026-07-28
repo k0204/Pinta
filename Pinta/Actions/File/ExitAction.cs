@@ -56,6 +56,8 @@ internal sealed class ExitProgramAction : IActionHandler
 
 	private void Activated (object sender, EventArgs e)
 	{
+		actions.App.RaiseBeforeQuitAttempt ();
+
 		while (workspace.HasOpenDocuments) {
 			int count = workspace.OpenDocuments.Count;
 

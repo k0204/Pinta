@@ -46,7 +46,7 @@ public sealed partial class DockNotebook
 {
 	private Adw.TabView tab_view;
 	private Adw.TabBar tab_bar;
-	private readonly HashSet<IDockNotebookItem> items = [];
+	private readonly List<IDockNotebookItem> items = [];
 
 	[MemberNotNull (nameof (tab_view))]
 	[MemberNotNull (nameof (tab_bar))]
@@ -157,7 +157,8 @@ public sealed partial class DockNotebook
 
 	public void InsertTab (IDockNotebookItem item, int position)
 	{
-		items.Add (item);
+		position = Math.Clamp (position, 0, items.Count);
+		items.Insert (position, item);
 
 		Adw.TabPage page = tab_view.Insert (item.Widget, position);
 		page.Title = item.Label;
