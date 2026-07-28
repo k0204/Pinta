@@ -25,6 +25,8 @@
 // THE SOFTWARE.
 
 using System;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace Pinta.Core;
 
@@ -36,6 +38,7 @@ public sealed partial class LayerActions
 	public Command DeleteLayer { get; }
 	public Command DuplicateLayer { get; }
 	public Command MergeLayerDown { get; }
+	public Command MergeSelectedLayers { get; }
 	public Command ImportFromFile { get; }
 	public Command DetectBorder { get; }
 	public Command Cutout { get; }
@@ -111,6 +114,12 @@ public sealed partial class LayerActions
 			null,
 			Resources.Icons.LayerMergeDown,
 			shortcuts: ["<Primary>M"]);
+
+		MergeSelectedLayers = new Command (
+			"mergeselectedlayers",
+			Translations.GetString ("Merge Selected Layers"),
+			null,
+			Resources.Icons.LayerMergeDown) { Sensitive = false };
 
 		ImportFromFile = new Command (
 			"importfromfile",
@@ -200,6 +209,7 @@ public sealed partial class LayerActions
 			DeleteLayer,
 			DuplicateLayer,
 			MergeLayerDown,
+			MergeSelectedLayers,
 			ImportFromFile,
 			DetectBorder,
 			Cutout,
@@ -335,30 +345,61 @@ public sealed partial class LayerActions
 		if (!doc.Layers.CurrentUserLayer.IsEditable || !doc.Layers.GetSiblingBelow (doc.Layers.CurrentUserLayer).IsEditable)
 			return;
 
+		MergeLayers ([doc.Layers.GetSiblingBelow (doc.Layers.CurrentUserLayer), doc.Layers.CurrentUserLayer]);
+	}
+
+	public bool CanMergeLayers (IReadOnlyCollection<UserLayer> layers)
+	{
+		if (layers.Count < 2 || layers.Any (layer => !layer.IsEditable))
+			return false;
+
+		UserLayer first = layers.First ();
+		return layers.All (layer => layer.Parent == first.Parent);
+	}
+
+	public void MergeLayers (IReadOnlyCollection<UserLayer> layers)
+	{
+		if (!CanMergeLayers (layers))
+			return;
+
+		Document doc = workspace.ActiveDocument;
+		List<UserLayer> ordered = [.. layers.Distinct ().OrderBy (layer => doc.Layers.GetPosition (layer).Index)];
+		if (ordered.Count < 2)
+			return;
+
 		tools.Commit ();
 
-		UserLayer bottomLayer = doc.Layers.GetSiblingBelow (doc.Layers.CurrentUserLayer);
+		UserLayer bottomLayer = ordered[0];
 		Cairo.ImageSurface oldBottomSurface = bottomLayer.Surface.Clone ();
 
 		CompoundHistoryItem hist = new (
 			Resources.Icons.LayerMergeDown,
-			Translations.GetString ("Merge Layer Down"));
+			ordered.Count == 2
+				? Translations.GetString ("Merge Layer Down")
+				: Translations.GetString ("Merge Selected Layers"));
 
-		DeleteLayerHistoryItem h1 = new (
-			string.Empty,
-			string.Empty,
-			doc.Layers.CurrentUserLayer,
-			doc.Layers.GetPosition (doc.Layers.CurrentUserLayer));
+		foreach (UserLayer child in bottomLayer.Children.Reverse ())
+			hist.Push (new DeleteLayerHistoryItem (
+				string.Empty,
+				string.Empty,
+				child,
+				doc.Layers.GetPosition (child)));
 
-		doc.Layers.MergeCurrentLayerDown ();
+		foreach (UserLayer layer in ordered.Skip (1).Reverse ())
+			hist.Push (new DeleteLayerHistoryItem (
+				string.Empty,
+				string.Empty,
+				layer,
+				doc.Layers.GetPosition (layer)));
 
-		SimpleHistoryItem h2 = new (
+		doc.Layers.MergeLayers (ordered);
+		doc.ResetSelectionPaths ();
+
+		hist.Push (new SimpleHistoryItem (
 			string.Empty,
 			string.Empty,
 			oldBottomSurface,
-			bottomLayer);
-		hist.Push (h1);
-		hist.Push (h2);
+			bottomLayer));
 
 		doc.History.PushNewItem (hist);
 	}

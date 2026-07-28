@@ -155,6 +155,7 @@ public sealed partial class LayersListViewItemWidget
 	public event EventHandler<LayerDragEventArgs>? LayerDragEnded;
 	public event EventHandler<LayerDragEventArgs>? LayerDragUpdated;
 	public event EventHandler? LayerDragCanceled;
+	public event EventHandler<LayerSelectionEventArgs>? LayerSelectionRequested;
 	public int Depth => item?.Depth ?? 0;
 	public UserLayer? UserLayer => item?.UserLayer;
 
@@ -229,7 +230,7 @@ public sealed partial class LayersListViewItemWidget
                 Gtk.Box itemRow = Gtk.Box.New (Gtk.Orientation.Horizontal, 3);
 		itemRow.Hexpand = true;
 		itemRow.Append (visibleButton);
-                AddSelectLayerGesture (itemRow);
+		AddSelectLayerGesture (itemRow);
 
                 Gtk.Box dragContent = Gtk.Box.New (Gtk.Orientation.Horizontal, 4);
 		dragContent.Hexpand = true;
@@ -346,14 +347,17 @@ public sealed partial class LayersListViewItemWidget
                 widget.AddController (click);
         }
 
-        private void AddSelectLayerGesture (Gtk.Widget widget)
-        {
-                Gtk.GestureClick click = Gtk.GestureClick.New ();
-                click.SetButton (GtkExtensions.MOUSE_LEFT_BUTTON);
-                click.SetPropagationPhase (Gtk.PropagationPhase.Capture);
-                click.OnPressed += (_, _) => SelectCurrentLayer ();
-                widget.AddController (click);
-        }
+	private void AddSelectLayerGesture (Gtk.Widget widget)
+	{
+		Gtk.GestureClick click = Gtk.GestureClick.New ();
+		click.SetButton (GtkExtensions.MOUSE_LEFT_BUTTON);
+		click.SetPropagationPhase (Gtk.PropagationPhase.Capture);
+		click.OnPressed += (_, _) => {
+			if (item?.UserLayer is UserLayer layer)
+				LayerSelectionRequested?.Invoke (this, new LayerSelectionEventArgs (layer, click.GetCurrentEventState ()));
+		};
+		widget.AddController (click);
+	}
 
         private void SelectCurrentLayer ()
         {
@@ -425,6 +429,7 @@ public sealed partial class LayersListViewItemWidget
 		operationsSection.AppendItem (actions.DeleteLayer.CreateMenuItem ());
 		operationsSection.AppendItem (actions.DuplicateLayer.CreateMenuItem ());
 		operationsSection.AppendItem (actions.MergeLayerDown.CreateMenuItem ());
+		operationsSection.AppendItem (actions.MergeSelectedLayers.CreateMenuItem ());
 		operationsSection.AppendItem (actions.MoveLayerUp.CreateMenuItem ());
 		operationsSection.AppendItem (actions.MoveLayerDown.CreateMenuItem ());
 
@@ -571,4 +576,10 @@ public sealed class LayerDragEventArgs : EventArgs
 	public LayerDragEventArgs (PointD endPoint) => EndPoint = endPoint;
 
 	public PointD EndPoint { get; }
+}
+
+public sealed class LayerSelectionEventArgs (UserLayer layer, Gdk.ModifierType modifiers) : EventArgs
+{
+	public UserLayer Layer { get; } = layer;
+	public Gdk.ModifierType Modifiers { get; } = modifiers;
 }

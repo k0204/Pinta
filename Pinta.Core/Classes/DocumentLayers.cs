@@ -430,13 +430,45 @@ public sealed class DocumentLayers
 		if (siblingIndex == 0)
 			throw new InvalidOperationException ("Cannot flatten layer because current layer is the bottom layer.");
 
-		UserLayer dest = siblings[siblingIndex - 1];
+		MergeLayers ([siblings[siblingIndex - 1], source]);
+	}
+
+	/// <summary>
+	/// Merges sibling layers into the lowest selected layer.
+	/// </summary>
+	public UserLayer MergeLayers (IReadOnlyCollection<UserLayer> layers)
+	{
+		if (layers.Count < 2)
+			throw new ArgumentException ("At least two layers are required.", nameof (layers));
+
+		UserLayer first = layers.First ();
+		if (layers.Any (layer => !ContainsLayer (layer) || layer.Parent != first.Parent))
+			throw new ArgumentException ("All layers must belong to the same parent.", nameof (layers));
+
+		HashSet<UserLayer> selected = [.. layers];
+		List<UserLayer> ordered = [.. GetSiblingList (first).Where (selected.Contains)];
+		if (ordered.Count != layers.Count)
+			throw new ArgumentException ("Layers must be unique.", nameof (layers));
+
+		UserLayer dest = ordered[0];
 
 		using Context g = new (dest.Surface);
-		foreach (Layer layer in source.GetLayersToPaint ())
-			layer.Draw (g);
+		foreach (UserLayer child in dest.Children)
+			foreach (Layer layer in child.GetLayersToPaint ())
+				layer.Draw (g);
 
-		DeleteCurrentLayer ();
+		foreach (UserLayer source in ordered.Skip (1))
+			foreach (Layer layer in source.GetLayersToPaint ())
+				layer.Draw (g);
+
+		foreach (UserLayer child in dest.Children.Reverse ().ToList ())
+			DeleteLayer (child);
+
+		foreach (UserLayer source in ordered.Skip (1).Reverse ())
+			DeleteLayer (source);
+
+		SetCurrentUserLayer (dest);
+		return dest;
 	}
 
 	/// <summary>

@@ -90,6 +90,7 @@ internal sealed class ResizeLayerAction : IActionHandler
 		xform.Translate (-bounds.Left, -bounds.Top);
 
 		layer.ApplyTransform (xform, doc.ImageSize, doc.ImageSize, resizing.ResamplingMode);
+		doc.ResetSelectionPaths ();
 		doc.Workspace.Invalidate ();
 
 		doc.History.PushNewItem (new SimpleHistoryItem (
