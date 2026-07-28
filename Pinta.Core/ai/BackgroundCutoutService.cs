@@ -38,6 +38,9 @@ public sealed class BackgroundCutoutService
 		new (1248, 832), new (2496, 1664), new (3744, 2496), new (4992, 3328),
 		new (1568, 672), new (3136, 1344), new (4704, 2016), new (6272, 2688),
 	];
+	private static readonly Size[] gpt_image_generation_sizes = [
+		new (1024, 1024), new (1536, 1024), new (1024, 1536),
+	];
 
 	public BackgroundCutoutService (AiAuthService auth)
 	{
@@ -47,7 +50,7 @@ public sealed class BackgroundCutoutService
 	public Task<byte[]> GenerateWhiteAsync (
 		byte[] sourcePng,
 		Size targetSize,
-		string additionalPrompt,
+		string prompt,
 		IReadOnlyList<(byte[] Png, string FileName)> referenceImages,
 		Action<string, double>? reportProgress = null,
 		Action<string, byte[]>? saveResult = null,
@@ -56,8 +59,10 @@ public sealed class BackgroundCutoutService
 		=> GenerateAsync (
 			sourcePng,
 			targetSize,
-			whiteBackground: true,
-			additionalPrompt,
+			prompt,
+			Translations.GetString ("white background"),
+			"white-background.png",
+			whitePadding: false,
 			referenceImages,
 			reportProgress,
 			saveResult,
@@ -74,13 +79,44 @@ public sealed class BackgroundCutoutService
 		=> GenerateAsync (
 			whiteBackgroundPng,
 			targetSize,
-			whiteBackground: false,
-			additionalPrompt: string.Empty,
+			ReadPromptConfig ().BlackBackgroundPrompt,
+			Translations.GetString ("black background"),
+			"black-background.png",
+			whitePadding: true,
 			referenceImages: [],
 			reportProgress,
 			saveResult,
 			log,
 			cancellationToken);
+
+	public Task<byte[]> GenerateImageAsync (
+		Size targetSize,
+		string prompt,
+		IReadOnlyList<(byte[] Png, string FileName)> referenceImages,
+		Action<string, double>? reportProgress = null,
+		Action<string, byte[]>? saveResult = null,
+		Action<string>? log = null,
+		CancellationToken cancellationToken = default)
+		=> GenerateAsync (
+			sourcePng: null,
+			targetSize,
+			prompt,
+			Translations.GetString ("image"),
+			"generated-image.png",
+			whitePadding: false,
+			referenceImages,
+			reportProgress,
+			saveResult,
+			log,
+			cancellationToken);
+
+	public static string GetDefaultBackgroundCleanupPrompt ()
+		=> ReadPromptConfig ().WhiteBackgroundPrompt;
+
+	public static IReadOnlyList<Size> GetImageGenerationSizes (string imageService)
+		=> imageService == AiRequestSettings.AgnesService
+			? agnes_image_sizes
+			: gpt_image_generation_sizes;
 
 	public async Task<byte[]> GenerateBaiduCutoutAsync (
 		byte[] sourcePng,
@@ -95,13 +131,12 @@ public sealed class BackgroundCutoutService
 		reportProgress?.Invoke (Translations.GetString ("Requesting Baidu human segmentation..."), 0.25);
 		using JsonDocument json = await RunImageJobAsync (
 			baidu_image_path,
-			sourcePng,
 			[],
 			name,
 			size,
 			log,
 			cancellationToken,
-			[]);
+			[(sourcePng, "file", "pinta.png")]);
 		if (!TryReadImage (json.RootElement, "result_b64_json", out byte[]? rawResult))
 			throw new InvalidOperationException ("Baidu response did not include a foreground image.");
 
@@ -112,46 +147,44 @@ public sealed class BackgroundCutoutService
 	}
 
 	private async Task<byte[]> GenerateAsync (
-		byte[] sourcePng,
+		byte[]? sourcePng,
 		Size targetSize,
-		bool whiteBackground,
-		string additionalPrompt,
+		string prompt,
+		string name,
+		string fileName,
+		bool whitePadding,
 		IReadOnlyList<(byte[] Png, string FileName)> referenceImages,
 		Action<string, double>? reportProgress,
 		Action<string, byte[]>? saveResult,
 		Action<string>? log,
 		CancellationToken cancellationToken)
 	{
-		BackgroundCutoutPromptConfig promptConfig = ReadPromptConfig ();
-		string prompt = whiteBackground
-			? AppendPrompt (promptConfig.WhiteBackgroundPrompt, additionalPrompt)
-			: promptConfig.BlackBackgroundPrompt;
-		string name = Translations.GetString (whiteBackground ? "white background" : "black background");
-		string fileName = whiteBackground ? "white-background.png" : "black-background.png";
 		string imageService = AiRequestSettings.GetImageService (PintaCore.Settings);
-		Size requestSize = GetImageRequestSize (imageService, targetSize);
+		Size requestSize = sourcePng is null ? targetSize : GetImageRequestSize (imageService, targetSize);
 		string size = FormatSize (requestSize);
-		byte[] requestPng = PadPng (sourcePng, requestSize, whitePadding: !whiteBackground, out PointI contentOffset);
+		PointI contentOffset = PointI.Zero;
 		string path = imageService == AiRequestSettings.AgnesService ? agnes_image_path : gpt_image_path;
 		KeyValuePair<string, string>[] fields = imageService == AiRequestSettings.AgnesService
 			? [new ("size", size), new ("prompt", prompt)]
 			: [new ("size", size), new ("provider", AiRequestSettings.GetGptProvider (PintaCore.Settings)), new ("prompt", prompt)];
 
-		(byte[] Data, string FormName, string FileName)[] additionalFiles = new (byte[], string, string)[referenceImages.Count];
+		int sourceCount = sourcePng is null ? 0 : 1;
+		(byte[] Data, string FormName, string FileName)[] files = new (byte[], string, string)[sourceCount + referenceImages.Count];
+		if (sourcePng is not null)
+			files[0] = (PadPng (sourcePng, requestSize, whitePadding, out contentOffset), "reference_files", "pinta.png");
 		for (int i = 0; i < referenceImages.Count; i++)
-			additionalFiles[i] = (referenceImages[i].Png, "reference_files", referenceImages[i].FileName);
+			files[sourceCount + i] = (referenceImages[i].Png, "reference_files", referenceImages[i].FileName);
 
-		Log (log, $"AI background start: service={imageService}, name={name}, source_size={FormatSize (GetPngSize (sourcePng))}, source_bytes={sourcePng.Length}, target_size={FormatSize (targetSize)}, request_size={size}, content_offset={contentOffset.X},{contentOffset.Y}, references={referenceImages.Count}");
+		Log (log, $"AI image start: service={imageService}, name={name}, target_size={FormatSize (targetSize)}, request_size={size}, content_offset={contentOffset.X},{contentOffset.Y}, images={files.Length}");
 		reportProgress?.Invoke ($"Generating {name} ({size})...", 0.25);
 		using JsonDocument json = await RunImageJobAsync (
 			path,
-			requestPng,
 			fields,
 			name,
 			size,
 			log,
 			cancellationToken,
-			additionalFiles);
+			files);
 
 		JsonElement root = json.RootElement;
 		byte[] rawResult;
@@ -174,7 +207,6 @@ public sealed class BackgroundCutoutService
 
 	private async Task<JsonDocument> RunImageJobAsync (
 		string path,
-		byte[] png,
 		IEnumerable<KeyValuePair<string, string>> fields,
 		string name,
 		string size,
@@ -182,14 +214,11 @@ public sealed class BackgroundCutoutService
 		CancellationToken cancellationToken,
 		IEnumerable<(byte[] Data, string FormName, string FileName)> additionalFiles)
 	{
-		using JsonDocument job = JsonDocument.Parse (await api.PostPngAsync (
+		using JsonDocument job = JsonDocument.Parse (await api.PostMultipartAsync (
 			path,
-			png,
-			"file",
-			"pinta.png",
-			cancellationToken,
 			fields,
-			additionalFiles));
+			additionalFiles,
+			cancellationToken));
 		string jobId = job.RootElement.GetProperty ("id").GetString ()
 			?? throw new InvalidOperationException ("Image response did not include a job id.");
 		Log (log, $"AI image job accepted: name={name}, job_id={jobId}, form_size={size}");
@@ -247,11 +276,6 @@ public sealed class BackgroundCutoutService
 
 		return config;
 	}
-
-	private static string AppendPrompt (string prompt, string additionalPrompt)
-		=> string.IsNullOrWhiteSpace (additionalPrompt)
-			? prompt
-			: $"{prompt}\n\nAdditional instructions: {additionalPrompt.Trim ()}";
 
 	private static string GetPromptConfigPath ()
 		=> Path.Combine (AppContext.BaseDirectory, "config", prompt_config_file);

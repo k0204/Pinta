@@ -72,11 +72,25 @@ public sealed class AiApiClient
 		IEnumerable<(byte[] Data, string FormName, string FileName)>? additionalFiles = null)
 	{
 		KeyValuePair<string, string>[] savedFields = fields?.ToArray () ?? [];
-		(byte[] Data, string FormName, string FileName)[] savedFiles = additionalFiles?.ToArray () ?? [];
+		(byte[] Data, string FormName, string FileName)[] savedFiles = [
+			(png, formName, fileName),
+			.. (additionalFiles?.ToArray () ?? []),
+		];
+		return await PostMultipartAsync (path, savedFields, savedFiles, cancellationToken);
+	}
+
+	public async Task<string> PostMultipartAsync (
+		string path,
+		IEnumerable<KeyValuePair<string, string>> fields,
+		IEnumerable<(byte[] Data, string FormName, string FileName)> files,
+		CancellationToken cancellationToken = default)
+	{
+		KeyValuePair<string, string>[] savedFields = fields.ToArray ();
+		(byte[] Data, string FormName, string FileName)[] savedFiles = files.ToArray ();
 		return await SendForStringAsync (
 			HttpMethod.Post,
 			path,
-			() => CreatePngContent (png, formName, fileName, savedFields, savedFiles),
+			() => CreatePngContent (savedFields, savedFiles),
 			cancellationToken);
 	}
 
@@ -147,19 +161,15 @@ public sealed class AiApiClient
 	}
 
 	private static MultipartFormDataContent CreatePngContent (
-		byte[] png,
-		string formName,
-		string fileName,
 		IEnumerable<KeyValuePair<string, string>> fields,
-		IEnumerable<(byte[] Data, string FormName, string FileName)> additionalFiles)
+		IEnumerable<(byte[] Data, string FormName, string FileName)> files)
 	{
 		MultipartFormDataContent content = new ();
 		foreach (KeyValuePair<string, string> field in fields)
 			content.Add (new StringContent (field.Value), field.Key);
 
-		AddPng (content, png, formName, fileName);
-		foreach ((byte[] data, string additionalFormName, string additionalFileName) in additionalFiles)
-			AddPng (content, data, additionalFormName, additionalFileName);
+		foreach ((byte[] data, string formName, string fileName) in files)
+			AddPng (content, data, formName, fileName);
 		return content;
 	}
 

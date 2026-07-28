@@ -165,7 +165,6 @@ public sealed class ActionHandlers
 
 		PintaCore.Actions.Layers.AddNewLayer.Sensitive = enable;
                 PintaCore.Actions.Layers.AddNewGroup.Sensitive = enable;
-		PintaCore.Actions.Layers.AddChildLayer.Sensitive = enable;
 		PintaCore.Actions.Layers.DeleteLayer.Sensitive = enable;
 		PintaCore.Actions.Layers.DuplicateLayer.Sensitive = enable;
 		PintaCore.Actions.Layers.MergeLayerDown.Sensitive = enable;

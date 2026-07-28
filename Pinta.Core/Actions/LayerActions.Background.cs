@@ -12,6 +12,14 @@ namespace Pinta.Core;
 
 public sealed partial class LayerActions
 {
+	private async void HandlePintaCoreActionsLayersGenerateImageActivated (object sender, EventArgs e)
+	{
+		if (cutout_running || !EnsureAiLoggedIn ())
+			return;
+
+		await RunImageGenerationAsync ();
+	}
+
 	private async void HandlePintaCoreActionsLayersCutoutActivated (object sender, EventArgs e)
 	{
 		if (cutout_running)
@@ -27,6 +35,88 @@ public sealed partial class LayerActions
 			await RunCutoutAsync ();
 	}
 
+	private async Task RunImageGenerationAsync ()
+	{
+		Document? referenceDocument = workspace.ActiveDocumentOrDefault;
+		AiImageRequestOptions? options = await PromptAiImageRequestAsync (
+			AiImageRequestMode.ImageGeneration,
+			referenceDocument,
+			sourceLayer: null);
+		if (options is null)
+			return;
+
+		cutout_running = true;
+		EnableOrDisableLayerActions (null, EventArgs.Empty);
+		using CancellationTokenSource cts = new ();
+		IProgressDialog progress = chrome.ProgressDialog;
+		progress.Title = Translations.GetString ("AI 生成");
+		progress.Text = Translations.GetString ("Preparing image request...");
+		progress.Progress = 0.05;
+		progress.Canceled += HandleProgressCanceled;
+		progress.Show ();
+		chrome.MainWindowBusy = true;
+		bool clearStatus = true;
+
+		try {
+			List<(byte[] Png, string FileName)> references = [];
+			if (referenceDocument is not null)
+				foreach (UserLayer layer in options.Layers)
+					references.Add ((CreateLayerPng (referenceDocument, layer), $"layer-{references.Count + 1}.png"));
+			foreach (Gio.File file in options.Files)
+				references.Add (LoadReferenceImage (file));
+
+			string debugDir = CreateCutoutDebugDirectory ();
+			byte[] generatedPng = await GenerateBackgroundWithRetryAsync (
+				Translations.GetString ("AI 生成"),
+				() => background_cutout.GenerateImageAsync (
+					options.ImageSize,
+					options.Prompt,
+					references,
+					SetProgress,
+					(fileName, png) => SaveCutoutDebugPng (debugDir, fileName, png),
+					message => SaveCutoutDebugLog (debugDir, message),
+					cts.Token),
+				message => SaveCutoutDebugLog (debugDir, message),
+				cts.Token);
+
+			SetProgress (Translations.GetString ("Opening generated image..."), 0.85);
+			using Cairo.ImageSurface generated = LoadPngAsSurface (generatedPng, options.ImageSize);
+			Document generatedDocument = workspace.NewDocumentFromImage (generated);
+			generatedDocument.Layers.CurrentUserLayer.Name = Translations.GetString ("AI Generated Image");
+			SetProgress (Translations.GetString ("Refreshing balance..."), 0.95);
+			await PintaCore.AiAuth.RefreshAccountSummaryAsync (cts.Token);
+			PintaCore.Settings.DoSaveSettingsBeforeQuit ();
+			SetProgress (Translations.GetString ("Image generation complete."), 1.0);
+		} catch (OperationCanceledException) {
+			clearStatus = false;
+			chrome.SetStatusBarText (Translations.GetString ("Image generation canceled."));
+		} catch (Exception ex) {
+			await chrome.ShowErrorDialog (
+				chrome.MainWindow,
+				Translations.GetString ("Image Generation Failed"),
+				Translations.GetString ("Check the selected images, API server logs, balance, and login status, then try again."),
+				ex.ToString ());
+		} finally {
+			progress.Canceled -= HandleProgressCanceled;
+			progress.Hide ();
+			chrome.MainWindowBusy = false;
+			cutout_running = false;
+			EnableOrDisableLayerActions (null, EventArgs.Empty);
+			if (clearStatus)
+				chrome.SetStatusBarText (string.Empty);
+		}
+
+		void HandleProgressCanceled (object? sender, EventArgs args)
+			=> cts.Cancel ();
+
+		void SetProgress (string text, double value)
+		{
+			progress.Text = text;
+			progress.Progress = Math.Clamp (value, 0.0, 1.0);
+			chrome.SetStatusBarText (text);
+		}
+	}
+
 	private async Task RunBackgroundCleanupAsync ()
 	{
 
@@ -35,7 +125,10 @@ public sealed partial class LayerActions
 		if (!sourceLayer.IsEditable)
 			return;
 
-		BackgroundCleanupOptions? options = await PromptBackgroundCleanupAsync (doc, sourceLayer);
+		AiImageRequestOptions? options = await PromptAiImageRequestAsync (
+			AiImageRequestMode.BackgroundCleanup,
+			doc,
+			sourceLayer);
 		if (options is null)
 			return;
 
@@ -69,7 +162,7 @@ public sealed partial class LayerActions
 				() => background_cutout.GenerateWhiteAsync (
 					sourcePng,
 					doc.ImageSize,
-					options.AdditionalPrompt,
+					options.Prompt,
 					references,
 					SetProgress,
 					(fileName, png) => SaveCutoutDebugPng (debugDir, fileName, png),
@@ -367,61 +460,126 @@ public sealed partial class LayerActions
 		return false;
 	}
 
-	private async Task<BackgroundCleanupOptions?> PromptBackgroundCleanupAsync (Document doc, UserLayer sourceLayer)
+	private async Task<AiImageRequestOptions?> PromptAiImageRequestAsync (
+		AiImageRequestMode mode,
+		Document? doc,
+		UserLayer? sourceLayer)
 	{
+		if (mode == AiImageRequestMode.BackgroundCleanup && (doc is null || sourceLayer is null))
+			throw new ArgumentException ("Background cleanup requires a document and source layer.");
+
 		using Gtk.Dialog dialog = Gtk.Dialog.New ();
-		dialog.Title = Translations.GetString ("清理背景");
+		dialog.Title = mode == AiImageRequestMode.BackgroundCleanup
+			? Translations.GetString ("清理背景")
+			: Translations.GetString ("AI 生成");
 		dialog.TransientFor = chrome.MainWindow;
-		dialog.Modal = false;
+		dialog.Modal = true;
 		dialog.DefaultWidth = 520;
-		dialog.DefaultHeight = 480;
+		dialog.DefaultHeight = 620;
 		dialog.AddButton (Translations.GetString ("_Cancel"), (int) Gtk.ResponseType.Cancel);
-		Gtk.Widget cleanupButton = dialog.AddButton (Translations.GetString ("清理背景"), (int) Gtk.ResponseType.Ok);
-		cleanupButton.AddCssClass (AdwaitaStyles.SuggestedAction);
+		Gtk.Widget submitButton = dialog.AddButton (
+			mode == AiImageRequestMode.BackgroundCleanup
+				? Translations.GetString ("清理背景")
+				: Translations.GetString ("生成"),
+			(int) Gtk.ResponseType.Ok);
+		submitButton.AddCssClass (AdwaitaStyles.SuggestedAction);
 		dialog.SetDefaultResponse (Gtk.ResponseType.Ok);
 
-		Gtk.Entry promptEntry = Gtk.Entry.New ();
-		promptEntry.Hexpand = true;
-		promptEntry.PlaceholderText = Translations.GetString ("添加需要补充的背景清理要求");
+		Gtk.TextView promptView = Gtk.TextView.New ();
+		promptView.WrapMode = Gtk.WrapMode.WordChar;
+		promptView.Vexpand = true;
+		Gtk.TextBuffer promptBuffer = promptView.Buffer!;
+		promptBuffer.SetText (
+			mode == AiImageRequestMode.BackgroundCleanup
+				? AI.BackgroundCutoutService.GetDefaultBackgroundCleanupPrompt ()
+				: string.Empty,
+			-1);
+		Gtk.ScrolledWindow promptScroll = Gtk.ScrolledWindow.New ();
+		promptScroll.HeightRequest = 110;
+		promptScroll.SetChild (promptView);
+
+		Gtk.ComboBoxText serviceCombobox = Gtk.ComboBoxText.New ();
+		serviceCombobox.AppendText (Translations.GetString ("Agnes"));
+		serviceCombobox.AppendText (Translations.GetString ("GPT Image"));
+		serviceCombobox.Active = AI.AiRequestSettings.GetImageService (PintaCore.Settings) == AI.AiRequestSettings.AgnesService ? 0 : 1;
+		Gtk.ComboBoxText providerCombobox = Gtk.ComboBoxText.New ();
+		providerCombobox.AppendText (AI.AiRequestSettings.ZzswitchProvider);
+		providerCombobox.AppendText (AI.AiRequestSettings.LukyfaceProvider);
+		providerCombobox.Active = AI.AiRequestSettings.GetGptProvider (PintaCore.Settings) == AI.AiRequestSettings.ZzswitchProvider ? 0 : 1;
+		Gtk.Label providerLabel = CreateSettingsLabel (Translations.GetString ("GPT provider:"));
+		Gtk.ComboBoxText sizeCombobox = Gtk.ComboBoxText.New ();
+		List<Size> sizeChoices = [];
+
+		void UpdateGenerationSettings ()
+		{
+			bool gptSelected = serviceCombobox.Active == 1;
+			providerLabel.Visible = gptSelected;
+			providerCombobox.Visible = gptSelected;
+			sizeCombobox.RemoveAll ();
+			sizeChoices.Clear ();
+			sizeChoices.AddRange (AI.BackgroundCutoutService.GetImageGenerationSizes (
+				gptSelected ? AI.AiRequestSettings.GptImageService : AI.AiRequestSettings.AgnesService));
+			foreach (Size size in sizeChoices)
+				sizeCombobox.AppendText ($"{size.Width} × {size.Height}");
+			sizeCombobox.Active = sizeChoices.FindIndex (size => size == new Size (1024, 1024));
+			if (sizeCombobox.Active < 0)
+				sizeCombobox.Active = 0;
+		}
+
+		Gtk.Grid generationGrid = Gtk.Grid.New ();
+		generationGrid.RowSpacing = 8;
+		generationGrid.ColumnSpacing = 8;
+		generationGrid.Attach (CreateSettingsLabel (Translations.GetString ("Image service:")), 0, 0, 1, 1);
+		generationGrid.Attach (serviceCombobox, 1, 0, 1, 1);
+		generationGrid.Attach (providerLabel, 0, 1, 1, 1);
+		generationGrid.Attach (providerCombobox, 1, 1, 1, 1);
+		generationGrid.Attach (CreateSettingsLabel (Translations.GetString ("Image size:")), 0, 2, 1, 1);
+		generationGrid.Attach (sizeCombobox, 1, 2, 1, 1);
+		generationGrid.Visible = mode == AiImageRequestMode.ImageGeneration;
+		serviceCombobox.OnChanged += (_, _) => UpdateGenerationSettings ();
+		UpdateGenerationSettings ();
 
 		Gtk.Picture sourcePreview = Gtk.Picture.New ();
-		sourcePreview.Paintable = sourceLayer.Surface.ToTexture ();
 		sourcePreview.ContentFit = Gtk.ContentFit.ScaleDown;
 		sourcePreview.SetSizeRequest (160, 100);
-		Gtk.Label sourceLabel = Gtk.Label.New (
-			$"{GetLayerPath (sourceLayer)}  {sourceLayer.Surface.Width} × {sourceLayer.Surface.Height} px");
+		Gtk.Label sourceLabel = Gtk.Label.New (string.Empty);
 		sourceLabel.Halign = Gtk.Align.Start;
+		if (sourceLayer is not null) {
+			sourcePreview.Paintable = sourceLayer.Surface.ToTexture ();
+			sourceLabel.SetText ($"{GetLayerPath (sourceLayer)}  {sourceLayer.Surface.Width} × {sourceLayer.Surface.Height} px");
+		}
 
 		Gtk.Box layerBox = Gtk.Box.New (Gtk.Orientation.Vertical, 4);
 		List<(Gtk.CheckButton Button, UserLayer Layer)> layerChoices = [];
-		foreach (UserLayer layer in doc.Layers.AllLayers) {
-			if (layer == sourceLayer || layer is GroupLayer || layer.ReferenceMissing)
-				continue;
+		if (doc is not null)
+			foreach (UserLayer layer in doc.Layers.AllLayers) {
+				if (layer == sourceLayer || layer is GroupLayer || layer.ReferenceMissing)
+					continue;
 
-			Gtk.CheckButton check = Gtk.CheckButton.New ();
-			Gtk.Picture preview = Gtk.Picture.New ();
-			preview.Paintable = layer.Surface.ToTexture ();
-			preview.ContentFit = Gtk.ContentFit.ScaleDown;
-			preview.SetSizeRequest (80, 56);
+				Gtk.CheckButton check = Gtk.CheckButton.New ();
+				Gtk.Picture preview = Gtk.Picture.New ();
+				preview.Paintable = layer.Surface.ToTexture ();
+				preview.ContentFit = Gtk.ContentFit.ScaleDown;
+				preview.SetSizeRequest (80, 56);
 
-			Gtk.Label nameLabel = Gtk.Label.New (GetLayerPath (layer));
-			nameLabel.Halign = Gtk.Align.Start;
-			nameLabel.Ellipsize = Pango.EllipsizeMode.End;
-			Gtk.Label sizeLabel = Gtk.Label.New ($"{layer.Surface.Width} × {layer.Surface.Height} px");
-			sizeLabel.Halign = Gtk.Align.Start;
-			sizeLabel.AddCssClass (AdwaitaStyles.DimLabel);
+				Gtk.Label nameLabel = Gtk.Label.New (GetLayerPath (layer));
+				nameLabel.Halign = Gtk.Align.Start;
+				nameLabel.Ellipsize = Pango.EllipsizeMode.End;
+				Gtk.Label sizeLabel = Gtk.Label.New ($"{layer.Surface.Width} × {layer.Surface.Height} px");
+				sizeLabel.Halign = Gtk.Align.Start;
+				sizeLabel.AddCssClass (AdwaitaStyles.DimLabel);
 
-			Gtk.Box details = Gtk.Box.New (Gtk.Orientation.Vertical, 2);
-			details.Hexpand = true;
-			details.Append (nameLabel);
-			details.Append (sizeLabel);
-			Gtk.Box row = Gtk.Box.New (Gtk.Orientation.Horizontal, 8);
-			row.Append (check);
-			row.Append (preview);
-			row.Append (details);
-			layerBox.Append (row);
-			layerChoices.Add ((check, layer));
-		}
+				Gtk.Box details = Gtk.Box.New (Gtk.Orientation.Vertical, 2);
+				details.Hexpand = true;
+				details.Append (nameLabel);
+				details.Append (sizeLabel);
+				Gtk.Box row = Gtk.Box.New (Gtk.Orientation.Horizontal, 8);
+				row.Append (check);
+				row.Append (preview);
+				row.Append (details);
+				layerBox.Append (row);
+				layerChoices.Add ((check, layer));
+			}
 
 		Gtk.ScrolledWindow layerScroll = Gtk.ScrolledWindow.New ();
 		layerScroll.HeightRequest = 180;
@@ -460,16 +618,29 @@ public sealed partial class LayerActions
 		Gtk.Box content = dialog.GetContentAreaBox ();
 		content.Spacing = 8;
 		content.SetAllMargins (12);
-		content.Append (CreateDialogLabel (Translations.GetString ("当前图层")));
-		content.Append (sourcePreview);
-		content.Append (sourceLabel);
-		content.Append (CreateDialogLabel (Translations.GetString ("附加提示词")));
-		content.Append (promptEntry);
-		content.Append (CreateDialogLabel (Translations.GetString ("其他参考图层")));
-		content.Append (layerScroll);
+		content.Append (generationGrid);
+		if (sourceLayer is not null) {
+			content.Append (CreateDialogLabel (Translations.GetString ("当前图层")));
+			content.Append (sourcePreview);
+			content.Append (sourceLabel);
+		}
+		content.Append (CreateDialogLabel (Translations.GetString ("提示词")));
+		content.Append (promptScroll);
+		if (doc is not null) {
+			content.Append (CreateDialogLabel (Translations.GetString ("其他参考图层")));
+			content.Append (layerScroll);
+		}
 		content.Append (CreateDialogLabel (Translations.GetString ("参考图片文件")));
 		content.Append (chooseFilesButton);
 		content.Append (fileLabel);
+
+		void UpdateSubmitButton ()
+		{
+			promptBuffer.GetBounds (out Gtk.TextIter start, out Gtk.TextIter end);
+			submitButton.Sensitive = !string.IsNullOrWhiteSpace (promptBuffer.GetText (start, end, includeHiddenChars: true));
+		}
+		promptBuffer.OnChanged += (_, _) => UpdateSubmitButton ();
+		UpdateSubmitButton ();
 
 		if (await dialog.RunAsync () != Gtk.ResponseType.Ok)
 			return null;
@@ -479,7 +650,23 @@ public sealed partial class LayerActions
 			if (check.Active)
 				layers.Add (layer);
 
-		return new (promptEntry.GetText ().Trim (), layers, files);
+		promptBuffer.GetBounds (out Gtk.TextIter promptStart, out Gtk.TextIter promptEnd);
+		string prompt = promptBuffer.GetText (promptStart, promptEnd, includeHiddenChars: true).Trim ();
+		Size imageSize = mode == AiImageRequestMode.BackgroundCleanup
+			? doc!.ImageSize
+			: sizeChoices[sizeCombobox.Active];
+		if (mode == AiImageRequestMode.ImageGeneration) {
+			string imageService = serviceCombobox.Active == 0
+				? AI.AiRequestSettings.AgnesService
+				: AI.AiRequestSettings.GptImageService;
+			string provider = providerCombobox.Active == 0
+				? AI.AiRequestSettings.ZzswitchProvider
+				: AI.AiRequestSettings.LukyfaceProvider;
+			AI.AiRequestSettings.Save (PintaCore.Settings, imageService, provider);
+			PintaCore.Settings.DoSaveSettingsBeforeQuit ();
+		}
+
+		return new (prompt, imageSize, layers, files);
 	}
 
 	private static Gtk.Label CreateDialogLabel (string text)
@@ -607,10 +794,17 @@ public sealed partial class LayerActions
 		context.DrawPixbuf (pixbuf, PointD.Zero);
 	}
 
-	private sealed record BackgroundCleanupOptions (
-		string AdditionalPrompt,
+	private sealed record AiImageRequestOptions (
+		string Prompt,
+		Size ImageSize,
 		IReadOnlyList<UserLayer> Layers,
 		IReadOnlyList<Gio.File> Files);
+
+	private enum AiImageRequestMode
+	{
+		BackgroundCleanup,
+		ImageGeneration,
+	}
 
 	private enum AiImageOperation
 	{

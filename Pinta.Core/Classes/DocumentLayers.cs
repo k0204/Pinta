@@ -109,26 +109,6 @@ public sealed class DocumentLayers
 	}
 
 	/// <summary>
-	/// Creates a new child layer under the given parent, making it the selected layer.
-	/// </summary>
-	public UserLayer AddNewChildLayer (
-		UserLayer parent,
-		string name)
-	{
-		UserLayer layer =
-			string.IsNullOrEmpty (name)
-			? CreateLayer ()
-			: CreateLayer (name);
-
-		Insert (layer, new LayerPosition (parent, parent.Children.Count));
-		current_user_layer = layer;
-
-		SelectedLayerChanged?.Invoke (this, EventArgs.Empty);
-
-		return layer;
-	}
-
-	/// <summary>
 	/// Disposes all user created and internal layers.
 	/// </summary>
 	internal void Close ()

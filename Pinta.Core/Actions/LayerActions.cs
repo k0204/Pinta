@@ -32,7 +32,7 @@ public sealed partial class LayerActions
 {
 	public Command AddNewLayer { get; }
         public Command AddNewGroup { get; }
-	public Command AddChildLayer { get; }
+	public Command GenerateImage { get; }
 	public Command DeleteLayer { get; }
 	public Command DuplicateLayer { get; }
 	public Command MergeLayerDown { get; }
@@ -85,11 +85,11 @@ public sealed partial class LayerActions
                         null,
                         Resources.Icons.LayerGroup);
 
-		AddChildLayer = new Command (
-			"addchildlayer",
-			Translations.GetString ("Add Child Layer"),
-			null,
-			Resources.Icons.LayerNew);
+		GenerateImage = new Command (
+			"generateimage",
+			Translations.GetString ("AI 生成"),
+			Translations.GetString ("Generate an image with AI"),
+			Resources.Icons.EffectsRenderClouds);
 
 		DeleteLayer = new Command (
 			"deletelayer",
@@ -196,7 +196,7 @@ public sealed partial class LayerActions
 		app.AddCommands ([
 			AddNewLayer,
                         AddNewGroup,
-			AddChildLayer,
+			GenerateImage,
 			DeleteLayer,
 			DuplicateLayer,
 			MergeLayerDown,
@@ -220,7 +220,7 @@ public sealed partial class LayerActions
 	{
 		AddNewLayer.Activated += HandlePintaCoreActionsLayersAddNewLayerActivated;
                 AddNewGroup.Activated += HandlePintaCoreActionsLayersAddNewGroupActivated;
-		AddChildLayer.Activated += HandlePintaCoreActionsLayersAddChildLayerActivated;
+		GenerateImage.Activated += HandlePintaCoreActionsLayersGenerateImageActivated;
 		DeleteLayer.Activated += HandlePintaCoreActionsLayersDeleteLayerActivated;
 		DuplicateLayer.Activated += HandlePintaCoreActionsLayersDuplicateLayerActivated;
 		MergeLayerDown.Activated += HandlePintaCoreActionsLayersMergeLayerDownActivated;
@@ -248,7 +248,7 @@ public sealed partial class LayerActions
 		DeleteLayer.Sensitive = hasMultipleLayers;
 		image.Flatten.Sensitive = hasMultipleLayers && activeDoc?.Layers.HasLockedReferences != true;
                 AddNewGroup.Sensitive = activeDoc != null;
-		AddChildLayer.Sensitive = activeDoc != null;
+		GenerateImage.Sensitive = !cutout_running;
 
 		bool currentEditable = activeDoc?.Layers.CurrentUserLayer.IsEditable ?? false;
 		bool canMergeDown = activeDoc?.Layers.CanMoveCurrentLayerDown () ?? false;
@@ -428,20 +428,5 @@ public sealed partial class LayerActions
                         doc.Layers.GetPosition (layer));
                 doc.History.PushNewItem (hist);
         }
-
-	private void HandlePintaCoreActionsLayersAddChildLayerActivated (object sender, EventArgs e)
-	{
-		Document doc = workspace.ActiveDocument;
-		tools.Commit ();
-
-		UserLayer l = doc.Layers.AddNewChildLayer (doc.Layers.CurrentUserLayer, string.Empty);
-
-		AddLayerHistoryItem hist = new (
-			Resources.Icons.LayerNew,
-			Translations.GetString ("Add Child Layer"),
-			l,
-			doc.Layers.GetPosition (l));
-		doc.History.PushNewItem (hist);
-	}
 
 }

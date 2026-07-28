@@ -422,7 +422,6 @@ public sealed partial class LayersListViewItemWidget
 
 		Gio.Menu operationsSection = Gio.Menu.New ();
                 operationsSection.AppendItem (actions.AddNewGroup.CreateMenuItem ());
-		operationsSection.AppendItem (actions.AddChildLayer.CreateMenuItem ());
 		operationsSection.AppendItem (actions.DeleteLayer.CreateMenuItem ());
 		operationsSection.AppendItem (actions.DuplicateLayer.CreateMenuItem ());
 		operationsSection.AppendItem (actions.MergeLayerDown.CreateMenuItem ());

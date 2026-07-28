@@ -136,19 +136,21 @@ All requests in this section include `Authorization: Bearer <token>`.
 - Path: `/api/agnes-images` or `/api/gpt-images`
 - Content type: `multipart/form-data`
 - Form fields:
-  - `file`: PNG image, sent as `pinta.png`
-  - `reference_files`: optional repeated PNG files used as visual references
+  - `reference_files`: optional repeated PNG files used as visual references; no files are required for text-to-image generation
   - `prompt`: image prompt text
   - `provider`: GPT provider ID (`zzswitch` or `lukyface`), sent only to `/api/gpt-images`
   - `size`: concrete output size, for example `1024x1024`; its constraints depend on the selected endpoint
 - Response: `202 Accepted` with an image job object containing `id`, `status`, `operation`, and job metadata.
 - Client behavior: polls `GET /api/images/jobs/{id}` while status is `queued` or `processing`. When status is `completed`, it reads `GET /api/images/jobs/{id}/result`.
 - Both endpoints return `operation`, `prompt`, `provider`, `model`, `size`, `result_url`, and `result_b64_json`, plus their provider-specific raw response.
+- When images are supplied, their multipart order is preserved. The first image is the primary edit image and subsequent images are additional references.
+- Agnes omits its upstream image field when no references are supplied. GPT Image calls its generation endpoint with no references and its edit endpoint with one or more references.
 - Agnes requests use the closest configured Agnes resolution that can contain the source image. Supported resolutions are the configured `1K` through `4K` sizes for ratios `1:1`, `3:4`, `4:3`, `16:9`, `9:16`, `2:3`, `3:2`, and `21:9`.
 - GPT Image requests use dimensions divisible by `16`, between `655360` and `8294400` pixels, with a maximum edge of `3840` and a maximum aspect ratio of `3:1`.
 - Failed jobs return `status: failed` and an `error_message` from the job status endpoint.
+- Blank prompts are rejected with `400 Bad Request` before the job is queued or balance is deducted.
 
-The client stores background prompts in `config/gpt-image-prompts.json` and reads the file at the start of each background request, so prompt changes apply to the next request.
+The client stores background prompts in `config/gpt-image-prompts.json` and reads the white-background prompt when opening the cleanup dialog. The prompt is editable and the submitted value is sent unchanged.
 
 ## Baidu Human Segmentation
 
@@ -180,5 +182,6 @@ All client requests in this section include `Authorization: Bearer <token>`. Bai
 - Agnes/GPT cutout treats the selected layer as the white-background input, generates a black-background image, and diffs the pair into a transparent layer.
 - Baidu cutout sends the selected layer to `/api/baidu-images` and creates one transparent layer from `result_b64_json`.
 - The GPT provider setting is shown only for `gpt-image`.
-- Both services use the same image, prompt, and size field names, but the client selects sizes according to each service's own constraints. Only GPT Image receives a provider field.
+- Both services use repeated `reference_files` plus the same prompt and size fields, but the client selects sizes according to each service's own constraints. Only GPT Image receives a provider field.
+- The layer toolbar also provides AI image generation. It accepts a required prompt, a service-specific output size, and optional reference layers/files, then opens the result as a new document at the selected size.
 - If the document size is unsupported, the client chooses the closest supported size that can contain it, pads the source image equally on each side to center it, and center-crops the result back to the document size. It only resizes as a fallback when a provider returns an unexpected size.
