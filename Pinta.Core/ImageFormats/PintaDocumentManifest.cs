@@ -32,7 +32,10 @@ public sealed class PintaDocumentLayerNode
 	public string Kind { get; set; } = "layer";
 	public string Storage { get; set; } = "embedded";
 	public string? Surface { get; set; }
+	public int? SurfaceWidth { get; set; }
+	public int? SurfaceHeight { get; set; }
 	public string? ReferencePath { get; set; }
+	public Dictionary<string, string> Metadata { get; set; } = [];
 	public PintaDocumentMatrix Transform { get; set; } = new ();
 	public List<PintaDocumentLayerNode> Children { get; set; } = [];
 }

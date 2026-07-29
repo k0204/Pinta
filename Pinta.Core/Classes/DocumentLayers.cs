@@ -613,6 +613,8 @@ public sealed class DocumentLayers
 		layer.Opacity = source.Opacity;
 		layer.BlendMode = source.BlendMode;
 		layer.Transform = source.Transform.Clone ();
+		foreach ((string key, string value) in source.Metadata)
+			layer.Metadata.Add (key, value);
 
 		foreach (UserLayer child in source.Children)
 			layer.InsertChild (layer.Children.Count, DuplicateLayerTree (child));

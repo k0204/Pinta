@@ -36,6 +36,8 @@ public sealed partial class LayerActions
         public Command AddNewGroup { get; }
 	public Command GenerateImage { get; }
 	public Command GenerateSpritesheet { get; }
+	public Command SplitSpritesheet { get; }
+	public Command SetSpritesheetAnchor { get; }
 	public Command DeleteLayer { get; }
 	public Command DuplicateLayer { get; }
 	public Command MergeLayerDown { get; }
@@ -99,6 +101,18 @@ public sealed partial class LayerActions
 			"generatespritesheet",
 			Translations.GetString ("Generate Spritesheet"),
 			Translations.GetString ("Generate a direction sheet or action spritesheet with AI"),
+			Resources.Icons.LayerDuplicate);
+
+		SplitSpritesheet = new Command (
+			"splitspritesheet",
+			Translations.GetString ("Split Spritesheet"),
+			Translations.GetString ("Split the selected source sheet into direction frame layers"),
+			Resources.Icons.ImageCrop);
+
+		SetSpritesheetAnchor = new Command (
+			"setspritesheetanchor",
+			Translations.GetString ("Set as Character Anchor"),
+			Translations.GetString ("Use this approved direction sheet as the default character reference"),
 			Resources.Icons.LayerDuplicate);
 
 		DeleteLayer = new Command (
@@ -214,6 +228,8 @@ public sealed partial class LayerActions
                         AddNewGroup,
 			GenerateImage,
 			GenerateSpritesheet,
+			SplitSpritesheet,
+			SetSpritesheetAnchor,
 			DeleteLayer,
 			DuplicateLayer,
 			MergeLayerDown,
@@ -240,6 +256,8 @@ public sealed partial class LayerActions
                 AddNewGroup.Activated += HandlePintaCoreActionsLayersAddNewGroupActivated;
 		GenerateImage.Activated += HandlePintaCoreActionsLayersGenerateImageActivated;
 		GenerateSpritesheet.Activated += HandlePintaCoreActionsLayersGenerateSpritesheetActivated;
+		SplitSpritesheet.Activated += HandlePintaCoreActionsLayersSplitSpritesheetActivated;
+		SetSpritesheetAnchor.Activated += HandleSetSpritesheetAnchorActivated;
 		DeleteLayer.Activated += HandlePintaCoreActionsLayersDeleteLayerActivated;
 		DuplicateLayer.Activated += HandlePintaCoreActionsLayersDuplicateLayerActivated;
 		MergeLayerDown.Activated += HandlePintaCoreActionsLayersMergeLayerDownActivated;
@@ -268,7 +286,9 @@ public sealed partial class LayerActions
 		image.Flatten.Sensitive = hasMultipleLayers && activeDoc?.Layers.HasLockedReferences != true;
                 AddNewGroup.Sensitive = activeDoc != null;
 		GenerateImage.Sensitive = !cutout_running;
-		GenerateSpritesheet.Sensitive = !cutout_running;
+		GenerateSpritesheet.Sensitive = activeDoc is not null && !cutout_running;
+		SplitSpritesheet.Sensitive = activeDoc is not null && IsSpritesheetSource (activeDoc.Layers.CurrentUserLayer) && !cutout_running;
+		SetSpritesheetAnchor.Sensitive = activeDoc is not null && IsDirectionSheetSource (activeDoc.Layers.CurrentUserLayer);
 
 		bool currentEditable = activeDoc?.Layers.CurrentUserLayer.IsEditable ?? false;
 		bool canMergeDown = activeDoc?.Layers.CanMoveCurrentLayerDown () ?? false;

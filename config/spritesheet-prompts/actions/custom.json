@@ -3,5 +3,7 @@
   "label": "Custom",
   "defaultFrameCount": 8,
   "order": 80,
+  "loop": false,
+  "keyPoses": ["clear starting pose", "anticipation", "main action", "peak action", "follow-through", "clear ending pose"],
   "prompt": "Create a coherent animation sequence for the custom action described below. Show clear anticipation, readable key poses, consistent in-betweens, and an appropriate ending or loop transition."
 }

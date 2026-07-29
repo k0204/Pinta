@@ -40,6 +40,12 @@ public sealed class BackgroundCutoutService
 	];
 	private static readonly Size[] gpt_image_generation_sizes = [
 		new (1024, 1024), new (1536, 1024), new (1024, 1536),
+		new (1536, 864), new (864, 1536),
+		new (1280, 960), new (960, 1280),
+		new (1280, 1024), new (1024, 1280),
+		new (1792, 1024), new (1024, 1792), new (1792, 768),
+		new (2560, 1440), new (1440, 2560),
+		new (3840, 2160), new (2160, 3840),
 	];
 
 	public BackgroundCutoutService (AiAuthService auth)
@@ -118,6 +124,25 @@ public sealed class BackgroundCutoutService
 			? agnes_image_sizes
 			: gpt_image_generation_sizes;
 
+	public static string? GetGptImageSizeError (Size size)
+	{
+		if (size.Width <= 0 || size.Height <= 0)
+			return Translations.GetString ("Width and height must be positive whole numbers.");
+		if (size.Width % gpt_size_multiple != 0 || size.Height % gpt_size_multiple != 0)
+			return string.Format (Translations.GetString ("Width and height must be divisible by {0}."), gpt_size_multiple);
+		long pixels = (long) size.Width * size.Height;
+		if (pixels < gpt_min_pixels || pixels > gpt_max_pixels)
+			return string.Format (
+				Translations.GetString ("Total pixels must be between {0:N0} and {1:N0}."),
+				gpt_min_pixels,
+				gpt_max_pixels);
+		if (Math.Max (size.Width, size.Height) > gpt_max_edge)
+			return string.Format (Translations.GetString ("The longest edge cannot exceed {0:N0} pixels."), gpt_max_edge);
+		if (Math.Max (size.Width, size.Height) > Math.Min (size.Width, size.Height) * gpt_max_aspect_ratio)
+			return string.Format (Translations.GetString ("Aspect ratio cannot exceed {0}:1."), gpt_max_aspect_ratio);
+		return null;
+	}
+
 	public async Task<byte[]> GenerateBaiduCutoutAsync (
 		byte[] sourcePng,
 		Size targetSize,
@@ -160,6 +185,8 @@ public sealed class BackgroundCutoutService
 		CancellationToken cancellationToken)
 	{
 		string imageService = AiRequestSettings.GetImageService (PintaCore.Settings);
+		if (sourcePng is null && imageService == AiRequestSettings.GptImageService && GetGptImageSizeError (targetSize) is string sizeError)
+			throw new InvalidOperationException (sizeError);
 		Size requestSize = sourcePng is null ? targetSize : GetImageRequestSize (imageService, targetSize);
 		string size = FormatSize (requestSize);
 		PointI contentOffset = PointI.Zero;

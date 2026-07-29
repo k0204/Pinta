@@ -1,3 +1,3 @@
 {
-  "prompt": "Create one canonical full-body direction reference sheet for the same character. Use a neutral upright standing pose with planted feet and relaxed arms in every selected direction. These are identity-preserving turnaround views for later animation generation, not motion frames. Keep head size, body height, costume construction, and root position identical across all views."
+  "prompt": "Create one canonical full-body direction reference sheet for the same character. Use a neutral upright standing pose with planted feet and relaxed arms in every selected direction. These are identity-preserving turnaround views for later animation generation, not motion frames. In every cell place the planted-foot midpoint at the exact same registration coordinate, x=50% and y=90% of the cell, and keep the top of the head at the same y coordinate. Keep head size, body height, costume construction, and root position identical across all views."
 }

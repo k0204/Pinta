@@ -13,7 +13,7 @@ namespace Pinta.Core;
 public sealed class PintaDocumentFormat : IImageImporter, IImageExporter
 {
 	public const string FormatName = "pinta-document";
-	public const int CurrentVersion = 2;
+	public const int CurrentVersion = 3;
 
 	private static readonly JsonSerializerOptions json_options = new () {
 		PropertyNameCaseInsensitive = true,
@@ -124,7 +124,10 @@ public sealed class PintaDocumentFormat : IImageImporter, IImageExporter
 			Kind = layer is GroupLayer ? "group" : "layer",
 			Storage = layer.IsReference ? "reference" : "embedded",
 			Surface = layer is GroupLayer || layer.IsReference ? null : $"layers/{layer.DocumentId}.png",
+			SurfaceWidth = layer is GroupLayer ? null : layer.Surface.Width,
+			SurfaceHeight = layer is GroupLayer ? null : layer.Surface.Height,
 			ReferencePath = layer.ReferencePath,
+			Metadata = new (layer.Metadata),
 			Transform = new () {
 				Xx = xAxis.X - origin.X,
 				Yx = xAxis.Y - origin.Y,
@@ -177,12 +180,14 @@ public sealed class PintaDocumentFormat : IImageImporter, IImageExporter
 			PintaDocumentLayerNode node = nodes[index];
 			UserLayer layer = version >= 2 && node.Kind == "group"
 				? document.Layers.CreateGroupLayer (node.Name)
-				: document.Layers.CreateLayer (node.Name);
+				: document.Layers.CreateLayer (node.Name, node.SurfaceWidth, node.SurfaceHeight);
 			layer.DocumentId = node.Id;
 			layer.Hidden = node.Hidden;
 			layer.Opacity = node.Opacity;
 			layer.BlendMode = Enum.Parse<BlendMode> (node.BlendMode);
 			layer.Expanded = node.Expanded;
+			foreach ((string key, string value) in node.Metadata)
+				layer.Metadata.Add (key, value);
 			layer.Transform = CairoExtensions.CreateMatrix (
 				node.Transform.Xx,
 				node.Transform.Xy,
@@ -246,7 +251,7 @@ public sealed class PintaDocumentFormat : IImageImporter, IImageExporter
 	{
 		if (manifest.Format != FormatName)
 			throw new InvalidDataException ($"Unsupported Pinta document format '{manifest.Format}'.");
-		if (manifest.Version is not 1 and not CurrentVersion)
+		if (manifest.Version is not 1 and not 2 and not CurrentVersion)
 			throw new InvalidDataException ($"Unsupported Pinta document version {manifest.Version}.");
 		if (manifest.ResourceRoot is not null
 			&& (!Uri.TryCreate (manifest.ResourceRoot, UriKind.Absolute, out Uri? rootUri) || rootUri.Scheme != Uri.UriSchemeFile))
@@ -293,6 +298,8 @@ public sealed class PintaDocumentFormat : IImageImporter, IImageExporter
 				throw new InvalidDataException ($"Layer '{node.Id}' has unknown blend mode '{node.BlendMode}'.");
 			if (node.Transform is null || !IsFinite (node.Transform))
 				throw new InvalidDataException ($"Layer '{node.Id}' has an invalid transform.");
+			if (node.Metadata is null || node.Metadata.Any (item => string.IsNullOrWhiteSpace (item.Key) || item.Value is null))
+				throw new InvalidDataException ($"Layer '{node.Id}' has invalid metadata.");
 			if (version == 1) {
 				if (node.Surface != $"layers/{node.Id}.png")
 					throw new InvalidDataException ($"Layer '{node.Id}' has an invalid surface path.");
@@ -308,6 +315,10 @@ public sealed class PintaDocumentFormat : IImageImporter, IImageExporter
 				if (node.Kind == "layer" && node.Storage == "embedded") {
 					if (node.Surface != $"layers/{node.Id}.png" || archive.GetEntry (node.Surface) is null)
 						throw new InvalidDataException ($"Layer surface for '{node.Id}' is missing or invalid.");
+					if ((node.SurfaceWidth is null) != (node.SurfaceHeight is null)
+						|| node.SurfaceWidth is <= 0
+						|| node.SurfaceHeight is <= 0)
+						throw new InvalidDataException ($"Layer surface dimensions for '{node.Id}' are invalid.");
 				}
 				if (node.Storage == "reference" && (node.Surface is not null || !IsValidReferencePath (node.ReferencePath)))
 					throw new InvalidDataException ($"Referenced layer '{node.Id}' has an invalid resource path.");

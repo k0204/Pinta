@@ -3,5 +3,7 @@
   "label": "Hurt",
   "defaultFrameCount": 4,
   "order": 60,
+  "loop": false,
+  "keyPoses": ["neutral entry", "impact recoil", "peak reaction", "controlled recovery"],
   "prompt": "Create a short readable hurt reaction: neutral entry, impact recoil, peak reaction, and controlled recovery. Preserve anatomy and costume details; do not introduce wounds or effects not requested by the user."
 }

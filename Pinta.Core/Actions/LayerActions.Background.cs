@@ -21,30 +21,6 @@ public sealed partial class LayerActions
 		await RunImageGenerationAsync ();
 	}
 
-	private async void HandlePintaCoreActionsLayersGenerateSpritesheetActivated (object sender, EventArgs e)
-	{
-		if (cutout_running || !EnsureAiLoggedIn ())
-			return;
-
-		Document? referenceDocument = workspace.ActiveDocumentOrDefault;
-		AiImageRequestOptions? options;
-		try {
-			options = await PromptAiImageRequestAsync (
-				AiImageRequestMode.SpritesheetGeneration,
-				referenceDocument,
-				sourceLayer: null);
-		} catch (Exception ex) {
-			await chrome.ShowErrorDialog (
-				chrome.MainWindow,
-				Translations.GetString ("Spritesheet Prompt Configuration Error"),
-				Translations.GetString ("Check the files in config/spritesheet-prompts and try again."),
-				ex.ToString ());
-			return;
-		}
-		if (options is not null)
-			await GenerateImageAsync (referenceDocument, options);
-	}
-
 	private async void HandlePintaCoreActionsLayersCutoutActivated (object sender, EventArgs e)
 	{
 		if (cutout_running)
@@ -91,8 +67,8 @@ public sealed partial class LayerActions
 		try {
 			List<(byte[] Png, string FileName)> references = [];
 			if (referenceDocument is not null)
-				foreach (UserLayer layer in options.Layers)
-					references.Add ((CreateLayerPng (referenceDocument, layer), $"layer-{references.Count + 1}.png"));
+				foreach (UserLayer layer in options.Layers.OrderByDescending (IsCharacterAnchor))
+					references.Add ((CreateLayerPng (referenceDocument, layer), GetAiReferenceFileName (layer, references.Count + 1)));
 			foreach (Gio.File file in options.Files)
 				references.Add (LoadReferenceImage (file));
 
@@ -112,8 +88,12 @@ public sealed partial class LayerActions
 
 			SetProgress (Translations.GetString ("Opening generated image..."), 0.85);
 			using Cairo.ImageSurface generated = LoadPngAsSurface (generatedPng, options.ImageSize);
-			Document generatedDocument = workspace.NewDocumentFromImage (generated);
-			generatedDocument.Layers.CurrentUserLayer.Name = options.ResultLayerName;
+			if (options.Spritesheet is null) {
+				Document generatedDocument = workspace.NewDocumentFromImage (generated);
+				generatedDocument.Layers.CurrentUserLayer.Name = options.ResultLayerName;
+			} else {
+				InsertSpritesheetAttempt (referenceDocument!, generatedPng, options.Spritesheet);
+			}
 			SetProgress (Translations.GetString ("Refreshing balance..."), 0.95);
 			await PintaCore.AiAuth.RefreshAccountSummaryAsync (cts.Token);
 			PintaCore.Settings.DoSaveSettingsBeforeQuit ();
@@ -186,7 +166,10 @@ public sealed partial class LayerActions
 			foreach (Gio.File file in options.Files)
 				references.Add (LoadReferenceImage (file));
 
-			SaveCutoutDebugLog (debugDir, $"AI background cleanup client: document_size={doc.ImageSize.Width}x{doc.ImageSize.Height}, source_layer={sourceLayer.Name}, source_bytes={sourcePng.Length}, references={references.Count}");
+			SaveCutoutDebugLog (
+				debugDir,
+				$"AI background cleanup client: document_size={doc.ImageSize.Width}x{doc.ImageSize.Height}, "
+				+ $"source_layer={sourceLayer.Name}, source_bytes={sourcePng.Length}, references={references.Count}");
 			SaveCutoutDebugPng (debugDir, "source.png", sourcePng);
 			byte[] whitePng = await GenerateBackgroundWithRetryAsync (
 				Translations.GetString ("清理背景"),
@@ -268,10 +251,19 @@ public sealed partial class LayerActions
 		bool clearStatus = true;
 
 		try {
-			byte[] sourcePng = CreateLayerPng (doc, sourceLayer);
+			Size operationSize = IsSpritesheetFrame (sourceLayer)
+				? new Size (sourceLayer.Surface.Width, sourceLayer.Surface.Height)
+				: doc.ImageSize;
+			byte[] sourcePng = IsSpritesheetFrame (sourceLayer)
+				? CreateSurfacePng (sourceLayer.Surface)
+				: CreateLayerPng (doc, sourceLayer);
+			string cutoutName = GetCutoutResultName (sourceLayer);
 			string imageService = AI.AiRequestSettings.GetImageService (PintaCore.Settings);
 			string debugDir = CreateCutoutDebugDirectory ();
-			SaveCutoutDebugLog (debugDir, $"AI cutout: service={imageService}, document_size={doc.ImageSize.Width}x{doc.ImageSize.Height}, source_layer={sourceLayer.Name}, source_bytes={sourcePng.Length}");
+			SaveCutoutDebugLog (
+				debugDir,
+				$"AI cutout: service={imageService}, document_size={operationSize.Width}x{operationSize.Height}, "
+				+ $"source_layer={sourceLayer.Name}, source_bytes={sourcePng.Length}");
 			SaveCutoutDebugPng (debugDir, "source.png", sourcePng);
 			if (imageService == AI.AiRequestSettings.BaiduService) {
 				SetProgress (Translations.GetString ("Requesting Baidu human segmentation..."), 0.25);
@@ -279,7 +271,7 @@ public sealed partial class LayerActions
 					Translations.GetString ("Cutout"),
 					() => background_cutout.GenerateBaiduCutoutAsync (
 						sourcePng,
-						doc.ImageSize,
+						operationSize,
 						SetProgress,
 						(fileName, png) => SaveCutoutDebugPng (debugDir, fileName, png),
 						message => SaveCutoutDebugLog (debugDir, message),
@@ -288,11 +280,11 @@ public sealed partial class LayerActions
 					cts.Token);
 
 				SetProgress (Translations.GetString ("Creating transparent layer..."), 0.85);
-				UserLayer cutoutLayer = doc.Layers.AddNewLayer (Translations.GetString ("Transparent Cutout"));
+				UserLayer cutoutLayer = AddAiResultLayer (doc, cutoutName, operationSize);
 				DrawPngOnLayer (transparentPng, cutoutLayer);
 				doc.History.PushNewItem (new AddLayerHistoryItem (
 					Resources.Icons.ColorModeTransparency,
-					Translations.GetString ("Transparent Cutout"),
+					cutoutName,
 					cutoutLayer,
 					doc.Layers.GetPosition (cutoutLayer)));
 			} else {
@@ -300,7 +292,7 @@ public sealed partial class LayerActions
 					Translations.GetString ("Cutout"),
 					() => background_cutout.GenerateBlackAsync (
 						sourcePng,
-						doc.ImageSize,
+						operationSize,
 						SetProgress,
 						(fileName, png) => SaveCutoutDebugPng (debugDir, fileName, png),
 						message => SaveCutoutDebugLog (debugDir, message),
@@ -310,7 +302,7 @@ public sealed partial class LayerActions
 
 				SetProgress (Translations.GetString ("Creating black and transparent layers..."), 0.85);
 				CompoundHistoryItem history = new (Resources.Icons.ColorModeTransparency, Translations.GetString ("Cutout"));
-				UserLayer blackLayer = doc.Layers.AddNewLayer (Translations.GetString ("Black Background"));
+				UserLayer blackLayer = AddAiResultLayer (doc, IsSpritesheetFrame (sourceLayer) ? $"{cutoutName}-black-source" : Translations.GetString ("Black Background"), operationSize);
 				DrawPngOnLayer (blackPng, blackLayer);
 				history.Push (new AddLayerHistoryItem (
 					Resources.Icons.ColorModeColor,
@@ -318,13 +310,13 @@ public sealed partial class LayerActions
 					blackLayer,
 					doc.Layers.GetPosition (blackLayer)));
 
-				using Cairo.ImageSurface white = LoadPngAsSurface (sourcePng, doc.ImageSize);
-				using Cairo.ImageSurface black = LoadPngAsSurface (blackPng, doc.ImageSize);
-				UserLayer cutoutLayer = doc.Layers.AddNewLayer (Translations.GetString ("Transparent Cutout"));
+				using Cairo.ImageSurface white = LoadPngAsSurface (sourcePng, operationSize);
+				using Cairo.ImageSurface black = LoadPngAsSurface (blackPng, operationSize);
+				UserLayer cutoutLayer = AddAiResultLayer (doc, cutoutName, operationSize);
 				CreateTransparentCutout (white, black, cutoutLayer.Surface);
 				history.Push (new AddLayerHistoryItem (
 					Resources.Icons.ColorModeTransparency,
-					Translations.GetString ("Transparent Cutout"),
+					cutoutName,
 					cutoutLayer,
 					doc.Layers.GetPosition (cutoutLayer)));
 				doc.History.PushNewItem (history);
@@ -544,23 +536,16 @@ public sealed partial class LayerActions
 		providerCombobox.AppendText (AI.AiRequestSettings.LukyfaceProvider);
 		providerCombobox.Active = AI.AiRequestSettings.GetGptProvider (PintaCore.Settings) == AI.AiRequestSettings.ZzswitchProvider ? 0 : 1;
 		Gtk.Label providerLabel = CreateSettingsLabel (Translations.GetString ("GPT provider:"));
-		Gtk.ComboBoxText sizeCombobox = Gtk.ComboBoxText.New ();
-		List<Size> sizeChoices = [];
+		AiImageSizePicker sizePicker = new ();
 
 		void UpdateGenerationSettings ()
 		{
 			bool gptSelected = serviceCombobox.Active == 1;
 			providerLabel.Visible = gptSelected;
 			providerCombobox.Visible = gptSelected;
-			sizeCombobox.RemoveAll ();
-			sizeChoices.Clear ();
-			sizeChoices.AddRange (AI.BackgroundCutoutService.GetImageGenerationSizes (
-				gptSelected ? AI.AiRequestSettings.GptImageService : AI.AiRequestSettings.AgnesService));
-			foreach (Size size in sizeChoices)
-				sizeCombobox.AppendText ($"{size.Width} × {size.Height}");
-			sizeCombobox.Active = sizeChoices.FindIndex (size => size == new Size (1024, 1024));
-			if (sizeCombobox.Active < 0)
-				sizeCombobox.Active = 0;
+			sizePicker.SetService (gptSelected
+				? AI.AiRequestSettings.GptImageService
+				: AI.AiRequestSettings.AgnesService);
 		}
 
 		Gtk.Grid generationGrid = Gtk.Grid.New ();
@@ -571,13 +556,14 @@ public sealed partial class LayerActions
 		generationGrid.Attach (providerLabel, 0, 1, 1, 1);
 		generationGrid.Attach (providerCombobox, 1, 1, 1, 1);
 		generationGrid.Attach (CreateSettingsLabel (Translations.GetString ("Image size:")), 0, 2, 1, 1);
-		generationGrid.Attach (sizeCombobox, 1, 2, 1, 1);
+		generationGrid.Attach (sizePicker.Widget, 1, 2, 1, 1);
 		generationGrid.Visible = mode != AiImageRequestMode.BackgroundCleanup;
 		serviceCombobox.OnChanged += (_, _) => UpdateGenerationSettings ();
 		UpdateGenerationSettings ();
 
 		Gtk.Widget? spritesheet_controls = null;
 		Func<string>? spritesheet_result_layer_name = null;
+		Func<AI.SpritesheetAttemptInfo?> spritesheet_info = () => null;
 		Func<bool> spritesheet_valid = () => true;
 		if (spritesheetCatalog is not null) {
 			Gtk.CheckButton directionModeButton = Gtk.CheckButton.NewWithLabel (Translations.GetString ("Direction Sheet"));
@@ -668,13 +654,14 @@ public sealed partial class LayerActions
 					.ToArray ();
 				int framesPerDirection = directionSheet ? 1 : (int) frameCountSpinner.Value;
 				int totalFrames = selectedIds.Length * framesPerDirection;
-				if (selectedIds.Length == 0 || sizeChoices.Count == 0) {
+				if (selectedIds.Length == 0 || sizePicker.SelectedSize is not Size size) {
 					promptBuffer.SetText (string.Empty, -1);
-					summaryLabel.SetText (Translations.GetString ("Select at least one direction."));
+					summaryLabel.SetText (selectedIds.Length == 0
+						? Translations.GetString ("Select at least one direction.")
+						: Translations.GetString ("Select a valid image size."));
 					return;
 				}
 
-				Size size = sizeChoices[Math.Max (0, sizeCombobox.Active)];
 				(int columns, int rows) = AI.SpritesheetPromptCatalog.CalculateGrid (totalFrames, size);
 				summaryLabel.SetText (directionSheet
 					? $"{selectedIds.Length} directions / {columns} x {rows} grid"
@@ -696,6 +683,9 @@ public sealed partial class LayerActions
 			spritesheet_result_layer_name = () => directionModeButton.Active
 				? Translations.GetString ("Direction Sheet")
 				: $"{spritesheetCatalog.Actions[actionCombobox.Active].Label} {Translations.GetString ("Spritesheet")}";
+			spritesheet_info = () => CreateSpritesheetAttemptInfo (
+				spritesheetCatalog, directionChoices, directionModeButton.Active, actionCombobox.Active,
+				frameCountSpinner.Value, backgroundCombobox.Active, sizePicker.SelectedSize!.Value, promptBuffer);
 
 			directionModeButton.OnToggled += (_, _) => {
 				if (!directionModeButton.Active)
@@ -716,7 +706,7 @@ public sealed partial class LayerActions
 			customActionEntry.OnChanged += (_, _) => RebuildSpritesheetPrompt ();
 			frameCountSpinner.OnValueChanged += (_, _) => RebuildSpritesheetPrompt ();
 			backgroundCombobox.OnChanged += (_, _) => RebuildSpritesheetPrompt ();
-			sizeCombobox.OnChanged += (_, _) => RebuildSpritesheetPrompt ();
+			sizePicker.Changed += (_, _) => RebuildSpritesheetPrompt ();
 			foreach ((Gtk.CheckButton check, _) in directionChoices)
 				check.OnToggled += (_, _) => RebuildSpritesheetPrompt ();
 			RebuildSpritesheetPrompt ();
@@ -740,6 +730,7 @@ public sealed partial class LayerActions
 					continue;
 
 				Gtk.CheckButton check = Gtk.CheckButton.New ();
+				check.Active = false;
 				Gtk.Picture preview = Gtk.Picture.New ();
 				preview.Paintable = layer.Surface.ToTexture ();
 				preview.ContentFit = Gtk.ContentFit.ScaleDown;
@@ -763,6 +754,8 @@ public sealed partial class LayerActions
 				layerBox.Append (row);
 				layerChoices.Add ((check, layer));
 			}
+		if (spritesheetMode)
+			SelectDefaultCharacterAnchor (layerChoices);
 
 		Gtk.ScrolledWindow layerScroll = Gtk.ScrolledWindow.New ();
 		layerScroll.HeightRequest = 180;
@@ -822,10 +815,12 @@ public sealed partial class LayerActions
 		void UpdateSubmitButton ()
 		{
 			promptBuffer.GetBounds (out Gtk.TextIter start, out Gtk.TextIter end);
-			submitButton.Sensitive = spritesheet_valid ()
+			submitButton.Sensitive = sizePicker.IsValid
+				&& spritesheet_valid ()
 				&& !string.IsNullOrWhiteSpace (promptBuffer.GetText (start, end, includeHiddenChars: true));
 		}
 		promptBuffer.OnChanged += (_, _) => UpdateSubmitButton ();
+		sizePicker.Changed += (_, _) => UpdateSubmitButton ();
 		UpdateSubmitButton ();
 
 		if (await dialog.RunAsync () != Gtk.ResponseType.Ok)
@@ -840,7 +835,7 @@ public sealed partial class LayerActions
 		string prompt = promptBuffer.GetText (promptStart, promptEnd, includeHiddenChars: true).Trim ();
 		Size imageSize = mode == AiImageRequestMode.BackgroundCleanup
 			? doc!.ImageSize
-			: sizeChoices[sizeCombobox.Active];
+			: sizePicker.SelectedSize ?? throw new InvalidOperationException ("A valid image size is required.");
 		if (mode != AiImageRequestMode.BackgroundCleanup) {
 			string imageService = serviceCombobox.Active == 0
 				? AI.AiRequestSettings.AgnesService
@@ -860,7 +855,7 @@ public sealed partial class LayerActions
 		string progressTitle = spritesheetMode
 			? Translations.GetString ("Generate Spritesheet")
 			: Translations.GetString ("AI 生成");
-		return new (prompt, imageSize, layers, files, resultLayerName, progressTitle);
+		return new (prompt, imageSize, layers, files, resultLayerName, progressTitle, spritesheet_info ());
 	}
 
 	private static Gtk.Label CreateDialogLabel (string text)
@@ -994,7 +989,8 @@ public sealed partial class LayerActions
 		IReadOnlyList<UserLayer> Layers,
 		IReadOnlyList<Gio.File> Files,
 		string ResultLayerName,
-		string ProgressTitle);
+		string ProgressTitle,
+		AI.SpritesheetAttemptInfo? Spritesheet);
 
 	private enum AiImageRequestMode
 	{

@@ -15,7 +15,23 @@ public sealed record SpritesheetActionPreset (
 	string Label,
 	int DefaultFrameCount,
 	int Order,
-	string Prompt);
+	string Prompt,
+	bool Loop,
+	IReadOnlyList<string> KeyPoses);
+
+public sealed record SpritesheetAttemptInfo (
+	bool DirectionSheet,
+	string ActionId,
+	IReadOnlyList<string> DirectionIds,
+	int FrameCount,
+	int Columns,
+	int Rows,
+	string BackgroundId,
+	Size ImageSize,
+	string Prompt,
+	string ImageService,
+	string Provider,
+	int PromptVersion);
 
 public sealed class SpritesheetPromptCatalog
 {
@@ -59,7 +75,9 @@ public sealed class SpritesheetPromptCatalog
 				action.Label,
 				action.DefaultFrameCount,
 				action.Order,
-				action.Prompt))
+				action.Prompt,
+				action.Loop,
+				action.KeyPoses))
 			.OrderBy (action => action.Order)
 			.ToArray ();
 
@@ -90,11 +108,16 @@ public sealed class SpritesheetPromptCatalog
 
 		List<string> sections = [directionSheet
 			? direction_prompt
-			: BuildActionPrompt (actionId, customAction)];
+			: BuildActionPrompt (actionId, customAction, framesPerDirection)];
 
 		sections.Add (directionSheet
 			? $"Generate {selectedDirections.Length} canonical direction views, one frame per direction."
 			: $"Use exactly {framesPerDirection} frames for every selected direction. Total animation frames: {totalFrames}.");
+		if (!directionSheet)
+			sections.Add (
+				"For each frame index, every selected direction must show the same normalized animation phase and semantic key pose. "
+				+ "Change only the viewing direction; keep timing, contact state, body mechanics, held objects, "
+				+ "and action intensity equivalent across directions.");
 
 		List<string> directionLines = [];
 		int firstCell = 1;
@@ -107,7 +130,10 @@ public sealed class SpritesheetPromptCatalog
 		sections.Add ($"Direction and cell assignment (fixed row-major order):\n{string.Join (Environment.NewLine, directionLines)}");
 
 		int unusedCells = columns * rows - totalFrames;
-		sections.Add ($"Output one {imageSize.Width}x{imageSize.Height} raster spritesheet arranged as {columns} columns x {rows} rows. Number cells from 1 at the top-left, moving left-to-right and then top-to-bottom. Every cell must have identical dimensions."
+		sections.Add (
+			$"Output one {imageSize.Width}x{imageSize.Height} raster spritesheet arranged as {columns} columns x {rows} rows. "
+			+ "Number cells from 1 at the top-left, moving left-to-right and then top-to-bottom. "
+			+ "Every cell must have identical dimensions."
 			+ (unusedCells > 0 ? $" Leave the final {unusedCells} unused cell(s) completely empty except for the selected background." : string.Empty));
 		sections.Add (common.SharedRules);
 		sections.Add (background.Prompt);
@@ -139,15 +165,29 @@ public sealed class SpritesheetPromptCatalog
 		return (bestColumns, bestRows);
 	}
 
-	private string BuildActionPrompt (string actionId, string customAction)
+	private string BuildActionPrompt (string actionId, string customAction, int frameCount)
 	{
 		SpritesheetActionPreset action = Actions.FirstOrDefault (item => item.Id == actionId)
 			?? throw new InvalidOperationException ($"Unknown spritesheet action: {actionId}");
-		if (action.Id != "custom")
-			return action.Prompt;
-		if (string.IsNullOrWhiteSpace (customAction))
-			return string.Empty;
-		return $"{action.Prompt}\nCustom action: {customAction.Trim ()}";
+		string prompt = action.Id == "custom"
+			? $"{action.Prompt}\nCustom action: {customAction.Trim ()}"
+			: action.Prompt;
+		return $"{prompt}\n{BuildFramePlan (action, frameCount)}";
+	}
+
+	private static string BuildFramePlan (SpritesheetActionPreset action, int frameCount)
+	{
+		List<string> frames = [];
+		for (int frame = 0; frame < frameCount; frame++) {
+			double phase = action.Loop
+				? frame / (double) frameCount
+				: frameCount == 1 ? 0.5 : frame / (double) (frameCount - 1);
+			int pose = action.Loop
+				? Math.Min ((int) (phase * action.KeyPoses.Count), action.KeyPoses.Count - 1)
+				: (int) Math.Round (phase * (action.KeyPoses.Count - 1));
+			frames.Add ($"- frame {frame + 1}: phase {phase:0.###}; {action.KeyPoses[pose]}");
+		}
+		return $"Frame plan for every direction (fixed):\n{string.Join (Environment.NewLine, frames)}";
 	}
 
 	private static T ReadJson<T> (string path)
@@ -175,7 +215,10 @@ public sealed class SpritesheetPromptCatalog
 			throw new InvalidOperationException ("Spritesheet prompts must define white, magenta, and green backgrounds.");
 		if (string.IsNullOrWhiteSpace (direction.Prompt))
 			throw new InvalidOperationException ("Direction sheet prompt cannot be empty.");
-		if (actions.Count != 8 || actions.Any (item => item.DefaultFrameCount is < 1 or > 16 || string.IsNullOrWhiteSpace (item.Prompt)))
+		if (actions.Count != 8 || actions.Any (item => item.DefaultFrameCount is < 1 or > 16
+			|| string.IsNullOrWhiteSpace (item.Prompt)
+			|| item.KeyPoses.Count == 0
+			|| item.KeyPoses.Any (string.IsNullOrWhiteSpace)))
 			throw new InvalidOperationException ("Spritesheet prompts must define seven actions and one custom action.");
 		if (common.Directions.Select (item => item.Id).Distinct ().Count () != common.Directions.Count ||
 			actions.Select (item => item.Id).Distinct ().Count () != actions.Count)
@@ -202,5 +245,7 @@ public sealed class SpritesheetPromptCatalog
 		public int DefaultFrameCount { get; set; }
 		public int Order { get; set; }
 		public string Prompt { get; set; } = string.Empty;
+		public bool Loop { get; set; }
+		public List<string> KeyPoses { get; set; } = [];
 	}
 }

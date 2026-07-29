@@ -3,5 +3,7 @@
   "label": "Death",
   "defaultFrameCount": 8,
   "order": 70,
+  "loop": false,
+  "keyPoses": ["standing", "initial hit", "loss of balance", "fall begins", "mid-fall", "ground contact", "settling", "stable final pose"],
   "prompt": "Create a non-looping defeat sequence from standing through loss of balance and collapse to a stable final pose. Maintain anatomical continuity and keep the complete body visible in every cell. Do not include gore unless explicitly requested."
 }

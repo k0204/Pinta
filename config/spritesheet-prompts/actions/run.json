@@ -3,5 +3,7 @@
   "label": "Run",
   "defaultFrameCount": 8,
   "order": 30,
+  "loop": true,
+  "keyPoses": ["contact", "compression", "passing", "flight", "opposite contact", "opposite compression", "opposite passing", "opposite flight"],
   "prompt": "Create a seamless run cycle with readable contact, compression, passing, flight, opposite contact, opposite compression, opposite passing, and opposite flight poses. Show stronger forward energy than walking while keeping character scale and root registration stable."
 }

@@ -98,7 +98,10 @@ public sealed class ToolManager : IEnumerable<BaseTool>, IToolService
 	}
 
 	private bool is_panning;
+	private bool is_space_pressed;
+	private MouseButton pan_mouse_button;
 	private Gdk.Cursor? stored_cursor;
+	private bool has_stored_cursor;
 
 	public event EventHandler<ToolEventArgs>? ToolAdded;
 	public event EventHandler<ToolEventArgs>? ToolRemoved;
@@ -245,11 +248,13 @@ public sealed class ToolManager : IEnumerable<BaseTool>, IToolService
 
 	public void DoMouseDown (Document document, ToolMouseEventArgs args)
 	{
+		if (TryMouseDownPanOverride (document, args))
+			return;
+
 		if (CurrentTool?.RequiresEditableLayer == true && !document.Layers.CurrentUserLayer.IsEditable)
 			return;
 
-		if (!TryMouseDownPanOverride (document, args))
-			CurrentTool?.DoMouseDown (document, args);
+		CurrentTool?.DoMouseDown (document, args);
 	}
 
 	public void DoMouseMove (Document document, ToolMouseEventArgs args)
@@ -265,10 +270,28 @@ public sealed class ToolManager : IEnumerable<BaseTool>, IToolService
 	}
 
 	public bool DoKeyDown (Document document, ToolKeyEventArgs args)
-		=> CurrentTool?.DoKeyDown (document, args) ?? false;
+	{
+		if (args.Key.Value != Gdk.Constants.KEY_space)
+			return CurrentTool?.DoKeyDown (document, args) ?? false;
+
+		is_space_pressed = true;
+		if (TryGetPanTool (out BaseTool? pan))
+			SetPanCursor (document, pan);
+
+		return true;
+	}
 
 	public bool DoKeyUp (Document document, ToolKeyEventArgs args)
-		=> CurrentTool?.DoKeyUp (document, args) ?? false;
+	{
+		if (args.Key.Value != Gdk.Constants.KEY_space)
+			return CurrentTool?.DoKeyUp (document, args) ?? false;
+
+		is_space_pressed = false;
+		if (!is_panning)
+			RestoreCursor (document);
+
+		return true;
+	}
 
 	public void DoAfterSave (Document document)
 		=> CurrentTool?.DoAfterSave (document);
@@ -287,12 +310,14 @@ public sealed class ToolManager : IEnumerable<BaseTool>, IToolService
 		if (is_panning)
 			return true;
 
-		if (args.MouseButton != MouseButton.Middle || !TryGetPanTool (out BaseTool? pan))
+		bool shouldPan = args.MouseButton == MouseButton.Middle
+			|| (is_space_pressed && args.MouseButton == MouseButton.Left);
+		if (!shouldPan || !TryGetPanTool (out BaseTool? pan))
 			return false;
 
 		is_panning = true;
-		stored_cursor = document.Workspace.Canvas.Cursor;
-		document.Workspace.Canvas.Cursor = pan.DefaultCursor;
+		pan_mouse_button = args.MouseButton;
+		SetPanCursor (document, pan);
 		pan.DoMouseDown (document, args);
 		return true;
 	}
@@ -311,14 +336,35 @@ public sealed class ToolManager : IEnumerable<BaseTool>, IToolService
 		if (!is_panning || !TryGetPanTool (out var pan))
 			return false;
 
-		// Ignore any mouse button releases that aren't Middle
-		if (args.MouseButton != MouseButton.Middle)
+		if (args.MouseButton != pan_mouse_button)
 			return true;
 
 		is_panning = false;
+		pan_mouse_button = MouseButton.None;
 		pan.DoMouseUp (document, args);
-		document.Workspace.Canvas.Cursor = stored_cursor;
+		if (!is_space_pressed)
+			RestoreCursor (document);
 		return true;
+	}
+
+	private void SetPanCursor (Document document, BaseTool pan)
+	{
+		if (!has_stored_cursor) {
+			stored_cursor = document.Workspace.Canvas.Cursor;
+			has_stored_cursor = true;
+		}
+
+		document.Workspace.Canvas.Cursor = pan.DefaultCursor;
+	}
+
+	private void RestoreCursor (Document document)
+	{
+		if (!has_stored_cursor)
+			return;
+
+		document.Workspace.Canvas.Cursor = stored_cursor;
+		stored_cursor = null;
+		has_stored_cursor = false;
 	}
 
 	private bool TryGetPanTool ([NotNullWhen (true)] out BaseTool? tool)

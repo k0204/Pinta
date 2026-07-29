@@ -128,7 +128,7 @@ example.pinta
 ```json
 {
   "format": "pinta-document",
-  "version": 1,
+  "version": 3,
   "width": 800,
   "height": 600,
   "selectedLayerId": "layer-0002",
@@ -146,6 +146,9 @@ example.pinta
       "blendMode": "Normal",
       "expanded": true,
       "surface": "layers/layer-0001.png",
+      "surfaceWidth": 800,
+      "surfaceHeight": 600,
+      "metadata": {},
       "transform": { "xx": 1, "yx": 0, "xy": 0, "yy": 1, "x0": 0, "y0": 0 },
       "children": []
     }
@@ -188,6 +191,8 @@ example.pinta
 - `BlendMode`
 - `Expanded`
 - `Surface`
+- `SurfaceWidth` / `SurfaceHeight`: v3 起保存每个普通图层的真实像素尺寸；允许精灵帧等图层小于文档画布
+- `Metadata`: v3 起保存功能级字符串元数据，例如精灵图的动作、方向、帧数和拆分参数
 - `Transform`
 - `Children`
 
@@ -220,7 +225,7 @@ example.pinta
 2. 打开 zip，读取 `project.json`。
 3. 校验：
    - `format == "pinta-document"`
-   - `version` 是当前支持版本。
+   - `version` 是当前支持版本。当前写入 v3，并继续读取 v1/v2；旧版本缺失的尺寸按文档画布处理，元数据按空集合处理。
    - manifest 中引用的 layer PNG 都存在。
 4. 创建新的 `Document`。
 5. 递归读取 `layers` 树：
