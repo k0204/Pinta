@@ -1,0 +1,19 @@
+{
+  "sharedRules": "Use the supplied reference images as the strict identity and style anchor when references are present. Preserve the same character identity, face, hairstyle, outfit, accessories, palette, silhouette, anatomy, proportions, camera angle, framing, scale, lighting, and rendering style in every cell. Keep a fixed camera and register the character to the same root/feet position in every cell. Every cell must show the complete subject inside its boundaries with clean separation from adjacent cells.",
+  "forbiddenContent": "No text, labels, captions, borders, grid lines, guides, watermarks, cast shadows, reflections, scenery, extra characters, cropped limbs, duplicated subjects, camera movement, random position shifts, scale changes, stretching, squashing, or style drift.",
+  "directions": [
+    { "id": "down", "label": "Down / front", "prompt": "The character faces directly toward the camera while retaining the intended top-down or three-quarter game view." },
+    { "id": "down-left", "label": "Down-left / front-left", "prompt": "The character faces diagonally toward the front-left with a clear, consistent three-quarter silhouette." },
+    { "id": "left", "label": "Left", "prompt": "The character faces strictly left in a readable side view." },
+    { "id": "up-left", "label": "Up-left / back-left", "prompt": "The character faces diagonally away toward the back-left with a clear, consistent three-quarter silhouette." },
+    { "id": "up", "label": "Up / back", "prompt": "The character faces directly away from the camera with the back view clearly visible." },
+    { "id": "up-right", "label": "Up-right / back-right", "prompt": "The character faces diagonally away toward the back-right with a clear, consistent three-quarter silhouette." },
+    { "id": "right", "label": "Right", "prompt": "The character faces strictly right in a readable side view." },
+    { "id": "down-right", "label": "Down-right / front-right", "prompt": "The character faces diagonally toward the front-right with a clear, consistent three-quarter silhouette." }
+  ],
+  "backgrounds": [
+    { "id": "white", "label": "White", "prompt": "Use a perfectly uniform pure white (#FFFFFF) background in every cell." },
+    { "id": "magenta", "label": "Magenta", "prompt": "Use a perfectly uniform pure magenta (#FF00FF) chroma-key background in every cell." },
+    { "id": "green", "label": "Green", "prompt": "Use a perfectly uniform pure green (#00FF00) chroma-key background in every cell." }
+  ]
+}

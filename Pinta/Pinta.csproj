@@ -28,6 +28,7 @@
 
   <ItemGroup>
     <Content Include="..\config\gpt-image-prompts.json" Link="config\gpt-image-prompts.json" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\config\spritesheet-prompts\**\*.json" Link="config\spritesheet-prompts\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>

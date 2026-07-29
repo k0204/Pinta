@@ -1,0 +1,7 @@
+{
+  "id": "walk",
+  "label": "Walk",
+  "defaultFrameCount": 8,
+  "order": 20,
+  "prompt": "Create a seamless walk cycle with coherent contact, down, passing, up, opposite contact, opposite down, opposite passing, and opposite up poses. Feet and hips must describe a believable gait. Keep the root registered and avoid sliding, floating, or random pose variants."
+}

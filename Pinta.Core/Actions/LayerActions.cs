@@ -35,6 +35,7 @@ public sealed partial class LayerActions
 	public Command AddNewLayer { get; }
         public Command AddNewGroup { get; }
 	public Command GenerateImage { get; }
+	public Command GenerateSpritesheet { get; }
 	public Command DeleteLayer { get; }
 	public Command DuplicateLayer { get; }
 	public Command MergeLayerDown { get; }
@@ -93,6 +94,12 @@ public sealed partial class LayerActions
 			Translations.GetString ("AI 生成"),
 			Translations.GetString ("Generate an image with AI"),
 			Resources.Icons.EffectsRenderClouds);
+
+		GenerateSpritesheet = new Command (
+			"generatespritesheet",
+			Translations.GetString ("Generate Spritesheet"),
+			Translations.GetString ("Generate a direction sheet or action spritesheet with AI"),
+			Resources.Icons.LayerDuplicate);
 
 		DeleteLayer = new Command (
 			"deletelayer",
@@ -206,6 +213,7 @@ public sealed partial class LayerActions
 			AddNewLayer,
                         AddNewGroup,
 			GenerateImage,
+			GenerateSpritesheet,
 			DeleteLayer,
 			DuplicateLayer,
 			MergeLayerDown,
@@ -231,6 +239,7 @@ public sealed partial class LayerActions
 		AddNewLayer.Activated += HandlePintaCoreActionsLayersAddNewLayerActivated;
                 AddNewGroup.Activated += HandlePintaCoreActionsLayersAddNewGroupActivated;
 		GenerateImage.Activated += HandlePintaCoreActionsLayersGenerateImageActivated;
+		GenerateSpritesheet.Activated += HandlePintaCoreActionsLayersGenerateSpritesheetActivated;
 		DeleteLayer.Activated += HandlePintaCoreActionsLayersDeleteLayerActivated;
 		DuplicateLayer.Activated += HandlePintaCoreActionsLayersDuplicateLayerActivated;
 		MergeLayerDown.Activated += HandlePintaCoreActionsLayersMergeLayerDownActivated;
@@ -259,6 +268,7 @@ public sealed partial class LayerActions
 		image.Flatten.Sensitive = hasMultipleLayers && activeDoc?.Layers.HasLockedReferences != true;
                 AddNewGroup.Sensitive = activeDoc != null;
 		GenerateImage.Sensitive = !cutout_running;
+		GenerateSpritesheet.Sensitive = !cutout_running;
 
 		bool currentEditable = activeDoc?.Layers.CurrentUserLayer.IsEditable ?? false;
 		bool canMergeDown = activeDoc?.Layers.CanMoveCurrentLayerDown () ?? false;

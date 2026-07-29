@@ -1,0 +1,7 @@
+{
+  "id": "jump",
+  "label": "Jump",
+  "defaultFrameCount": 8,
+  "order": 50,
+  "prompt": "Create one complete jump sequence: anticipation, takeoff, ascent, apex, descent, landing, compression, and recovery. Keep the camera fixed and express vertical movement through the pose while maintaining consistent cell registration."
+}

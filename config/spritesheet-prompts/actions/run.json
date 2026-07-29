@@ -1,0 +1,7 @@
+{
+  "id": "run",
+  "label": "Run",
+  "defaultFrameCount": 8,
+  "order": 30,
+  "prompt": "Create a seamless run cycle with readable contact, compression, passing, flight, opposite contact, opposite compression, opposite passing, and opposite flight poses. Show stronger forward energy than walking while keeping character scale and root registration stable."
+}

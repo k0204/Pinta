@@ -1,0 +1,7 @@
+{
+  "id": "idle",
+  "label": "Idle",
+  "defaultFrameCount": 8,
+  "order": 10,
+  "prompt": "Create a seamless idle animation loop. Animate only restrained breathing, subtle weight settling, blinking, and secondary hair or clothing motion. Keep both feet planted and the root fixed. The last frame must lead naturally into the first without duplicating a held final frame."
+}

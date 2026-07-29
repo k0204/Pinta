@@ -102,6 +102,7 @@ internal sealed class LayersPad : IDockPad
 			layer_actions.AddNewLayer.CreateDockToolBarItem (),
                         layer_actions.AddNewGroup.CreateDockToolBarItem (),
 			layer_actions.GenerateImage.CreateDockToolBarItem (),
+			layer_actions.GenerateSpritesheet.CreateDockToolBarItem (),
 			layer_actions.DeleteLayer.CreateDockToolBarItem (),
 			layer_actions.DuplicateLayer.CreateDockToolBarItem (),
 			layer_actions.UnlockReference.CreateDockToolBarItem (),

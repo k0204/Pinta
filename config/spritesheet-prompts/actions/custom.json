@@ -1,0 +1,7 @@
+{
+  "id": "custom",
+  "label": "Custom",
+  "defaultFrameCount": 8,
+  "order": 80,
+  "prompt": "Create a coherent animation sequence for the custom action described below. Show clear anticipation, readable key poses, consistent in-betweens, and an appropriate ending or loop transition."
+}

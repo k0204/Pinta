@@ -5,6 +5,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -18,6 +19,30 @@ public sealed partial class LayerActions
 			return;
 
 		await RunImageGenerationAsync ();
+	}
+
+	private async void HandlePintaCoreActionsLayersGenerateSpritesheetActivated (object sender, EventArgs e)
+	{
+		if (cutout_running || !EnsureAiLoggedIn ())
+			return;
+
+		Document? referenceDocument = workspace.ActiveDocumentOrDefault;
+		AiImageRequestOptions? options;
+		try {
+			options = await PromptAiImageRequestAsync (
+				AiImageRequestMode.SpritesheetGeneration,
+				referenceDocument,
+				sourceLayer: null);
+		} catch (Exception ex) {
+			await chrome.ShowErrorDialog (
+				chrome.MainWindow,
+				Translations.GetString ("Spritesheet Prompt Configuration Error"),
+				Translations.GetString ("Check the files in config/spritesheet-prompts and try again."),
+				ex.ToString ());
+			return;
+		}
+		if (options is not null)
+			await GenerateImageAsync (referenceDocument, options);
 	}
 
 	private async void HandlePintaCoreActionsLayersCutoutActivated (object sender, EventArgs e)
@@ -45,11 +70,17 @@ public sealed partial class LayerActions
 		if (options is null)
 			return;
 
+		await GenerateImageAsync (referenceDocument, options);
+	}
+
+	private async Task GenerateImageAsync (Document? referenceDocument, AiImageRequestOptions options)
+	{
+
 		cutout_running = true;
 		EnableOrDisableLayerActions (null, EventArgs.Empty);
 		using CancellationTokenSource cts = new ();
 		IProgressDialog progress = chrome.ProgressDialog;
-		progress.Title = Translations.GetString ("AI 生成");
+		progress.Title = options.ProgressTitle;
 		progress.Text = Translations.GetString ("Preparing image request...");
 		progress.Progress = 0.05;
 		progress.Canceled += HandleProgressCanceled;
@@ -67,7 +98,7 @@ public sealed partial class LayerActions
 
 			string debugDir = CreateCutoutDebugDirectory ();
 			byte[] generatedPng = await GenerateBackgroundWithRetryAsync (
-				Translations.GetString ("AI 生成"),
+				options.ProgressTitle,
 				() => background_cutout.GenerateImageAsync (
 					options.ImageSize,
 					options.Prompt,
@@ -82,7 +113,7 @@ public sealed partial class LayerActions
 			SetProgress (Translations.GetString ("Opening generated image..."), 0.85);
 			using Cairo.ImageSurface generated = LoadPngAsSurface (generatedPng, options.ImageSize);
 			Document generatedDocument = workspace.NewDocumentFromImage (generated);
-			generatedDocument.Layers.CurrentUserLayer.Name = Translations.GetString ("AI Generated Image");
+			generatedDocument.Layers.CurrentUserLayer.Name = options.ResultLayerName;
 			SetProgress (Translations.GetString ("Refreshing balance..."), 0.95);
 			await PintaCore.AiAuth.RefreshAccountSummaryAsync (cts.Token);
 			PintaCore.Settings.DoSaveSettingsBeforeQuit ();
@@ -467,15 +498,21 @@ public sealed partial class LayerActions
 	{
 		if (mode == AiImageRequestMode.BackgroundCleanup && (doc is null || sourceLayer is null))
 			throw new ArgumentException ("Background cleanup requires a document and source layer.");
+		bool spritesheetMode = mode == AiImageRequestMode.SpritesheetGeneration;
+		AI.SpritesheetPromptCatalog? spritesheetCatalog = spritesheetMode
+			? AI.SpritesheetPromptCatalog.Load ()
+			: null;
 
 		using Gtk.Dialog dialog = Gtk.Dialog.New ();
-		dialog.Title = mode == AiImageRequestMode.BackgroundCleanup
-			? Translations.GetString ("清理背景")
-			: Translations.GetString ("AI 生成");
+		dialog.Title = mode switch {
+			AiImageRequestMode.BackgroundCleanup => Translations.GetString ("清理背景"),
+			AiImageRequestMode.SpritesheetGeneration => Translations.GetString ("Generate Spritesheet"),
+			_ => Translations.GetString ("AI 生成"),
+		};
 		dialog.TransientFor = chrome.MainWindow;
 		dialog.Modal = true;
 		dialog.DefaultWidth = 520;
-		dialog.DefaultHeight = 620;
+		dialog.DefaultHeight = spritesheetMode ? 820 : 620;
 		dialog.AddButton (Translations.GetString ("_Cancel"), (int) Gtk.ResponseType.Cancel);
 		Gtk.Widget submitButton = dialog.AddButton (
 			mode == AiImageRequestMode.BackgroundCleanup
@@ -535,9 +572,155 @@ public sealed partial class LayerActions
 		generationGrid.Attach (providerCombobox, 1, 1, 1, 1);
 		generationGrid.Attach (CreateSettingsLabel (Translations.GetString ("Image size:")), 0, 2, 1, 1);
 		generationGrid.Attach (sizeCombobox, 1, 2, 1, 1);
-		generationGrid.Visible = mode == AiImageRequestMode.ImageGeneration;
+		generationGrid.Visible = mode != AiImageRequestMode.BackgroundCleanup;
 		serviceCombobox.OnChanged += (_, _) => UpdateGenerationSettings ();
 		UpdateGenerationSettings ();
+
+		Gtk.Widget? spritesheet_controls = null;
+		Func<string>? spritesheet_result_layer_name = null;
+		Func<bool> spritesheet_valid = () => true;
+		if (spritesheetCatalog is not null) {
+			Gtk.CheckButton directionModeButton = Gtk.CheckButton.NewWithLabel (Translations.GetString ("Direction Sheet"));
+			Gtk.CheckButton actionModeButton = Gtk.CheckButton.NewWithLabel (Translations.GetString ("Action Sequence"));
+			actionModeButton.SetGroup (directionModeButton);
+			directionModeButton.Active = true;
+
+			Gtk.ComboBoxText actionCombobox = Gtk.ComboBoxText.New ();
+			foreach (AI.SpritesheetActionPreset action in spritesheetCatalog.Actions)
+				actionCombobox.AppendText (action.Label);
+			actionCombobox.Active = 0;
+
+			Gtk.Entry customActionEntry = Gtk.Entry.New ();
+			customActionEntry.PlaceholderText = Translations.GetString ("Describe the custom action");
+			customActionEntry.Hexpand = true;
+			Gtk.Label customActionLabel = CreateSettingsLabel (Translations.GetString ("Custom action:"));
+
+			Gtk.SpinButton frameCountSpinner = Gtk.SpinButton.NewWithRange (1, 16, 1);
+			frameCountSpinner.Value = spritesheetCatalog.Actions[0].DefaultFrameCount;
+			Gtk.Label frameCountLabel = CreateSettingsLabel (Translations.GetString ("Frames per direction:"));
+
+			Gtk.ComboBoxText backgroundCombobox = Gtk.ComboBoxText.New ();
+			foreach (AI.SpritesheetBackground background in spritesheetCatalog.Backgrounds)
+				backgroundCombobox.AppendText (background.Label);
+			backgroundCombobox.Active = 0;
+
+			List<(Gtk.CheckButton Button, AI.SpritesheetDirection Direction)> directionChoices = [];
+			Gtk.Grid directionsGrid = Gtk.Grid.New ();
+			directionsGrid.RowSpacing = 4;
+			directionsGrid.ColumnSpacing = 12;
+			for (int index = 0; index < spritesheetCatalog.Directions.Count; index++) {
+				AI.SpritesheetDirection direction = spritesheetCatalog.Directions[index];
+				Gtk.CheckButton check = Gtk.CheckButton.NewWithLabel (direction.Label);
+				check.Active = true;
+				directionsGrid.Attach (check, index % 2, index / 2, 1, 1);
+				directionChoices.Add ((check, direction));
+			}
+
+			Gtk.Label summaryLabel = Gtk.Label.New (string.Empty);
+			summaryLabel.Halign = Gtk.Align.Start;
+			summaryLabel.AddCssClass (AdwaitaStyles.DimLabel);
+
+			Gtk.Grid spritesheetGrid = Gtk.Grid.New ();
+			spritesheetGrid.RowSpacing = 8;
+			spritesheetGrid.ColumnSpacing = 8;
+			Gtk.Box modeBox = Gtk.Box.New (Gtk.Orientation.Horizontal, 12);
+			modeBox.Append (directionModeButton);
+			modeBox.Append (actionModeButton);
+			spritesheetGrid.Attach (CreateSettingsLabel (Translations.GetString ("Generation type:")), 0, 0, 1, 1);
+			spritesheetGrid.Attach (modeBox, 1, 0, 1, 1);
+			Gtk.Label actionLabel = CreateSettingsLabel (Translations.GetString ("Action:"));
+			spritesheetGrid.Attach (actionLabel, 0, 1, 1, 1);
+			spritesheetGrid.Attach (actionCombobox, 1, 1, 1, 1);
+			spritesheetGrid.Attach (customActionLabel, 0, 2, 1, 1);
+			spritesheetGrid.Attach (customActionEntry, 1, 2, 1, 1);
+			spritesheetGrid.Attach (frameCountLabel, 0, 3, 1, 1);
+			spritesheetGrid.Attach (frameCountSpinner, 1, 3, 1, 1);
+			spritesheetGrid.Attach (CreateSettingsLabel (Translations.GetString ("Background:")), 0, 4, 1, 1);
+			spritesheetGrid.Attach (backgroundCombobox, 1, 4, 1, 1);
+			spritesheetGrid.Attach (CreateSettingsLabel (Translations.GetString ("Directions:")), 0, 5, 1, 1);
+			spritesheetGrid.Attach (directionsGrid, 1, 5, 1, 1);
+			spritesheetGrid.Attach (summaryLabel, 1, 6, 1, 1);
+			spritesheet_controls = spritesheetGrid;
+
+			bool IsCustomAction ()
+				=> spritesheetCatalog.Actions[actionCombobox.Active].Id == "custom";
+
+			void SelectDefaultDirections (bool directionSheet)
+			{
+				foreach ((Gtk.CheckButton check, AI.SpritesheetDirection direction) in directionChoices)
+					check.Active = directionSheet || direction.Id is "down" or "left" or "up" or "right";
+			}
+
+			void RebuildSpritesheetPrompt ()
+			{
+				bool directionSheet = directionModeButton.Active;
+				actionLabel.Visible = !directionSheet;
+				actionCombobox.Visible = !directionSheet;
+				frameCountLabel.Visible = !directionSheet;
+				frameCountSpinner.Visible = !directionSheet;
+				bool customVisible = !directionSheet && IsCustomAction ();
+				customActionLabel.Visible = customVisible;
+				customActionEntry.Visible = customVisible;
+
+				string[] selectedIds = directionChoices
+					.Where (choice => choice.Button.Active)
+					.Select (choice => choice.Direction.Id)
+					.ToArray ();
+				int framesPerDirection = directionSheet ? 1 : (int) frameCountSpinner.Value;
+				int totalFrames = selectedIds.Length * framesPerDirection;
+				if (selectedIds.Length == 0 || sizeChoices.Count == 0) {
+					promptBuffer.SetText (string.Empty, -1);
+					summaryLabel.SetText (Translations.GetString ("Select at least one direction."));
+					return;
+				}
+
+				Size size = sizeChoices[Math.Max (0, sizeCombobox.Active)];
+				(int columns, int rows) = AI.SpritesheetPromptCatalog.CalculateGrid (totalFrames, size);
+				summaryLabel.SetText (directionSheet
+					? $"{selectedIds.Length} directions / {columns} x {rows} grid"
+					: $"{selectedIds.Length} directions x {framesPerDirection} frames = {totalFrames} frames / {columns} x {rows} grid");
+				string actionId = spritesheetCatalog.Actions[actionCombobox.Active].Id;
+				string backgroundId = spritesheetCatalog.Backgrounds[backgroundCombobox.Active].Id;
+				promptBuffer.SetText (spritesheetCatalog.BuildPrompt (
+					directionSheet,
+					actionId,
+					customActionEntry.GetText (),
+					selectedIds,
+					framesPerDirection,
+					backgroundId,
+					size), -1);
+			}
+
+			spritesheet_valid = () => directionChoices.Any (choice => choice.Button.Active)
+				&& (directionModeButton.Active || !IsCustomAction () || !string.IsNullOrWhiteSpace (customActionEntry.GetText ()));
+			spritesheet_result_layer_name = () => directionModeButton.Active
+				? Translations.GetString ("Direction Sheet")
+				: $"{spritesheetCatalog.Actions[actionCombobox.Active].Label} {Translations.GetString ("Spritesheet")}";
+
+			directionModeButton.OnToggled += (_, _) => {
+				if (!directionModeButton.Active)
+					return;
+				SelectDefaultDirections (directionSheet: true);
+				RebuildSpritesheetPrompt ();
+			};
+			actionModeButton.OnToggled += (_, _) => {
+				if (!actionModeButton.Active)
+					return;
+				SelectDefaultDirections (directionSheet: false);
+				RebuildSpritesheetPrompt ();
+			};
+			actionCombobox.OnChanged += (_, _) => {
+				frameCountSpinner.Value = spritesheetCatalog.Actions[actionCombobox.Active].DefaultFrameCount;
+				RebuildSpritesheetPrompt ();
+			};
+			customActionEntry.OnChanged += (_, _) => RebuildSpritesheetPrompt ();
+			frameCountSpinner.OnValueChanged += (_, _) => RebuildSpritesheetPrompt ();
+			backgroundCombobox.OnChanged += (_, _) => RebuildSpritesheetPrompt ();
+			sizeCombobox.OnChanged += (_, _) => RebuildSpritesheetPrompt ();
+			foreach ((Gtk.CheckButton check, _) in directionChoices)
+				check.OnToggled += (_, _) => RebuildSpritesheetPrompt ();
+			RebuildSpritesheetPrompt ();
+		}
 
 		Gtk.Picture sourcePreview = Gtk.Picture.New ();
 		sourcePreview.ContentFit = Gtk.ContentFit.ScaleDown;
@@ -619,6 +802,8 @@ public sealed partial class LayerActions
 		content.Spacing = 8;
 		content.SetAllMargins (12);
 		content.Append (generationGrid);
+		if (spritesheet_controls is not null)
+			content.Append (spritesheet_controls);
 		if (sourceLayer is not null) {
 			content.Append (CreateDialogLabel (Translations.GetString ("当前图层")));
 			content.Append (sourcePreview);
@@ -637,7 +822,8 @@ public sealed partial class LayerActions
 		void UpdateSubmitButton ()
 		{
 			promptBuffer.GetBounds (out Gtk.TextIter start, out Gtk.TextIter end);
-			submitButton.Sensitive = !string.IsNullOrWhiteSpace (promptBuffer.GetText (start, end, includeHiddenChars: true));
+			submitButton.Sensitive = spritesheet_valid ()
+				&& !string.IsNullOrWhiteSpace (promptBuffer.GetText (start, end, includeHiddenChars: true));
 		}
 		promptBuffer.OnChanged += (_, _) => UpdateSubmitButton ();
 		UpdateSubmitButton ();
@@ -655,7 +841,7 @@ public sealed partial class LayerActions
 		Size imageSize = mode == AiImageRequestMode.BackgroundCleanup
 			? doc!.ImageSize
 			: sizeChoices[sizeCombobox.Active];
-		if (mode == AiImageRequestMode.ImageGeneration) {
+		if (mode != AiImageRequestMode.BackgroundCleanup) {
 			string imageService = serviceCombobox.Active == 0
 				? AI.AiRequestSettings.AgnesService
 				: AI.AiRequestSettings.GptImageService;
@@ -666,7 +852,15 @@ public sealed partial class LayerActions
 			PintaCore.Settings.DoSaveSettingsBeforeQuit ();
 		}
 
-		return new (prompt, imageSize, layers, files);
+		string resultLayerName = spritesheetMode
+			? spritesheet_result_layer_name?.Invoke () ?? Translations.GetString ("Spritesheet")
+			: mode == AiImageRequestMode.BackgroundCleanup
+				? Translations.GetString ("White Background")
+				: Translations.GetString ("AI Generated Image");
+		string progressTitle = spritesheetMode
+			? Translations.GetString ("Generate Spritesheet")
+			: Translations.GetString ("AI 生成");
+		return new (prompt, imageSize, layers, files, resultLayerName, progressTitle);
 	}
 
 	private static Gtk.Label CreateDialogLabel (string text)
@@ -798,12 +992,15 @@ public sealed partial class LayerActions
 		string Prompt,
 		Size ImageSize,
 		IReadOnlyList<UserLayer> Layers,
-		IReadOnlyList<Gio.File> Files);
+		IReadOnlyList<Gio.File> Files,
+		string ResultLayerName,
+		string ProgressTitle);
 
 	private enum AiImageRequestMode
 	{
 		BackgroundCleanup,
 		ImageGeneration,
+		SpritesheetGeneration,
 	}
 
 	private enum AiImageOperation

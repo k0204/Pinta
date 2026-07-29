@@ -1,0 +1,7 @@
+{
+  "id": "death",
+  "label": "Death",
+  "defaultFrameCount": 8,
+  "order": 70,
+  "prompt": "Create a non-looping defeat sequence from standing through loss of balance and collapse to a stable final pose. Maintain anatomical continuity and keep the complete body visible in every cell. Do not include gore unless explicitly requested."
+}

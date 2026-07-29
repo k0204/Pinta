@@ -1,0 +1,7 @@
+{
+  "id": "attack",
+  "label": "Attack",
+  "defaultFrameCount": 8,
+  "order": 40,
+  "prompt": "Create one complete attack sequence: anticipation, wind-up, strike, impact, follow-through, recovery, and return to the starting stance. Preserve weapon and hand continuity. Do not add detached effects unless they are explicitly present in the reference."
+}
