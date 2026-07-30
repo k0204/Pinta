@@ -40,7 +40,7 @@ public abstract class SelectTool : BaseTool
 	private SelectionHistoryItem? hist = default;
 	private CombineMode combine_mode = default;
 
-	public override Gdk.Key ShortcutKey => new (Gdk.Constants.KEY_S);
+	public override Gdk.Key ShortcutKey => new (Gdk.Constants.KEY_M);
 	public override bool IsSelectionTool => true;
 	protected override bool ShowAntialiasingButton => false;
 	private readonly RectangleHandle handle;

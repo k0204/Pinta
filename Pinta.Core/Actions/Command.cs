@@ -27,6 +27,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Linq;
 using GObject;
 
 namespace Pinta.Core;
@@ -49,12 +50,14 @@ public class Command
 	public string? Tooltip { get; }
 	public string? IconName { get; }
 	public string FullName => $"app.{Name}";
+	public event EventHandler? ShortcutsChanged;
 	public bool IsImportant { get; } = false;
 	public bool Sensitive {
 		get => Action.Enabled;
 		set => Action.Enabled = value;
 	}
-	public ImmutableArray<string> Shortcuts { get; }
+	public ImmutableArray<string> DefaultShortcuts { get; }
+	public ImmutableArray<string> Shortcuts { get; private set; }
 
 	public Command (
 		string name,
@@ -75,10 +78,20 @@ public class Command
 		Tooltip = tooltip;
 		IconName = icon_name;
 
-		Shortcuts =
+		DefaultShortcuts =
 			shortcuts is null
 			? []
 			: [.. shortcuts];
+		Shortcuts = DefaultShortcuts;
+	}
+
+	internal void SetShortcuts (ImmutableArray<string> shortcuts)
+	{
+		if (Shortcuts.SequenceEqual (shortcuts))
+			return;
+
+		Shortcuts = shortcuts;
+		ShortcutsChanged?.Invoke (this, EventArgs.Empty);
 	}
 
 	public Gio.MenuItem CreateMenuItem ()

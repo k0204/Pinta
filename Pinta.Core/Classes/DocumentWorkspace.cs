@@ -54,19 +54,24 @@ public sealed class DocumentWorkspace
 
 	#region Public Events
 	public event EventHandler<CanvasInvalidatedEventArgs>? CanvasInvalidated;
+	public event EventHandler? CanvasPositionChanged;
 	public event EventHandler? ViewSizeChanged;
 	#endregion
 
 	#region Public Properties
 	public Gtk.Widget Canvas { get; set; } = null!; // NRT - This is set soon after creation
 	public Gtk.Widget CanvasWindow { get; set; } = null!; // NRT - This is set soon after creation
+	public Gtk.Fixed CanvasContainer { get; set; } = null!; // NRT - This is set soon after creation
+	public Gtk.Viewport Viewport { get; set; } = null!; // NRT - This is set soon after creation
+
+	private PointI canvas_offset;
 
 	/// <summary>
 	/// Returns whether the zoomed image fits in the window without requiring scrolling.
 	/// </summary>
 	public bool ImageViewFitsInWindow {
 		get {
-			Gtk.Viewport view = (Gtk.Viewport) Canvas.Parent!;
+			Gtk.Viewport view = Viewport;
 			int window_x = view.GetAllocatedWidth ();
 			int window_y = view.GetAllocatedHeight ();
 			return ViewSize.Width <= window_x && ViewSize.Height <= window_y;
@@ -93,7 +98,7 @@ public sealed class DocumentWorkspace
 	/// </summary>
 	public bool ImageFitsInWindow {
 		get {
-			Gtk.Viewport view = (Gtk.Viewport) Canvas.Parent!;
+			Gtk.Viewport view = Viewport;
 			int window_x = view.GetAllocatedWidth ();
 			int window_y = view.GetAllocatedHeight ();
 			return document.ImageSize.Width <= window_x && document.ImageSize.Height <= window_y;
@@ -198,7 +203,7 @@ public sealed class DocumentWorkspace
 
 	public void RecenterView (PointD point)
 	{
-		Gtk.Viewport view = (Gtk.Viewport) Canvas.Parent!;
+		Gtk.Viewport view = Viewport;
 
 		var h_adjust = view.GetHadjustment ()!;
 		h_adjust.Value = Math.Clamp (point.X * Scale - h_adjust.PageSize / 2, h_adjust.Lower, h_adjust.Upper);
@@ -209,13 +214,22 @@ public sealed class DocumentWorkspace
 
 	public void ScrollCanvas (PointI delta)
 	{
-		Gtk.Viewport view = (Gtk.Viewport) Canvas.Parent!;
+		canvas_offset -= delta;
 
-		var h_adjust = view.GetHadjustment ()!;
-		h_adjust.Value = Math.Clamp (delta.X + h_adjust.Value, h_adjust.Lower, h_adjust.Upper - h_adjust.PageSize);
+		PositionCanvas ();
+		CanvasPositionChanged?.Invoke (this, EventArgs.Empty);
+	}
 
-		var v_adjust = view.GetVadjustment ()!;
-		v_adjust.Value = Math.Clamp (delta.Y + v_adjust.Value, v_adjust.Lower, v_adjust.Upper - v_adjust.PageSize);
+	public void PositionCanvas ()
+	{
+		CanvasContainer.SetSizeRequest (ViewSize.Width, ViewSize.Height);
+		double pageWidth = Viewport.GetHadjustment ()!.PageSize;
+		double pageHeight = Viewport.GetVadjustment ()!.PageSize;
+		double horizontalSpace = Math.Max (0, pageWidth - ViewSize.Width);
+		double verticalSpace = Math.Max (0, pageHeight - ViewSize.Height);
+		double x = (ViewSize.Width <= pageWidth ? horizontalSpace / 2 : 0) + canvas_offset.X;
+		double y = (ViewSize.Height <= pageHeight ? verticalSpace / 2 : 0) + canvas_offset.Y;
+		CanvasContainer.Move (Canvas, x, y);
 	}
 
 	/// <summary>
@@ -312,7 +326,7 @@ public sealed class DocumentWorkspace
 	/// </summary>
 	private void ZoomAroundCenter (ZoomType zoomType)
 	{
-		Gtk.Viewport view = (Gtk.Viewport) Canvas.Parent!;
+		Gtk.Viewport view = Viewport;
 		PointD center = new (
 			view.Hadjustment!.Value + (view.Hadjustment.PageSize / 2.0),
 			view.Vadjustment!.Value + (view.Vadjustment.PageSize / 2.0));
@@ -335,7 +349,7 @@ public sealed class DocumentWorkspace
 
 		actions.View.SuspendZoomUpdate ();
 
-		Gtk.Viewport view = (Gtk.Viewport) Canvas.Parent!;
+		Gtk.Viewport view = Viewport;
 
 		double scroll_offset_x = center_point.X - view.Hadjustment!.Value;
 		double scroll_offset_y = center_point.Y - view.Vadjustment!.Value;

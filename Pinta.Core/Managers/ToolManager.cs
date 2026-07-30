@@ -88,10 +88,13 @@ public sealed class ToolManager : IEnumerable<BaseTool>, IToolService
 
 	private readonly WorkspaceManager workspace_manager;
 	private readonly ChromeManager chrome_manager;
-	public ToolManager (WorkspaceManager workspaceManager, ChromeManager chromeManager)
+	private readonly ShortcutManager shortcut_manager;
+	public ToolManager (WorkspaceManager workspaceManager, ChromeManager chromeManager, ShortcutManager shortcutManager)
 	{
 		workspace_manager = workspaceManager;
 		chrome_manager = chromeManager;
+		shortcut_manager = shortcutManager;
+		shortcut_manager.ToolShortcutsChanged += (_, _) => ToolShortcutsChanged?.Invoke (this, EventArgs.Empty);
 
 		// Before the active document has changed, the current tool should commit unfinished changes.
 		workspace_manager.PreActiveDocumentChanged += (_, _) => Commit ();
@@ -106,6 +109,7 @@ public sealed class ToolManager : IEnumerable<BaseTool>, IToolService
 	public event EventHandler<ToolEventArgs>? ToolAdded;
 	public event EventHandler<ToolEventArgs>? ToolRemoved;
 	public event EventHandler<ToolEventArgs>? ToolActivated;
+	public event EventHandler? ToolShortcutsChanged;
 
 	public BaseTool? CurrentTool { get; private set; }
 
@@ -217,7 +221,7 @@ public sealed class ToolManager : IEnumerable<BaseTool>, IToolService
 		// Find all tools with this shortcut
 		var shortcut_tools =
 			tools
-			.Where (t => t.ShortcutKey.ToUpper () == shortcut.ToUpper ())
+			.Where (t => GetShortcut (t).ToUpper () == shortcut.ToUpper ())
 			.ToImmutableArray ();
 
 		// No tools with this shortcut, bail
@@ -280,6 +284,9 @@ public sealed class ToolManager : IEnumerable<BaseTool>, IToolService
 
 		return true;
 	}
+
+	public Gdk.Key GetShortcut (BaseTool tool)
+		=> shortcut_manager.GetToolShortcut (tool);
 
 	public bool DoKeyUp (Document document, ToolKeyEventArgs args)
 	{
@@ -355,6 +362,7 @@ public sealed class ToolManager : IEnumerable<BaseTool>, IToolService
 		}
 
 		document.Workspace.Canvas.Cursor = pan.DefaultCursor;
+		document.Workspace.CanvasContainer.Cursor = pan.DefaultCursor;
 	}
 
 	private void RestoreCursor (Document document)
@@ -363,6 +371,7 @@ public sealed class ToolManager : IEnumerable<BaseTool>, IToolService
 			return;
 
 		document.Workspace.Canvas.Cursor = stored_cursor;
+		document.Workspace.CanvasContainer.Cursor = null;
 		stored_cursor = null;
 		has_stored_cursor = false;
 	}

@@ -90,6 +90,7 @@ internal sealed partial class PintaCanvas
 		document.Workspace.ViewSizeChanged += OnViewSizeChanged;
 		document.Workspace.CanvasInvalidated += OnCanvasInvalidated;
 		document.SelectionChanged += (_, _) => QueueSelectionUpdate ();
+		OnViewSizeChanged (document.Workspace, EventArgs.Empty);
 	}
 
 	/// <summary>

@@ -170,8 +170,8 @@ partial class GtkExtensions
 			Gtk.NativeDialog sender,
 			Gtk.NativeDialog.ResponseSignalArgs args)
 		{
-			completionSource.SetResult ((Gtk.ResponseType) args.ResponseId);
 			dialog.OnResponse -= ResponseCallback;
+			completionSource.TrySetResult ((Gtk.ResponseType) args.ResponseId);
 		}
 
 		dialog.OnResponse += ResponseCallback;
@@ -189,8 +189,8 @@ partial class GtkExtensions
 			Adw.MessageDialog sender,
 			Adw.MessageDialog.ResponseSignalArgs args)
 		{
-			completionSource.SetResult (args.Response);
 			dialog.OnResponse -= ResponseCallback;
+			completionSource.TrySetResult (args.Response);
 		}
 
 		dialog.OnResponse += ResponseCallback;
@@ -207,8 +207,8 @@ partial class GtkExtensions
 			Gtk.Dialog sender,
 			Gtk.Dialog.ResponseSignalArgs args)
 		{
-			completionSource.SetResult ((Gtk.ResponseType) args.ResponseId);
 			dialog.OnResponse -= ResponseCallback;
+			completionSource.TrySetResult ((Gtk.ResponseType) args.ResponseId);
 		}
 
 		dialog.OnResponse += ResponseCallback;

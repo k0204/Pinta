@@ -128,14 +128,14 @@ public sealed partial class LayerActions
 			Translations.GetString ("Duplicate Layer"),
 			null,
 			Resources.Icons.LayerDuplicate,
-			shortcuts: ["<Primary><Shift>D"]);
+			shortcuts: ["<Primary>J"]);
 
 		MergeLayerDown = new Command (
 			"mergelayerdown",
 			Translations.GetString ("Merge Layer Down"),
 			null,
 			Resources.Icons.LayerMergeDown,
-			shortcuts: ["<Primary>M"]);
+			shortcuts: ["<Primary>E"]);
 
 		MergeSelectedLayers = new Command (
 			"mergeselectedlayers",

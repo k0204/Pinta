@@ -19,6 +19,7 @@ internal static class SettingNames
 	internal const string PRIMARY_COLOR = "primary-color";
 	internal const string SECONDARY_COLOR = "secondary-color";
 	internal const string RECENT_COLORS = "recently-used-colors";
+	internal const string KEYBOARD_SHORTCUTS = "keyboard-shortcuts";
 
 	internal static string ToolAntialias (BaseTool tool)
 		=> $"{tool.GetType ().Name.ToLowerInvariant ()}-antialias";

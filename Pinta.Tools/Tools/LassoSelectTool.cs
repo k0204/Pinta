@@ -58,7 +58,7 @@ public sealed class LassoSelectTool : BaseTool
 									"\n\nIn Polygon mode, click and drag to add a new point to the selection." +
 									"\nPress Enter to finish the selection." +
 									"\nPress Backspace to delete the last point.");
-	public override Gdk.Key ShortcutKey => new (Gdk.Constants.KEY_S);
+	public override Gdk.Key ShortcutKey => new (Gdk.Constants.KEY_L);
 	public override Gdk.Cursor DefaultCursor => Gdk.Cursor.NewFromTexture (Resources.GetIcon ("Cursor.LassoSelect.png"), 9, 18, null);
 	public override int Priority => 17;
 	public override bool IsSelectionTool => true;

@@ -73,7 +73,7 @@ internal sealed class PasteAction : IActionHandler
 			return;
 
 		// Get the scroll position in canvas coordinates
-		var view = (Gtk.Viewport) doc.Workspace.Canvas.Parent!;
+		Gtk.Viewport view = doc.Workspace.Viewport;
 
 		PointD viewPoint = new (
 			X: view.Hadjustment!.Value,

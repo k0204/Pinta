@@ -247,6 +247,7 @@ internal sealed class MainWindow
 		canvas.RulerMetric = GetCurrentRulerMetric ();
 		doc.Workspace.CanvasWindow = canvas;
 		doc.Workspace.Canvas = canvas.Canvas;
+		doc.Workspace.PositionCanvas ();
 
 		DocumentViewContent my_content = new (doc, canvas);
 
@@ -261,7 +262,7 @@ internal sealed class MainWindow
 
 		bool canvasHasBeenShown = false;
 
-		Gtk.Viewport view = (Gtk.Viewport) doc.Workspace.Canvas.Parent!;
+		Gtk.Viewport view = doc.Workspace.Viewport;
 		view.Hadjustment!.OnChanged += (o, e2) => {
 			if (canvasHasBeenShown)
 				return;
@@ -396,6 +397,10 @@ internal sealed class MainWindow
 		// Check for stored window settings
 		int width = PintaCore.Settings.GetSetting (SettingNames.WINDOW_SIZE_WIDTH, 1100);
 		int height = PintaCore.Settings.GetSetting (SettingNames.WINDOW_SIZE_HEIGHT, 750);
+#if WINDOWS
+		int x = PintaCore.Settings.GetSetting (SettingNames.WINDOW_POSITION_X, int.MinValue);
+		int y = PintaCore.Settings.GetSetting (SettingNames.WINDOW_POSITION_Y, int.MinValue);
+#endif
 		bool maximize = PintaCore.Settings.GetSetting (SettingNames.WINDOW_MAXIMIZED, false);
 
 		ResourceLoader.LoadCssStyles ();
@@ -406,8 +411,13 @@ internal sealed class MainWindow
 			"Pinta",
 			width,
 			height,
-			useMenuBar: IsUsingMenuBar (),
-			maximize);
+			useMenuBar: IsUsingMenuBar ());
+
+#if WINDOWS
+		WindowsWindowPlacement.Restore (x, y, width, height);
+#endif
+		if (maximize)
+			window_shell.Window.Maximize ();
 
 		CreateMainToolBar ();
 		CreateToolToolBar ();
@@ -668,7 +678,14 @@ internal sealed class MainWindow
 	{
 		dock.SaveSettings (PintaCore.Settings);
 
-		// Don't store the maximized height if the window is maximized
+#if WINDOWS
+		if (WindowsWindowPlacement.TryGetNormalBounds (out var bounds)) {
+			PintaCore.Settings.PutSetting (SettingNames.WINDOW_POSITION_X, bounds.Left);
+			PintaCore.Settings.PutSetting (SettingNames.WINDOW_POSITION_Y, bounds.Top);
+			PintaCore.Settings.PutSetting (SettingNames.WINDOW_SIZE_WIDTH, bounds.Width);
+			PintaCore.Settings.PutSetting (SettingNames.WINDOW_SIZE_HEIGHT, bounds.Height);
+		} else
+#endif
 		if (!window_shell.Window.IsMaximized ()) {
 			PintaCore.Settings.PutSetting (SettingNames.WINDOW_SIZE_WIDTH, window_shell.Window.GetWidth ());
 			PintaCore.Settings.PutSetting (SettingNames.WINDOW_SIZE_HEIGHT, window_shell.Window.GetHeight ());
@@ -838,7 +855,7 @@ internal sealed class MainWindow
 			int image_x = PintaCore.Workspace.ImageSize.Width;
 			int image_y = PintaCore.Workspace.ImageSize.Height;
 
-			var canvas_viewport = PintaCore.Workspace.ActiveWorkspace.Canvas.Parent!;
+			var canvas_viewport = PintaCore.Workspace.ActiveWorkspace.Viewport;
 
 			int window_x = canvas_viewport.GetAllocatedWidth ();
 			int window_y = canvas_viewport.GetAllocatedHeight ();
@@ -881,6 +898,6 @@ internal sealed class MainWindow
 
 	private IDockNotebookItem? FindTabWithCanvas (CanvasWindow canvas_window) =>
 		canvas_pad.Notebook.Items
-		.Where (i => ((CanvasWindow) i.Widget) == canvas_window)
+		.Where (i => i.Widget is CanvasWindow w && w == canvas_window)
 		.FirstOrDefault ();
 }

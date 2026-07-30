@@ -9,6 +9,10 @@ internal static class SettingNames
 	internal const string RULER_METRIC = "ruler-metric";
 	internal const string COLOR_SCHEME = "color-scheme";
 	internal const string WINDOW_MAXIMIZED = "window-maximized";
+#if WINDOWS
+	internal const string WINDOW_POSITION_X = "window-position-x";
+	internal const string WINDOW_POSITION_Y = "window-position-y";
+#endif
 	internal const string WINDOW_SIZE_WIDTH = "window-size-width";
 	internal const string WINDOW_SIZE_HEIGHT = "window-size-height";
 	internal const string RULER_SHOWN = "ruler-shown";

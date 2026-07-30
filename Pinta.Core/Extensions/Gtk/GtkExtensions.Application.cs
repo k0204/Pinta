@@ -25,7 +25,6 @@
 // THE SOFTWARE.
 
 using System;
-using System.Linq;
 
 namespace Pinta.Core;
 
@@ -42,9 +41,7 @@ partial class GtkExtensions
 		Command action)
 	{
 		app.AddAction (action.Action);
-		app.SetAccelsForAction (
-			action.FullName,
-			[.. action.Shortcuts.Select (PintaCore.System.ConvertPrimaryKey)]);
+		PintaCore.Shortcuts.RegisterCommand (app, action);
 	}
 
 	public static void AddCommands (

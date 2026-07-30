@@ -42,8 +42,7 @@ public sealed class WindowShell
 		string title,
 		int width,
 		int height,
-		bool useMenuBar,
-		bool maximize)
+		bool useMenuBar)
 	{
 		var app_layout = Adw.ToolbarView.New ();
 
@@ -68,9 +67,6 @@ public sealed class WindowShell
 		app_window.DefaultWidth = width;
 		app_window.DefaultHeight = height;
 		app_window.Resizable = true;
-
-		if (maximize)
-			app_window.Maximize ();
 
 		shell_layout = Gtk.Box.New (Gtk.Orientation.Vertical, 0);
 		app_layout.SetContent (shell_layout);

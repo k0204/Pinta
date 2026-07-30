@@ -20,7 +20,7 @@ partial class GtkExtensions
 	/// Convert the "<Primary>" accelerator to the Ctrl or Command key, depending on the platform.
 	/// This was done automatically in GTK3, but does not happen in GTK4.
 	/// </summary>
-	private static string ConvertPrimaryKey (this ISystemService system, string accel) =>
+	internal static string ConvertPrimaryKey (this ISystemService system, string accel) =>
 		accel.Replace ("<Primary>", system.OperatingSystem == OS.Mac ? "<Meta>" : "<Control>");
 
 	private static string ConvertPrimaryKey (string accel) =>
@@ -40,7 +40,7 @@ partial class GtkExtensions
 		return Gtk.Functions.AcceleratorGetLabel (key, mods);
 	}
 
-	private static string ReadableAcceleratorLabel (string gtkLabel)
+	public static string ReadableAcceleratorLabel (string gtkLabel)
 	{
 		AcceleratorParse (
 			ConvertPrimaryKey (gtkLabel),

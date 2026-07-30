@@ -136,14 +136,14 @@ public sealed class EditActions
 			Translations.GetString ("Fill Selection"),
 			null,
 			Resources.Icons.EditSelectionFill,
-			shortcuts: ["BackSpace"]);
+			shortcuts: ["<Alt>BackSpace"]);
 
 		InvertSelection = new Command (
 			"invertselection",
 			Translations.GetString ("Invert Selection"),
 			null,
 			Resources.Icons.EditSelectionFill,
-			shortcuts: ["<Primary>I"]);
+			shortcuts: ["<Primary><Shift>I"]);
 
 		OffsetSelection = new Command (
 			"offsetselection",
@@ -164,7 +164,7 @@ public sealed class EditActions
 			Translations.GetString ("Deselect All"),
 			null,
 			Resources.Icons.EditSelectionNone,
-			shortcuts: ["<Primary><Shift>A", "<Ctrl>D"]);
+			shortcuts: ["<Primary>D"]);
 
 		LoadPalette = new Command (
 			"loadpalette",

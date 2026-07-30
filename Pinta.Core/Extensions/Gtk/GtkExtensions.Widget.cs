@@ -109,18 +109,12 @@ partial class GtkExtensions
 	public static Gtk.Button CreateToolBarItem (this Command action, bool force_icon_only = false)
 	{
 		string label = action.ShortLabel ?? action.Label;
-
 		string baseTooltip = action.Tooltip ?? action.Label;
-
-		string fullTooltip = action.Shortcuts.Length switch {
-			0 => baseTooltip,
-			1 => $"{baseTooltip}\n{shortcut_label}: {ReadableAcceleratorLabel (action.Shortcuts[0])}",
-			_ => $"{baseTooltip}\n{shortcuts_label}:\n" + string.Join ('\n', action.Shortcuts.Select (s => $"- {ReadableAcceleratorLabel (s)}")),
-		};
 
 		Gtk.Button button = Gtk.Button.New ();
 		button.ActionName = action.FullName;
-		button.TooltipText = fullTooltip;
+		button.TooltipText = BuildCommandTooltip (action, baseTooltip);
+		action.ShortcutsChanged += (_, _) => button.TooltipText = BuildCommandTooltip (action, baseTooltip);
 
 		if (action.IsImportant && !force_icon_only) {
 			Adw.ButtonContent buttonContent = Adw.ButtonContent.New ();
@@ -134,6 +128,13 @@ partial class GtkExtensions
 
 		return button;
 	}
+
+	private static string BuildCommandTooltip (Command action, string baseTooltip)
+		=> action.Shortcuts.Length switch {
+			0 => baseTooltip,
+			1 => $"{baseTooltip}\n{shortcut_label}: {ReadableAcceleratorLabel (action.Shortcuts[0])}",
+			_ => $"{baseTooltip}\n{shortcuts_label}:\n" + string.Join ('\n', action.Shortcuts.Select (s => $"- {ReadableAcceleratorLabel (s)}")),
+		};
 
 	public static Gtk.Button CreateDockToolBarItem (this Command action)
 	{

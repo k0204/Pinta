@@ -90,7 +90,7 @@ public sealed class ViewActions
 			Translations.GetString ("Best Fit"),
 			null,
 			Resources.StandardIcons.ZoomFitBest,
-			shortcuts: ["<Primary>B"]);
+			shortcuts: ["<Primary>0"]);
 
 		ZoomToSelection = new Command (
 			"ZoomToSelection",
@@ -103,7 +103,7 @@ public sealed class ViewActions
 			Translations.GetString ("Normal Size"),
 			null,
 			Resources.StandardIcons.ZoomOriginal,
-			shortcuts: ["<Primary>0", "<Primary><Shift>A"]);
+			shortcuts: ["<Primary>1"]);
 
 		ToolBar = new ToggleCommand (
 			"Toolbar",
@@ -122,7 +122,7 @@ public sealed class ViewActions
 			Translations.GetString ("Tool Windows"),
 			null,
 			null,
-			shortcuts: ["F12"]);
+			shortcuts: ["Tab"]);
 
 		LayersWindow = new ToggleCommand (
 			"LayersWindow",
@@ -193,7 +193,7 @@ public sealed class ViewActions
 			Translations.GetString ("Fullscreen"),
 			null,
 			Resources.StandardIcons.DocumentNew,
-			shortcuts: ["F11"]);
+			shortcuts: ["F"]);
 
 		ZoomCollection = default_zoom_levels;
 		ZoomComboBox = ToolBarComboBox.New (90, DefaultZoomIndex (), true, ZoomCollection);

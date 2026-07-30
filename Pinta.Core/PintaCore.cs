@@ -40,6 +40,7 @@ public static class PintaCore
 	public static RecentFileManager RecentFiles { get; }
 	public static ResourceManager Resources { get; }
 	public static SettingsManager Settings { get; }
+	public static ShortcutManager Shortcuts { get; }
 	public static AI.AiAuthService AiAuth { get; }
 	public static AI.AiProviderCatalog AiProviders { get; }
 	public static SystemManager System { get; }
@@ -72,6 +73,7 @@ public static class PintaCore
 		ResourceManager resources = new ();
 		SystemManager system = new ();
 		SettingsManager settings = new ();
+		ShortcutManager shortcuts = new (settings);
 		AI.AiAuthService aiAuth = new (settings);
 		AI.AiProviderCatalog aiProviders = new (aiAuth, settings);
 		ChromeManager chrome = new ();
@@ -83,7 +85,7 @@ public static class PintaCore
 
 		ImageConverterManager imageFormats = new (settings);
 		WorkspaceManager workspace = new (system, chrome, imageFormats);
-		ToolManager tools = new (workspace, chrome);
+		ToolManager tools = new (workspace, chrome, shortcuts);
 		PaletteManager palette = new (settings, paletteFormats);
 		ActionManager actions = new (chrome, imageFormats, paletteFormats, palette, recentFiles, system, tools, workspace, aiAuth);
 		LivePreviewManager livePreview = new (workspace, tools, system, chrome);
@@ -116,6 +118,7 @@ public static class PintaCore
 		Resources = resources;
 		System = system;
 		Settings = settings;
+		Shortcuts = shortcuts;
 		AiAuth = aiAuth;
 		AiProviders = aiProviders;
 		Actions = actions;

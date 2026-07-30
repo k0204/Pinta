@@ -55,29 +55,27 @@ public sealed class ImageActions
 			"croptoselection",
 			Translations.GetString ("Crop to Selection"),
 			null,
-			Resources.Icons.ImageCrop,
-			shortcuts: ["<Primary><Shift>X"]);
+			Resources.Icons.ImageCrop);
 
 		AutoCrop = new Command (
 			"autocrop",
 			Translations.GetString ("Auto Crop"),
 			null,
-			Resources.Icons.ImageCrop,
-			shortcuts: ["<Ctrl><Alt>X"]);
+			Resources.Icons.ImageCrop);
 
 		Resize = new Command (
 			"resize",
 			Translations.GetString ("Resize Image..."),
 			null,
 			Resources.Icons.ImageResize,
-			shortcuts: ["<Primary>R"]);
+			shortcuts: ["<Primary><Alt>I"]);
 
 		CanvasSize = new Command (
 			"canvassize",
 			Translations.GetString ("Resize Canvas..."),
 			null,
 			Resources.Icons.ImageResizeCanvas,
-			shortcuts: ["<Primary><Shift>R"]);
+			shortcuts: ["<Primary><Alt>C"]);
 
 		FlipHorizontal = new Command (
 			"fliphorizontal",
@@ -95,29 +93,25 @@ public sealed class ImageActions
 			"rotatecw",
 			Translations.GetString ("Rotate 90° Clockwise"),
 			null,
-			Resources.Icons.ImageRotate90CW,
-			shortcuts: ["<Primary>H"]);
+			Resources.Icons.ImageRotate90CW);
 
 		RotateCCW = new Command (
 			"rotateccw",
 			Translations.GetString ("Rotate 90° Counter-Clockwise"),
 			null,
-			Resources.Icons.ImageRotate90CCW,
-			shortcuts: ["<Primary>G"]);
+			Resources.Icons.ImageRotate90CCW);
 
 		Rotate180 = new Command (
 			"rotate180",
 			Translations.GetString ("Rotate 180°"),
 			null,
-			Resources.Icons.ImageRotate180,
-			shortcuts: ["<Primary>J"]);
+			Resources.Icons.ImageRotate180);
 
 		Flatten = new Command (
 			"flatten",
 			Translations.GetString ("Flatten"),
 			null,
-			Resources.Icons.ImageFlatten,
-			shortcuts: ["<Primary><Shift>F"]);
+			Resources.Icons.ImageFlatten);
 
 		this.tools = tools;
 		this.workspace = workspace;

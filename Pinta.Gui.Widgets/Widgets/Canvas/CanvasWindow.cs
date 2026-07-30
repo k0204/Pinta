@@ -41,6 +41,7 @@ public sealed partial class CanvasWindow
 	private ToolManager tools = null!;
 
 	private PintaCanvas canvas;
+	private Gtk.Fixed canvas_container;
         private Gtk.DrawingArea guide_overlay;
 	private Ruler horizontal_ruler;
 	private Ruler vertical_ruler;
@@ -64,7 +65,7 @@ public sealed partial class CanvasWindow
 
 	public Gtk.Widget Canvas { get { return canvas; } }
 
-	[MemberNotNull (nameof (canvas))]
+	[MemberNotNull (nameof (canvas), nameof (canvas_container))]
         [MemberNotNull (nameof (guide_overlay))]
 	[MemberNotNull (nameof (horizontal_ruler), nameof (vertical_ruler))]
 	[MemberNotNull (nameof (scrolled_window), nameof (horizontal_scrollbar), nameof (vertical_scrollbar))]
@@ -90,9 +91,14 @@ public sealed partial class CanvasWindow
 		referenceDrop.OnDrop += HandleReferenceDrop;
 		canvas.AddController (referenceDrop);
 
+		Gtk.Fixed canvasContainer = Gtk.Fixed.New ();
+		canvasContainer.Hexpand = true;
+		canvasContainer.Vexpand = true;
+		canvasContainer.Put (canvas, 0, 0);
+
 		Gtk.Viewport viewPort = Gtk.Viewport.New (null, null);
 		viewPort.AddController (scrollController);
-		viewPort.Child = canvas;
+		viewPort.Child = canvasContainer;
 
 		// Use the drag gesture to forward a sequence of mouse press -> move -> release events to the current tool.
 		// This is more reliable than using just a click gesture in combination with the move controller (see bug #1456)
@@ -151,6 +157,7 @@ public sealed partial class CanvasWindow
 		// --- References to keep
 
 		this.canvas = canvas;
+		canvas_container = canvasContainer;
                 guide_overlay = guideOverlay;
 
 		scrolled_window = scrolledWindow;
@@ -186,12 +193,15 @@ public sealed partial class CanvasWindow
 		// Also update if the view size changed without affecting the size of
 		// the canvas widget (e.g. when zoomed out and no scrollbars are required)
 		document.Workspace.ViewSizeChanged += UpdateRulerRange;
+		document.Workspace.CanvasPositionChanged += UpdateRulerRange;
 		document.SelectionChanged += UpdateRulerSelection;
                 document.Guides.Changed += (_, _) => guide_overlay.QueueDraw ();
 
 		this.chrome = chrome;
 		this.tools = tools;
 		this.document = document;
+		document.Workspace.Viewport = (Gtk.Viewport) scrolled_window.Child!;
+		document.Workspace.CanvasContainer = canvas_container;
 	}
 
 	private bool HandleReferenceDrop (Gtk.DropTarget sender, Gtk.DropTarget.DropSignalArgs args)
@@ -325,35 +335,16 @@ public sealed partial class CanvasWindow
 
 	public void UpdateRulerRange (object? sender, EventArgs e)
 	{
-		PointD lower = PointD.Zero;
-		PointD upper = PointD.Zero;
-
 		if (scrolled_window.Hadjustment == null || scrolled_window.Vadjustment == null)
 			return;
 
 		DocumentWorkspace workspace = document.Workspace;
-
-		Gtk.Widget viewport = scrolled_window.Child!;
-		Size viewSize = workspace.ViewSize;
-		PointD offset = new (
-			(viewport.GetAllocatedWidth () - viewSize.Width) / 2,
-			(viewport.GetAllocatedHeight () - viewSize.Height) / 2);
-
-		if (offset.X > 0) {
-			lower = lower with { X = -offset.X / workspace.Scale };
-			upper = upper with { X = document.ImageSize.Width - lower.X };
-		} else {
-			lower = lower with { X = scrolled_window.Hadjustment.Value / workspace.Scale };
-			upper = upper with { X = (scrolled_window.Hadjustment.Value + scrolled_window.Hadjustment.PageSize) / workspace.Scale };
-		}
-
-		if (offset.Y > 0) {
-			lower = lower with { Y = -offset.Y / workspace.Scale };
-			upper = upper with { Y = document.ImageSize.Height - lower.Y };
-		} else {
-			lower = lower with { Y = scrolled_window.Vadjustment.Value / workspace.Scale };
-			upper = upper with { Y = (scrolled_window.Vadjustment.Value + scrolled_window.Vadjustment.PageSize) / workspace.Scale };
-		}
+		workspace.PositionCanvas ();
+		PointD offset = GetCanvasOriginInViewport ();
+		PointD lower = new (-offset.X / workspace.Scale, -offset.Y / workspace.Scale);
+		PointD upper = new (
+			lower.X + scrolled_window.Hadjustment.PageSize / workspace.Scale,
+			lower.Y + scrolled_window.Vadjustment.PageSize / workspace.Scale);
 
 		horizontal_ruler.RulerRange = new (lower.X, upper.X);
 		vertical_ruler.RulerRange = new (lower.Y, upper.Y);
@@ -567,16 +558,8 @@ public sealed partial class CanvasWindow
 
         private PointD GetCanvasOriginInViewport ()
         {
-                Gtk.Widget viewport = scrolled_window.Child!;
-                Size viewSize = document.Workspace.ViewSize;
-                PointD offset = new (
-                        (viewport.GetAllocatedWidth () - viewSize.Width) / 2.0,
-                        (viewport.GetAllocatedHeight () - viewSize.Height) / 2.0);
-
-                double x = offset.X > 0 ? offset.X : -scrolled_window.Hadjustment!.Value;
-                double y = offset.Y > 0 ? offset.Y : -scrolled_window.Vadjustment!.Value;
-
-                return new PointD (x, y);
+		canvas.TranslateCoordinates (guide_overlay, PointD.Zero, out PointD overlayOrigin);
+		return overlayOrigin;
         }
 
         private void EndGuideDrag (PointD rootPoint)

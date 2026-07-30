@@ -51,9 +51,7 @@ public sealed class PanTool : BaseTool
 		if (active)
 			return;
 
-		// Don't scroll if the whole canvas fits (no scrollbars)
-		if (!document.Workspace.ImageViewFitsInWindow)
-			active = true;
+		active = true;
 
 		last_point = new PointD (e.RootPoint.X, e.RootPoint.Y);
 		SetCursor (grabbing_cursor);

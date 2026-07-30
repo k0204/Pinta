@@ -50,7 +50,7 @@ public sealed class MagicWandTool : FloodTool
 		};
 	}
 
-	public override Gdk.Key ShortcutKey => new (Gdk.Constants.KEY_S);
+	public override Gdk.Key ShortcutKey => new (Gdk.Constants.KEY_W);
 	public override string Name => Translations.GetString ("Magic Wand Select");
 	public override string Icon => Pinta.Resources.Icons.ToolSelectMagicWand;
 	public override string StatusBarText => Translations.GetString (
