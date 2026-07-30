@@ -10,6 +10,33 @@ internal sealed partial class SpritesheetSplitDialog
 	private readonly Func<string, Task<AI.SpriteSegmentationAnalysis>> analyze;
 	private IReadOnlyList<RectangleI>? source_rectangles;
 
+	private Gtk.Widget BuildSourceModeTabs ()
+	{
+		Gtk.Box gridControls = Gtk.Box.New (Gtk.Orientation.Vertical, 6);
+		gridControls.Append (CreateGrid ([
+			(Translations.GetString ("Columns:"), columns),
+			(Translations.GetString ("Rows:"), rows),
+			(Translations.GetString ("Cell width:"), cell_width),
+			(Translations.GetString ("Cell height:"), cell_height),
+			(Translations.GetString ("Left offset:"), offset_x),
+			(Translations.GetString ("Top offset:"), offset_y),
+			(Translations.GetString ("Horizontal gap:"), gap_x),
+			(Translations.GetString ("Vertical gap:"), gap_y),
+		]));
+		gridControls.Append (align_character);
+
+		source_mode_stack.AddTitled (BuildSmartAnalyzeControls (), ai_source_mode, Translations.GetString ("AI analysis"));
+		source_mode_stack.AddTitled (gridControls, grid_source_mode, Translations.GetString ("Grid"));
+		source_mode_stack.VisibleChildName = grid_source_mode;
+
+		Adw.ViewSwitcher switcher = Adw.ViewSwitcher.New ();
+		switcher.Stack = source_mode_stack;
+		Gtk.Box result = Gtk.Box.New (Gtk.Orientation.Vertical, 8);
+		result.Append (switcher);
+		result.Append (source_mode_stack);
+		return result;
+	}
+
 	private Gtk.Widget BuildSmartAnalyzeControls ()
 	{
 		IReadOnlyList<AI.AiProviderInfo> providers = PintaCore.AiProviders.ChatProviders;
@@ -76,20 +103,22 @@ internal sealed partial class SpritesheetSplitDialog
 
 	private void ApplyAnalysis (AI.SpriteSegmentationAnalysis analysis)
 	{
-		syncing = true;
-		columns.Value = analysis.Grid.Columns;
-		rows.Value = analysis.Grid.Rows;
-		cell_width.Value = analysis.Items.Max (item => item.Bbox.Width);
-		cell_height.Value = analysis.Items.Max (item => item.Bbox.Height);
-		offset_x.Value = offset_y.Value = gap_x.Value = gap_y.Value = 0;
-		align_character.Active = false;
-		syncing = false;
-
 		source_rectangles = [.. analysis.Items.Select (item => new RectangleI (
 			item.Bbox.X, item.Bbox.Y, item.Bbox.Width, item.Bbox.Height))];
-		RebuildFrames ();
+		align_character.Active = false;
+		RebuildFrames (analysis.Items.Count);
 		ApplyAnchorAlignment (analysis.Items);
 		Refresh ();
+	}
+
+	private void ChangeSourceMode ()
+	{
+		source_rectangles = null;
+		align_character.Active = !IsAiSourceMode;
+		if (IsAiSourceMode)
+			RebuildFrames (0);
+		else
+			RebuildFrames ();
 	}
 
 	private void ApplyAnchorAlignment (IReadOnlyList<AI.SpriteSegmentationItem> items)

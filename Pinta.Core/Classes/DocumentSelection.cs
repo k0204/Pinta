@@ -52,7 +52,7 @@ public sealed class DocumentSelection
 	/// </summary>
 	public RectangleD HandleBounds { get; set; }
 
-	private bool visible = true;
+	private bool visible;
 	public bool Visible {
 		get => visible;
 		set {

@@ -50,10 +50,13 @@ public sealed class SpriteSegmentationService
 			json,
 			new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
 			?? throw new InvalidOperationException ("Sprite analysis JSON was empty.");
+		if (analysis.Items is null)
+			throw new InvalidOperationException ("Sprite analysis did not include items.");
+		analysis = IncludeFootAnchors (analysis);
 		Validate (analysis, analysis.ImageWidth, analysis.ImageHeight);
 		analysis = ScaleToSourceImage (analysis, imageWidth, imageHeight);
 		Validate (analysis, imageWidth, imageHeight);
-		return analysis with { Items = [.. analysis.Items.OrderBy (item => item.Row).ThenBy (item => item.Column)] };
+		return analysis with { Items = [.. analysis.Items.OrderBy (item => item.Index)] };
 	}
 
 	private static string ReadPrompt ()
@@ -129,21 +132,38 @@ public sealed class SpriteSegmentationService
 		return new (left, top, right - left, bottom - top);
 	}
 
+	private static SpriteSegmentationAnalysis IncludeFootAnchors (SpriteSegmentationAnalysis analysis)
+		=> analysis with {
+			Items = [.. analysis.Items.Select (item => item with {
+				Bbox = IncludePoint (item.Bbox, item.FootAnchor),
+			})],
+		};
+
+	private static SpriteSegmentationBox IncludePoint (
+		SpriteSegmentationBox box,
+		SpriteSegmentationPoint point)
+	{
+		int left = Math.Min (box.X, (int) Math.Floor (point.X));
+		int top = Math.Min (box.Y, (int) Math.Floor (point.Y));
+		int right = Math.Max (box.X + box.Width, (int) Math.Ceiling (point.X));
+		int bottom = Math.Max (box.Y + box.Height, (int) Math.Ceiling (point.Y));
+		return new (left, top, right - left, bottom - top);
+	}
+
 	private static void Validate (SpriteSegmentationAnalysis analysis, int imageWidth, int imageHeight)
 	{
 		if (analysis.ImageWidth <= 0 || analysis.ImageHeight <= 0)
 			throw new InvalidOperationException ("Sprite analysis returned invalid image dimensions.");
 		if (analysis.ImageWidth != imageWidth || analysis.ImageHeight != imageHeight)
 			throw new InvalidOperationException ("Sprite analysis dimensions do not match the source image.");
-		if (analysis.Grid.Rows is < 1 or > 32 || analysis.Grid.Columns is < 1 or > 32 ||
-			analysis.Items.Count != analysis.Grid.Rows * analysis.Grid.Columns || analysis.Items.Count > 256)
-			throw new InvalidOperationException ("Sprite analysis returned an invalid or incomplete grid.");
-		if (analysis.Items.Select (item => (item.Row, item.Column)).Distinct ().Count () != analysis.Items.Count)
-			throw new InvalidOperationException ("Sprite analysis returned duplicate grid cells.");
+		if (analysis.Items.Count is < 1 or > 256)
+			throw new InvalidOperationException ("Sprite analysis returned an invalid sprite count.");
+		if (analysis.Items.Select (item => item.Index).Distinct ().Count () != analysis.Items.Count)
+			throw new InvalidOperationException ("Sprite analysis returned duplicate indices.");
 
 		foreach (SpriteSegmentationItem item in analysis.Items) {
 			SpriteSegmentationBox box = item.Bbox;
-			if (item.Row < 0 || item.Row >= analysis.Grid.Rows || item.Column < 0 || item.Column >= analysis.Grid.Columns ||
+			if (item.Index < 0 ||
 				box.Width <= 0 || box.Height <= 0 || box.X < 0 || box.Y < 0 ||
 				(long) box.X + box.Width > imageWidth || (long) box.Y + box.Height > imageHeight ||
 				item.FootAnchor.X < box.X || item.FootAnchor.X > box.X + box.Width ||
@@ -156,14 +176,10 @@ public sealed class SpriteSegmentationService
 public sealed record SpriteSegmentationAnalysis (
 	[property: JsonPropertyName ("image_width")] int ImageWidth,
 	[property: JsonPropertyName ("image_height")] int ImageHeight,
-	SpriteSegmentationGrid Grid,
 	IReadOnlyList<SpriteSegmentationItem> Items);
 
-public sealed record SpriteSegmentationGrid (int Rows, int Columns);
 public sealed record SpriteSegmentationItem (
 	int Index,
-	int Row,
-	int Column,
 	SpriteSegmentationBox Bbox,
 	[property: JsonPropertyName ("foot_anchor")] SpriteSegmentationPoint FootAnchor);
 public sealed record SpriteSegmentationBox (int X, int Y, int Width, int Height);

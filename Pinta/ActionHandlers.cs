@@ -126,7 +126,8 @@ public sealed class ActionHandlers
 	private static void ToggleActions (bool enable)
 	{
 		Document? document = enable ? PintaCore.Workspace.ActiveDocumentOrDefault : null;
-		bool editableLayer = document?.Layers.CurrentUserLayer.IsEditable == true;
+		bool hasSelectedLayer = document?.Layers.HasSelectedLayer == true;
+		bool editableLayer = hasSelectedLayer && document!.Layers.CurrentUserLayer.IsEditable;
 		bool editableImage = document is not null && !document.Layers.HasLockedReferences;
 		bool selectionVisible = document?.Selection.Visible == true;
 
@@ -134,7 +135,7 @@ public sealed class ActionHandlers
 		PintaCore.Actions.File.Save.Sensitive = enable;
 		PintaCore.Actions.File.SaveAs.Sensitive = enable;
 		PintaCore.Actions.File.Print.Sensitive = enable;
-		PintaCore.Actions.Edit.Copy.Sensitive = enable;
+		PintaCore.Actions.Edit.Copy.Sensitive = hasSelectedLayer;
 		PintaCore.Actions.Edit.CopyMerged.Sensitive = enable;
 		PintaCore.Actions.Edit.Cut.Sensitive = editableLayer;
 		PintaCore.Actions.Edit.PasteIntoNewLayer.Sensitive = enable;
@@ -165,19 +166,19 @@ public sealed class ActionHandlers
 
 		PintaCore.Actions.Layers.AddNewLayer.Sensitive = enable;
                 PintaCore.Actions.Layers.AddNewGroup.Sensitive = enable;
-		PintaCore.Actions.Layers.DeleteLayer.Sensitive = enable;
-		PintaCore.Actions.Layers.DuplicateLayer.Sensitive = enable;
-		PintaCore.Actions.Layers.MergeLayerDown.Sensitive = enable;
+		PintaCore.Actions.Layers.DeleteLayer.Sensitive = hasSelectedLayer;
+		PintaCore.Actions.Layers.DuplicateLayer.Sensitive = hasSelectedLayer;
+		PintaCore.Actions.Layers.MergeLayerDown.Sensitive = hasSelectedLayer;
 		PintaCore.Actions.Layers.ImportFromFile.Sensitive = enable;
-		PintaCore.Actions.Layers.DetectBorder.Sensitive = enable;
+		PintaCore.Actions.Layers.DetectBorder.Sensitive = hasSelectedLayer;
 		PintaCore.Actions.Layers.Cutout.Sensitive = editableLayer;
 		PintaCore.Actions.Layers.FlipHorizontal.Sensitive = editableLayer;
 		PintaCore.Actions.Layers.FlipVertical.Sensitive = editableLayer;
 		PintaCore.Actions.Layers.ResizeLayer.Sensitive = editableLayer;
 		PintaCore.Actions.Layers.RotateZoom.Sensitive = editableLayer;
-		PintaCore.Actions.Layers.MoveLayerUp.Sensitive = enable;
-		PintaCore.Actions.Layers.MoveLayerDown.Sensitive = enable;
-		PintaCore.Actions.Layers.Properties.Sensitive = enable;
+		PintaCore.Actions.Layers.MoveLayerUp.Sensitive = hasSelectedLayer;
+		PintaCore.Actions.Layers.MoveLayerDown.Sensitive = hasSelectedLayer;
+		PintaCore.Actions.Layers.Properties.Sensitive = hasSelectedLayer;
 		PintaCore.Actions.Layers.UnlockReference.Sensitive = document?.Layers.CurrentUserLayer.IsReference == true && !document.Layers.CurrentUserLayer.ReferenceMissing;
 
 		PintaCore.Actions.Adjustments.ToggleActionsSensitive (editableLayer);

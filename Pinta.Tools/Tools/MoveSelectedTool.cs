@@ -35,6 +35,7 @@ public sealed class MoveSelectedTool : BaseTransformTool
 	private MovePixelsHistoryItem? hist;
 	private DocumentSelection? original_selection;
 	private readonly Matrix original_transform = CairoExtensions.CreateIdentityMatrix ();
+	private Gtk.CheckButton? auto_select_layer;
 
 	private readonly SystemManager system_manager;
 	public MoveSelectedTool (IServiceProvider services) : base (services)
@@ -56,6 +57,54 @@ public sealed class MoveSelectedTool : BaseTransformTool
 	public override Gdk.Cursor DefaultCursor => Gdk.Cursor.NewFromTexture (Resources.GetIcon (Pinta.Resources.Icons.ToolMoveCursor), 0, 0, null);
 	public override Gdk.Key ShortcutKey => new (Gdk.Constants.KEY_V);
 	public override int Priority => 5;
+	public override bool RequiresEditableLayer => false;
+
+	protected override void OnBuildToolBar (Gtk.Box toolbar)
+	{
+		auto_select_layer ??= Gtk.CheckButton.NewWithLabel (Translations.GetString ("Auto-select layer"));
+		auto_select_layer.Active = Settings.GetSetting (SettingNames.MOVE_SELECTED_AUTO_SELECT_LAYER, false);
+		toolbar.Append (auto_select_layer);
+
+		base.OnBuildToolBar (toolbar);
+	}
+
+	protected override void OnMouseDown (Document document, ToolMouseEventArgs e)
+	{
+		if (!document.Workspace.PointInCanvas (e.PointDouble)) {
+			document.Layers.ClearCurrentUserLayer ();
+			return;
+		}
+
+		if (auto_select_layer?.Active == true && e.MouseButton == MouseButton.Left) {
+			UserLayer? layer = document.Layers.FindTopmostLayerAtPoint (e.PointDouble);
+			if (layer is null) {
+				document.Layers.ClearCurrentUserLayer ();
+				return;
+			}
+
+			if (layer != document.Layers.CurrentUserLayer) {
+				document.Layers.SetCurrentUserLayer (layer);
+				document.ResetSelectionPaths ();
+				document.Workspace.Invalidate ();
+			}
+
+			if (!layer.IsEditable)
+				return;
+		}
+
+		if (!document.Layers.HasSelectedLayer || !document.Layers.CurrentUserLayer.IsEditable)
+			return;
+
+		base.OnMouseDown (document, e);
+	}
+
+	protected override bool OnKeyDown (Document document, ToolKeyEventArgs e)
+	{
+		if (!document.Layers.HasSelectedLayer || !document.Layers.CurrentUserLayer.IsEditable)
+			return false;
+
+		return base.OnKeyDown (document, e);
+	}
 
 	protected override RectangleD GetSourceRectangle (Document document)
 		=> document.Selection.Visible
@@ -138,6 +187,14 @@ public sealed class MoveSelectedTool : BaseTransformTool
 	protected override void OnCommit (Document? document)
 	{
 		document?.FinishSelection ();
+	}
+
+	protected override void OnSaveSettings (ISettingsService settings)
+	{
+		base.OnSaveSettings (settings);
+
+		if (auto_select_layer is not null)
+			settings.PutSetting (SettingNames.MOVE_SELECTED_AUTO_SELECT_LAYER, auto_select_layer.Active);
 	}
 
 	protected override void OnDeactivated (Document? document, BaseTool? newTool)

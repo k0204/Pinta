@@ -155,7 +155,7 @@ internal sealed class LayersPad : IDockPad
 	private void UpdateOpacityControl ()
 	{
 		updating_opacity = true;
-		bool hasLayer = PintaCore.Workspace.HasOpenDocuments;
+		bool hasLayer = PintaCore.Workspace.HasOpenDocuments && PintaCore.Workspace.ActiveDocument.Layers.HasSelectedLayer;
 		opacity_spinner.Sensitive = hasLayer;
 		opacity_spinner.Value = hasLayer
 			? Math.Round (PintaCore.Workspace.ActiveDocument.Layers.CurrentUserLayer.Opacity * 100)

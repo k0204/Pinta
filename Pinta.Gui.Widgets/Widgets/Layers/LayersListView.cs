@@ -177,7 +177,7 @@ public sealed partial class LayersListView
 
 			List<UserLayer> selected = GetSelectedLayers ();
 			if (selected.Count == 0) {
-				SelectOnly (active_document.Layers.CurrentUserLayer);
+				active_document.Layers.ClearCurrentUserLayer ();
 			} else if (!selected.Contains (active_document.Layers.CurrentUserLayer)) {
 				active_document.Layers.SetCurrentUserLayer (selected[0]);
 			}
@@ -193,8 +193,15 @@ public sealed partial class LayersListView
 		Gtk.ListView sender,
 		Gtk.ListView.ActivateSignalArgs args)
 	{
-		// Open the layer properties dialog
-		PintaCore.Actions.Layers.Properties.Activate ();
+		var modelItem = (LayersListViewItem) list_model.GetObject (args.Position)!;
+		LayersListViewItemWidget? widget = row_widgets.FirstOrDefault (widget => widget.UserLayer == modelItem.UserLayer);
+		if (widget is not null) {
+			GLib.Functions.IdleAdd (GLib.Constants.PRIORITY_DEFAULT_IDLE, () => {
+				if (widget.UserLayer == modelItem.UserLayer)
+					widget.BeginRename ();
+				return false;
+			});
+		}
 	}
 
 	private void HandleLayerSelectionRequested (object? sender, LayerSelectionEventArgs e)
@@ -232,6 +239,10 @@ public sealed partial class LayersListView
 		UserLayer current = selected.Contains (e.Layer) ? e.Layer : selected[0];
 		if (active_document.Layers.CurrentUserLayer != current)
 			active_document.Layers.SetCurrentUserLayer (current);
+		else {
+			active_document.ResetSelectionPaths ();
+			active_document.Workspace.Invalidate ();
+		}
 
 		if (!shift)
 			selection_anchor = e.Layer;
@@ -277,10 +288,14 @@ public sealed partial class LayersListView
 			list_model.Append (LayersListViewItem.New (doc, entry.Layer, entry.Depth));
 
 		// Update our selection to match the document's active layer.
-		int currentModelIndex = FindModelIndex (doc.Layers.CurrentUserLayer);
-		selection_anchor = doc.Layers.CurrentUserLayer;
-		selection_model.SelectItem ((uint) currentModelIndex, unselectRest: true);
-		list_view.ScrollTo ((uint) currentModelIndex, Gtk.ListScrollFlags.None, null);
+		if (doc.Layers.HasSelectedLayer) {
+			int currentModelIndex = FindModelIndex (doc.Layers.CurrentUserLayer);
+			selection_anchor = doc.Layers.CurrentUserLayer;
+			selection_model.SelectItem ((uint) currentModelIndex, unselectRest: true);
+			list_view.ScrollTo ((uint) currentModelIndex, Gtk.ListScrollFlags.None, null);
+		} else {
+			selection_model.UnselectAll ();
+		}
 
 		doc.History.HistoryItemAdded += HandleHistoryChanged;
 		doc.History.ActionUndone += HandleHistoryChanged;
@@ -313,7 +328,16 @@ public sealed partial class LayersListView
 	private void HandleSelectedLayerChanged (object? sender, EventArgs e)
 	{
 		ArgumentNullException.ThrowIfNull (active_document);
-		if (changing_selection || GetSelectedLayers ().Contains (active_document.Layers.CurrentUserLayer))
+		if (changing_selection)
+			return;
+
+		if (!active_document.Layers.HasSelectedLayer) {
+			selection_anchor = null;
+			changing_selection = true;
+			try { selection_model.UnselectAll (); } finally { changing_selection = false; }
+			return;
+		}
+		if (GetSelectedLayers ().Contains (active_document.Layers.CurrentUserLayer))
 			return;
 
 		int index = FindModelIndex (active_document.Layers.CurrentUserLayer);
@@ -588,7 +612,7 @@ public sealed partial class LayersListView
 					selection_model.SelectItem (i, unselectRest: false);
 			}
 
-			if (GetSelectedLayers ().Count == 0)
+			if (GetSelectedLayers ().Count == 0 && active_document.Layers.HasSelectedLayer)
 				SelectOnly (active_document.Layers.CurrentUserLayer);
 		} finally {
 			changing_selection = false;

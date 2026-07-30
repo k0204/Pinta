@@ -9,12 +9,11 @@ namespace Pinta.Core;
 
 public readonly record struct LayerPosition (UserLayer? Parent, int Index);
 
-public sealed class DocumentLayers
+public sealed partial class DocumentLayers
 {
 	private readonly ToolManager tools;
 	private readonly Document document;
 	private readonly List<UserLayer> user_layers = [];
-	private UserLayer? current_user_layer;
 
 	private int layer_name_int = 2;
 
@@ -35,11 +34,6 @@ public sealed class DocumentLayers
 	public event EventHandler? LayerTreeChanged;
 	public event EventHandler? SelectedLayerChanged;
 	public event PropertyChangedEventHandler? LayerPropertyChanged;
-
-	/// <summary>
-	/// Gets the currently selected user created layer.
-	/// </summary>
-	public UserLayer CurrentUserLayer => current_user_layer ?? throw new InvalidOperationException ("No layer is selected.");
 
 	/// <summary>
 	/// Gets the layer used for drawing and managing selections.
@@ -563,22 +557,6 @@ public sealed class DocumentLayers
 		document.Workspace.Invalidate ();
 	}
 
-	/// <summary>
-	/// Set the current user layer to the layer specified.
-	/// </summary>
-	public void SetCurrentUserLayer (UserLayer layer)
-	{
-		if (!ContainsLayer (layer))
-			throw new ArgumentException ("Layer does not belong to this document.", nameof (layer));
-
-		// Ensure that the current tool's modifications are finalized before
-		// switching layers.
-		tools.CurrentTool?.DoCommit (document);
-
-		current_user_layer = layer;
-		SelectedLayerChanged?.Invoke (this, EventArgs.Empty);
-	}
-
 	private bool ContainsLayer (UserLayer layer) => GetAllUserLayers ().Contains (layer);
 
 	private static bool ContainsLayer (
@@ -691,8 +669,4 @@ public sealed class DocumentLayers
 			descendant.PropertyChanged -= RaiseLayerPropertyChangedEvent;
 	}
 
-	private void RaiseLayerPropertyChangedEvent (object? sender, PropertyChangedEventArgs e)
-	{
-		LayerPropertyChanged?.Invoke (sender, e);
-	}
 }

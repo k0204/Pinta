@@ -282,21 +282,24 @@ public sealed partial class LayerActions
 	{
 		Document? activeDoc = workspace.ActiveDocumentOrDefault;
 
-		bool hasMultipleLayers = activeDoc is not null && activeDoc.Layers.AllLayers.Count > 1;
+		bool hasSelectedLayer = activeDoc?.Layers.HasSelectedLayer == true;
+		bool hasMultipleLayers = hasSelectedLayer && activeDoc!.Layers.AllLayers.Count > 1;
 		DeleteLayer.Sensitive = hasMultipleLayers;
+		DuplicateLayer.Sensitive = hasSelectedLayer;
 		image.Flatten.Sensitive = hasMultipleLayers && activeDoc?.Layers.HasLockedReferences != true;
                 AddNewGroup.Sensitive = activeDoc != null;
 		GenerateImage.Sensitive = !cutout_running;
 		GenerateSpritesheet.Sensitive = activeDoc is not null && !cutout_running;
-		SplitSpritesheet.Sensitive = activeDoc is not null && IsSpritesheetSource (activeDoc.Layers.CurrentUserLayer) && !cutout_running;
-		SetSpritesheetAnchor.Sensitive = activeDoc is not null && IsDirectionSheetSource (activeDoc.Layers.CurrentUserLayer);
+		SplitSpritesheet.Sensitive = hasSelectedLayer && IsSpritesheetSource (activeDoc!.Layers.CurrentUserLayer) && !cutout_running;
+		SetSpritesheetAnchor.Sensitive = hasSelectedLayer && IsDirectionSheetSource (activeDoc!.Layers.CurrentUserLayer);
 
-		bool currentEditable = activeDoc?.Layers.CurrentUserLayer.IsEditable ?? false;
+		bool currentEditable = hasSelectedLayer && activeDoc!.Layers.CurrentUserLayer.IsEditable;
 		bool canMergeDown = activeDoc?.Layers.CanMoveCurrentLayerDown () ?? false;
 		MergeLayerDown.Sensitive = canMergeDown && currentEditable && activeDoc!.Layers.GetSiblingBelow (activeDoc.Layers.CurrentUserLayer).IsEditable;
 		MoveLayerDown.Sensitive = canMergeDown;
 
 		MoveLayerUp.Sensitive = activeDoc?.Layers.CanMoveCurrentLayerUp () ?? false;
+		Properties.Sensitive = hasSelectedLayer;
 		FlipHorizontal.Sensitive = currentEditable;
 		FlipVertical.Sensitive = currentEditable;
 		ResizeLayer.Sensitive = currentEditable;
@@ -304,7 +307,7 @@ public sealed partial class LayerActions
 		adjustments.ToggleActionsSensitive (currentEditable);
 		effects.ToggleActionsSensitive (currentEditable);
 		UnlockReference.Sensitive = activeDoc?.Layers.CurrentUserLayer.IsReference == true && !activeDoc.Layers.CurrentUserLayer.ReferenceMissing;
-		DetectBorder.Sensitive = activeDoc is not null && !detect_border_running;
+		DetectBorder.Sensitive = hasSelectedLayer && !detect_border_running;
 		Cutout.Sensitive = currentEditable && !cutout_running;
 	}
 

@@ -55,6 +55,7 @@ public static class StandardIcons
 	public const string EditSwap = "edit-swap-vert-symbolic";
 
 	public const string GoPrevious = "go-previous-symbolic";
+	public const string GoNext = "go-next-symbolic";
 
 	public const string HelpAbout = "help-about-symbolic";
 	public const string HelpBrowser = "help-browser-symbolic";

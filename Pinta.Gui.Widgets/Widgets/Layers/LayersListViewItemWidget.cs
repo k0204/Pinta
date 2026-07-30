@@ -198,6 +198,7 @@ public sealed partial class LayersListViewItemWidget
 		itemLabel.Halign = Gtk.Align.Start;
 		itemLabel.Hexpand = true;
 		itemLabel.Ellipsize = Pango.EllipsizeMode.End;
+		Gtk.Widget nameEditor = CreateNameEditor (itemLabel);
 
 		Gtk.Button cutoutButton = Gtk.Button.NewWithLabel (Translations.GetString ("抠图"));
 		cutoutButton.Valign = Gtk.Align.Center;
@@ -236,7 +237,7 @@ public sealed partial class LayersListViewItemWidget
 		dragContent.Hexpand = true;
 		dragContent.Append (itemThumbnail);
                 dragContent.Append (layerIcon);
-		dragContent.Append (itemLabel);
+		dragContent.Append (nameEditor);
 		AddLayerDragGesture (dragContent);
 
                 Gtk.Box hierarchyContent = Gtk.Box.New (Gtk.Orientation.Horizontal, 3);
@@ -311,18 +312,32 @@ public sealed partial class LayersListViewItemWidget
 
 	private void AddLayerDragGesture (Gtk.Widget widget)
 	{
+		bool dragging = false;
 		Gtk.GestureDrag dragGesture = Gtk.GestureDrag.New ();
 		dragGesture.SetButton (GtkExtensions.MOUSE_LEFT_BUTTON);
 		dragGesture.SetPropagationPhase (Gtk.PropagationPhase.Capture);
-		dragGesture.OnDragBegin += (_, _) => {
-			SetOpacity (0.55);
-			dragGesture.SetState (Gtk.EventSequenceState.Claimed);
+		dragGesture.OnDragBegin += (_, _) => dragging = false;
+		dragGesture.OnDragUpdate += (controller, args) => {
+			if (IsRenaming)
+				return;
+
+			if (!dragging) {
+				dragging = true;
+				SetOpacity (0.55);
+				dragGesture.SetState (Gtk.EventSequenceState.Claimed);
+			}
+
+			HandleDragUpdate (widget, controller, args);
 		};
-		dragGesture.OnDragUpdate += (controller, args) => HandleDragUpdate (widget, controller, args);
-		dragGesture.OnDragEnd += (controller, args) => HandleDragEnd (widget, controller, args);
+		dragGesture.OnDragEnd += (controller, args) => {
+			if (dragging)
+				HandleDragEnd (widget, controller, args);
+		};
 		dragGesture.OnCancel += (_, _) => {
-			SetOpacity (1.0f);
-			LayerDragCanceled?.Invoke (this, EventArgs.Empty);
+			if (dragging) {
+				SetOpacity (1.0f);
+				LayerDragCanceled?.Invoke (this, EventArgs.Empty);
+			}
 		};
 		widget.AddController (dragGesture);
 	}
