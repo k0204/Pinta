@@ -329,7 +329,7 @@ public sealed class WorkspaceManager : IWorkspaceService
 			IImageImporter? importer = image_formats.GetImporterByFile (fileName);
 			if (importer is not null) {
 				Document imported = importer.Import (file);
-				ActivateImportedDocument (imported);
+				ActivateDocument (imported);
 			} else {
 				// Unknown extension, so try every loader.
 				StringBuilder errors = new ();
@@ -337,7 +337,7 @@ public sealed class WorkspaceManager : IWorkspaceService
 				foreach (var format in image_formats.Formats.Where (f => f.IsImportAvailable ())) {
 					try {
 						Document imported = format.Importer!.Import (file);
-						ActivateImportedDocument (imported);
+						ActivateDocument (imported);
 						loaded = true;
 						break;
 					} catch (UnauthorizedAccessException) {
@@ -371,17 +371,6 @@ public sealed class WorkspaceManager : IWorkspaceService
 		}
 
 		return false;
-	}
-
-	private void ActivateImportedDocument (Document document)
-	{
-		try {
-			document.AcquireFileLock ();
-			ActivateDocument (document);
-		} catch {
-			document.Close ();
-			throw;
-		}
 	}
 
 	public bool ImageFitsInWindow

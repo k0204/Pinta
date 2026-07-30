@@ -40,6 +40,7 @@ internal static class ErrorDialog
 		Console.Error.WriteLine ("Pinta: {0}\n{1}", message, body);
 
 		using Adw.MessageDialog dialog = Adw.MessageDialog.New (parent, message, body);
+		dialog.Modal = true;
 
 		dialog.AddResponse (nameof (ErrorDialogResponse.OK), Translations.GetString ("_OK"));
 		dialog.DefaultResponse = nameof (ErrorDialogResponse.OK);
@@ -67,6 +68,7 @@ internal static class ErrorDialog
 		expander.SetChild (scroll);
 
 		using Adw.MessageDialog dialog = Adw.MessageDialog.New (parent, message, body);
+		dialog.Modal = true;
 		dialog.SetExtraChild (expander);
 		dialog.AddResponse (nameof (ErrorDialogResponse.Bug), Translations.GetString ("Report Bug..."));
 		dialog.SetResponseAppearance (nameof (ErrorDialogResponse.Bug), Adw.ResponseAppearance.Suggested);

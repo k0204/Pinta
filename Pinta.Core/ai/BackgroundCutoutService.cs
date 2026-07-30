@@ -11,10 +11,7 @@ namespace Pinta.Core.AI;
 
 public sealed class BackgroundCutoutService
 {
-	private readonly AiApiClient api;
-	private const string agnes_image_path = "api/agnes-images";
-	private const string gpt_image_path = "api/gpt-images";
-	private const string baidu_image_path = "api/baidu-images";
+	private readonly AiJobService jobs;
 	private const int gpt_size_multiple = 16;
 	private const int gpt_min_pixels = 655_360;
 	private const int gpt_max_pixels = 8_294_400;
@@ -39,7 +36,8 @@ public sealed class BackgroundCutoutService
 		new (1568, 672), new (3136, 1344), new (4704, 2016), new (6272, 2688),
 	];
 	private static readonly Size[] gpt_image_generation_sizes = [
-		new (1024, 1024), new (1536, 1024), new (1024, 1536),
+		new (1024, 1024), new (2048, 2048),
+		new (1536, 1024), new (1024, 1536),
 		new (1536, 864), new (864, 1536),
 		new (1280, 960), new (960, 1280),
 		new (1280, 1024), new (1024, 1280),
@@ -50,7 +48,7 @@ public sealed class BackgroundCutoutService
 
 	public BackgroundCutoutService (AiAuthService auth)
 	{
-		api = new (auth);
+		jobs = new (auth);
 	}
 
 	public Task<byte[]> GenerateWhiteAsync (
@@ -154,14 +152,8 @@ public sealed class BackgroundCutoutService
 		string name = Translations.GetString ("transparent cutout");
 		string size = FormatSize (targetSize);
 		reportProgress?.Invoke (Translations.GetString ("Requesting Baidu human segmentation..."), 0.25);
-		using JsonDocument json = await RunImageJobAsync (
-			baidu_image_path,
-			[],
-			name,
-			size,
-			log,
-			cancellationToken,
-			[(sourcePng, "file", "pinta.png")]);
+		Log (log, $"AI image start: service=baidu, name={name}, target_size={size}, request_size={size}, images=1");
+		using JsonDocument json = await jobs.RunBaiduCutoutAsync (sourcePng, log, cancellationToken);
 		if (!TryReadImage (json.RootElement, "result_b64_json", out byte[]? rawResult))
 			throw new InvalidOperationException ("Baidu response did not include a foreground image.");
 
@@ -190,10 +182,14 @@ public sealed class BackgroundCutoutService
 		Size requestSize = sourcePng is null ? targetSize : GetImageRequestSize (imageService, targetSize);
 		string size = FormatSize (requestSize);
 		PointI contentOffset = PointI.Zero;
-		string path = imageService == AiRequestSettings.AgnesService ? agnes_image_path : gpt_image_path;
-		KeyValuePair<string, string>[] fields = imageService == AiRequestSettings.AgnesService
-			? [new ("size", size), new ("prompt", prompt)]
-			: [new ("size", size), new ("provider", AiRequestSettings.GetGptProvider (PintaCore.Settings)), new ("prompt", prompt)];
+		string provider = imageService == AiRequestSettings.AgnesService
+			? AiRequestSettings.AgnesService
+			: AiRequestSettings.GetGptProvider (PintaCore.Settings);
+		KeyValuePair<string, string>[] fields = [
+			new ("size", size),
+			new ("provider", provider),
+			new ("prompt", prompt),
+		];
 
 		int sourceCount = sourcePng is null ? 0 : 1;
 		(byte[] Data, string FormName, string FileName)[] files = new (byte[], string, string)[sourceCount + referenceImages.Count];
@@ -204,14 +200,11 @@ public sealed class BackgroundCutoutService
 
 		Log (log, $"AI image start: service={imageService}, name={name}, target_size={FormatSize (targetSize)}, request_size={size}, content_offset={contentOffset.X},{contentOffset.Y}, images={files.Length}");
 		reportProgress?.Invoke ($"Generating {name} ({size})...", 0.25);
-		using JsonDocument json = await RunImageJobAsync (
-			path,
+		using JsonDocument json = await jobs.RunImageAsync (
 			fields,
-			name,
-			size,
+			files,
 			log,
-			cancellationToken,
-			files);
+			cancellationToken);
 
 		JsonElement root = json.RootElement;
 		byte[] rawResult;
@@ -220,7 +213,7 @@ public sealed class BackgroundCutoutService
 		else if (root.TryGetProperty ("result_url", out JsonElement urlElement) &&
 			urlElement.GetString () is string url &&
 			!string.IsNullOrWhiteSpace (url))
-			rawResult = await api.GetBytesAsync (url, cancellationToken);
+			rawResult = await jobs.DownloadAsync (url, cancellationToken);
 		else
 			throw new InvalidOperationException ("Image response did not include a result image.");
 
@@ -230,55 +223,6 @@ public sealed class BackgroundCutoutService
 		byte[] normalized = NormalizePngSize (rawResult, targetSize, requestSize, contentOffset, name, log);
 		saveResult?.Invoke (fileName, normalized);
 		return normalized;
-	}
-
-	private async Task<JsonDocument> RunImageJobAsync (
-		string path,
-		IEnumerable<KeyValuePair<string, string>> fields,
-		string name,
-		string size,
-		Action<string>? log,
-		CancellationToken cancellationToken,
-		IEnumerable<(byte[] Data, string FormName, string FileName)> additionalFiles)
-	{
-		using JsonDocument job = JsonDocument.Parse (await api.PostMultipartAsync (
-			path,
-			fields,
-			additionalFiles,
-			cancellationToken));
-		string jobId = job.RootElement.GetProperty ("id").GetString ()
-			?? throw new InvalidOperationException ("Image response did not include a job id.");
-		Log (log, $"AI image job accepted: name={name}, job_id={jobId}, form_size={size}");
-		return await WaitForResultAsync (jobId, name, log, cancellationToken);
-	}
-
-	private async Task<JsonDocument> WaitForResultAsync (
-		string jobId,
-		string name,
-		Action<string>? log,
-		CancellationToken cancellationToken)
-	{
-		string jobPath = $"api/images/jobs/{jobId}";
-		while (true) {
-			using JsonDocument job = JsonDocument.Parse (await api.GetStringAsync (jobPath, cancellationToken));
-			string status = job.RootElement.GetProperty ("status").GetString () ?? "";
-			Log (log, $"AI image job status: name={name}, job_id={jobId}, status={status}");
-			switch (status) {
-				case "completed":
-					return JsonDocument.Parse (await api.GetStringAsync ($"{jobPath}/result", cancellationToken));
-				case "failed":
-					string error = job.RootElement.TryGetProperty ("error_message", out JsonElement errorElement)
-						? errorElement.GetString () ?? "Unknown server error."
-						: "Unknown server error.";
-					throw new InvalidOperationException ($"Image job failed: {error}");
-				case "queued":
-				case "processing":
-					await Task.Delay (TimeSpan.FromSeconds (1), cancellationToken);
-					break;
-				default:
-					throw new InvalidOperationException ($"Image job returned unknown status: {status}");
-			}
-		}
 	}
 
 	private static BackgroundCutoutPromptConfig ReadPromptConfig ()

@@ -207,6 +207,7 @@ public sealed class ChromeManager : IChromeService
 
 public interface IProgressDialog
 {
+	Gtk.Window Window { get; }
 	void Show ();
 	void Hide ();
 	string Title { get; set; }

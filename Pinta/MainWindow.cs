@@ -122,6 +122,7 @@ internal sealed class MainWindow
 
 		// Load the user's previous settings
 		LoadUserSettings ();
+		_ = RefreshAiProvidersAsync ();
 		_ = RestoreAiAccountAsync ();
 		PintaCore.Actions.App.BeforeQuitAttempt += delegate { SaveFileSession (); };
 		PintaCore.Actions.App.BeforeQuit += delegate { SaveUserSettings (); };
@@ -688,6 +689,16 @@ internal sealed class MainWindow
 			PintaCore.Settings.PutSetting (SettingNames.LAST_SELECTED_TOOL, tool.GetType ().Name);
 
 		PintaCore.Settings.DoSaveSettingsBeforeQuit ();
+	}
+
+	private static async Task RefreshAiProvidersAsync ()
+	{
+		try {
+			await PintaCore.AiProviders.RefreshAsync ();
+			PintaCore.Settings.DoSaveSettingsBeforeQuit ();
+		} catch (Exception ex) {
+			Console.Error.WriteLine ($"Failed to refresh AI providers: {ex.Message}");
+		}
 	}
 
 	private void SaveFileSession ()

@@ -239,7 +239,6 @@ internal sealed class SaveDocumentImplmentationAction : IActionHandler
 		// Commit any pending changes
 		tools.Commit ();
 
-		document.ReleaseFileLock ();
 		try {
 			format.Exporter.Export (document, file, parent);
 			document.File = file;
@@ -268,8 +267,13 @@ internal sealed class SaveDocumentImplmentationAction : IActionHandler
 		} catch (OperationCanceledException) {
 
 			return false;
-		} finally {
-			document.AcquireFileLock ();
+		} catch (Exception e) {
+			await chrome.ShowErrorDialog (
+				parent,
+				Translations.GetString ("Failed to save image"),
+				e.Message,
+				e.ToString ());
+			return false;
 		}
 
 		tools.DoAfterSave (document);

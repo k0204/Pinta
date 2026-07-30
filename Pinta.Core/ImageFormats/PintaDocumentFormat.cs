@@ -58,18 +58,36 @@ public sealed class PintaDocumentFormat : IImageImporter, IImageExporter
 	{
 		AssignLayerIds (document.Layers.RootLayers);
 
-		foreach (UserLayer layer in document.Layers.AllLayers.Where (layer => layer is not GroupLayer && !layer.IsReference)) {
-			using Pixbuf pixbuf = layer.Surface.ToPixbuf ();
-			byte[] data = pixbuf.SaveToBuffer ("png");
-			ZipArchiveEntry entry = archive.CreateEntry ($"layers/{layer.DocumentId}.png");
-			using Stream destination = entry.Open ();
-			destination.Write (data);
-		}
+		foreach (UserLayer layer in document.Layers.AllLayers.Where (layer => layer is not GroupLayer && !layer.IsReference))
+			WriteLayerSurface (archive, layer);
 
 		PintaDocumentManifest manifest = CreateManifest (document);
 		ZipArchiveEntry manifestEntry = archive.CreateEntry ("project.json");
 		using Stream manifestStream = manifestEntry.Open ();
 		JsonSerializer.Serialize (manifestStream, manifest, json_options);
+	}
+
+	private static void WriteLayerSurface (ZipArchive archive, UserLayer layer)
+	{
+		string temporaryFile = System.IO.Path.GetTempFileName ();
+		try {
+			using Pixbuf pixbuf = layer.Surface.ToPixbuf ();
+			using Gio.File temporary = Gio.FileHelper.NewForPath (temporaryFile);
+			using (Gio.OutputStream output = temporary.Replace ()) {
+				try {
+					pixbuf.SaveToStreamv (output, "png", optionKeys: [], optionValues: [], cancellable: null);
+				} finally {
+					output.Close (null);
+				}
+			}
+
+			ZipArchiveEntry entry = archive.CreateEntry ($"layers/{layer.DocumentId}.png");
+			using Stream source = File.OpenRead (temporaryFile);
+			using Stream destination = entry.Open ();
+			source.CopyTo (destination);
+		} finally {
+			File.Delete (temporaryFile);
+		}
 	}
 
 	internal static PintaDocumentManifest ReadManifest (ZipArchive archive)

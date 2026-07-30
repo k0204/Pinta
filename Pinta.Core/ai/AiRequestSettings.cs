@@ -10,6 +10,7 @@ public static class AiRequestSettings
 
 	private const string image_service_key = "ai-image-service";
 	private const string gpt_provider_key = "ai-gpt-image-provider";
+	private const string sprite_segmentation_provider_key = "ai-sprite-segmentation-provider";
 
 	public static string GetImageService (ISettingsService settings)
 	{
@@ -20,7 +21,18 @@ public static class AiRequestSettings
 	public static string GetGptProvider (ISettingsService settings)
 	{
 		string value = settings.GetSetting (gpt_provider_key, LukyfaceProvider);
-		return value is ZzswitchProvider or LukyfaceProvider ? value : LukyfaceProvider;
+		return string.IsNullOrWhiteSpace (value) ? LukyfaceProvider : value;
+	}
+
+	public static string GetSpriteSegmentationProvider (ISettingsService settings)
+	{
+		string value = settings.GetSetting (sprite_segmentation_provider_key, AgnesService);
+		return string.IsNullOrWhiteSpace (value) ? AgnesService : value;
+	}
+
+	public static void SaveSpriteSegmentationProvider (ISettingsService settings, string provider)
+	{
+		settings.PutSetting (sprite_segmentation_provider_key, provider);
 	}
 
 	public static void Save (

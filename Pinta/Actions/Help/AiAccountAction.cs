@@ -65,6 +65,7 @@ internal sealed class AiAccountAction : IActionHandler
 				try {
 					if (!await ValidateInputAsync (dialog, response == Gtk.ResponseType.Apply))
 						continue;
+					dialog.Hide ();
 
 					if (response == Gtk.ResponseType.Apply)
 						await auth.RegisterAsync (dialog.ApiBaseUri, dialog.Username, dialog.Password);
@@ -78,8 +79,9 @@ internal sealed class AiAccountAction : IActionHandler
 						auth.AccountSummary);
 					return;
 				} catch (Exception ex) {
+					dialog.Present ();
 					await chrome.ShowErrorDialog (
-						chrome.MainWindow,
+						dialog,
 						Translations.GetString ("AI Account Failed"),
 						GetErrorMessage (ex),
 						ex.Message);
@@ -107,7 +109,7 @@ internal sealed class AiAccountAction : IActionHandler
 			string.IsNullOrWhiteSpace (dialog.Username) ||
 			string.IsNullOrWhiteSpace (dialog.Password)) {
 			await chrome.ShowMessageDialog (
-				chrome.MainWindow,
+				dialog,
 				Translations.GetString ("AI Account"),
 				Translations.GetString ("Enter the API server, email, and password."));
 			return false;
@@ -115,7 +117,7 @@ internal sealed class AiAccountAction : IActionHandler
 
 		if (!dialog.Username.Contains ('@')) {
 			await chrome.ShowMessageDialog (
-				chrome.MainWindow,
+				dialog,
 				Translations.GetString ("AI Account"),
 				Translations.GetString ("Enter a valid email address."));
 			return false;
@@ -123,7 +125,7 @@ internal sealed class AiAccountAction : IActionHandler
 
 		if (registering && dialog.Password.Length < 8) {
 			await chrome.ShowMessageDialog (
-				chrome.MainWindow,
+				dialog,
 				Translations.GetString ("AI Account"),
 				Translations.GetString ("Password must be at least 8 characters."));
 			return false;

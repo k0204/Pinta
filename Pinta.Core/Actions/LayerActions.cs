@@ -64,6 +64,7 @@ public sealed partial class LayerActions
 	private readonly EffectsActions effects;
 	private readonly AI.CharacterBorderRecognitionService border_recognition;
 	private readonly AI.BackgroundCutoutService background_cutout;
+	private readonly AI.SpriteSegmentationService sprite_segmentation;
 	private bool detect_border_running;
 	private bool cutout_running;
 
@@ -105,7 +106,7 @@ public sealed partial class LayerActions
 
 		SplitSpritesheet = new Command (
 			"splitspritesheet",
-			Translations.GetString ("Split Spritesheet"),
+			"图片拆分",
 			Translations.GetString ("Split the selected source sheet into direction frame layers"),
 			Resources.Icons.ImageCrop);
 
@@ -219,6 +220,7 @@ public sealed partial class LayerActions
 		this.effects = effects;
 		border_recognition = new (aiAuth);
 		background_cutout = new (aiAuth);
+		sprite_segmentation = new (aiAuth);
 	}
 
 	public void RegisterActions (Gtk.Application app)
@@ -258,7 +260,6 @@ public sealed partial class LayerActions
 		GenerateSpritesheet.Activated += HandlePintaCoreActionsLayersGenerateSpritesheetActivated;
 		SplitSpritesheet.Activated += HandlePintaCoreActionsLayersSplitSpritesheetActivated;
 		SetSpritesheetAnchor.Activated += HandleSetSpritesheetAnchorActivated;
-		DeleteLayer.Activated += HandlePintaCoreActionsLayersDeleteLayerActivated;
 		DuplicateLayer.Activated += HandlePintaCoreActionsLayersDuplicateLayerActivated;
 		MergeLayerDown.Activated += HandlePintaCoreActionsLayersMergeLayerDownActivated;
 		MoveLayerDown.Activated += HandlePintaCoreActionsLayersMoveLayerDownActivated;
@@ -450,23 +451,6 @@ public sealed partial class LayerActions
 			Translations.GetString ("Duplicate Layer"),
 			l,
 			doc.Layers.GetPosition (l));
-		doc.History.PushNewItem (hist);
-	}
-
-	private void HandlePintaCoreActionsLayersDeleteLayerActivated (object sender, EventArgs e)
-	{
-		Document doc = workspace.ActiveDocument;
-
-		tools.Commit ();
-
-		DeleteLayerHistoryItem hist = new (
-			Resources.Icons.LayerDelete,
-			Translations.GetString ("Delete Layer"),
-			doc.Layers.CurrentUserLayer,
-			doc.Layers.GetPosition (doc.Layers.CurrentUserLayer));
-
-		doc.Layers.DeleteCurrentLayer ();
-
 		doc.History.PushNewItem (hist);
 	}
 

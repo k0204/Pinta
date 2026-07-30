@@ -130,6 +130,8 @@ public sealed partial class LayersListView
 		// --- Other initialization (TODO: remove references to PintaCore)
 
 		PintaCore.Workspace.ActiveDocumentChanged += HandleActiveDocumentChanged;
+		PintaCore.Actions.Layers.DeleteLayer.Activated += (_, _) =>
+			HandleDeleteSelectedLayersRequested (this, EventArgs.Empty);
 		PintaCore.Actions.Layers.MergeSelectedLayers.Activated += (_, _) =>
 			HandleMergeSelectedLayersRequested (this, EventArgs.Empty);
 	}
@@ -321,6 +323,9 @@ public sealed partial class LayersListView
 
 	private void HandleMergeSelectedLayersRequested (object? sender, EventArgs e)
 		=> PintaCore.Actions.Layers.MergeLayers (GetSelectedLayers ());
+
+	private void HandleDeleteSelectedLayersRequested (object? sender, EventArgs e)
+		=> PintaCore.Actions.Layers.DeleteLayers (GetSelectedLayers ());
 
 	private void HandleLayerPropertyChanged (object? sender, EventArgs e)
 	{

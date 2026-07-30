@@ -1,0 +1,123 @@
+using System;
+using System.Collections.Generic;
+using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
+
+namespace Pinta.Core.AI;
+
+public sealed class AiJobService
+{
+	private const string chat_path = "api/chat";
+	private const string image_path = "api/images";
+	private const string baidu_image_path = "api/baidu-images";
+
+	private readonly AiApiClient api;
+
+	public AiJobService (AiAuthService auth)
+	{
+		api = new (auth);
+	}
+
+	public Task<JsonDocument> RunChatAsync (
+		object request,
+		Action<string, string>? capture = null,
+		Action<string>? log = null,
+		CancellationToken cancellationToken = default)
+		=> RunAsync (
+			ct => api.PostJsonAsync (chat_path, request, ct),
+			capture,
+			log,
+			cancellationToken);
+
+	public Task<JsonDocument> RunImageAsync (
+		IEnumerable<KeyValuePair<string, string>> fields,
+		IEnumerable<(byte[] Data, string FormName, string FileName)> files,
+		Action<string>? log = null,
+		CancellationToken cancellationToken = default)
+		=> RunAsync (
+			ct => api.PostMultipartAsync (image_path, fields, files, ct),
+			capture: null,
+			log,
+			cancellationToken);
+
+	public Task<JsonDocument> RunBaiduCutoutAsync (
+		byte[] png,
+		Action<string>? log = null,
+		CancellationToken cancellationToken = default)
+		=> RunAsync (
+			ct => api.PostMultipartAsync (
+				baidu_image_path,
+				[],
+				[(png, "file", "pinta.png")],
+				ct),
+			capture: null,
+			log,
+			cancellationToken);
+
+	public Task<byte[]> DownloadAsync (string path, CancellationToken cancellationToken = default)
+		=> api.GetBytesAsync (path, cancellationToken);
+
+	private async Task<JsonDocument> RunAsync (
+		Func<CancellationToken, Task<string>> submit,
+		Action<string, string>? capture,
+		Action<string>? log,
+		CancellationToken cancellationToken)
+	{
+		string acceptedJson = await submit (cancellationToken);
+		capture?.Invoke ("accepted", acceptedJson);
+		using JsonDocument accepted = JsonDocument.Parse (acceptedJson);
+		string jobId = ReadJobId (accepted.RootElement);
+		Log (log, $"AI job accepted: job_id={jobId}");
+		return await WaitForResultAsync (jobId, capture, log, cancellationToken);
+	}
+
+	private async Task<JsonDocument> WaitForResultAsync (
+		string jobId,
+		Action<string, string>? capture,
+		Action<string>? log,
+		CancellationToken cancellationToken)
+	{
+		string jobPath = $"api/images/jobs/{jobId}";
+		while (true) {
+			string statusJson = await api.GetStringAsync (jobPath, cancellationToken);
+			capture?.Invoke ("status", statusJson);
+			using JsonDocument job = JsonDocument.Parse (statusJson);
+			string status = job.RootElement.GetProperty ("status").GetString () ?? "";
+			Log (log, $"AI job status: job_id={jobId}, status={status}");
+			switch (status) {
+				case "completed":
+					string resultJson = await api.GetStringAsync ($"{jobPath}/result", cancellationToken);
+					capture?.Invoke ("result", resultJson);
+					return JsonDocument.Parse (resultJson);
+				case "failed":
+					throw new InvalidOperationException ($"AI job failed: {ReadError (job.RootElement)}");
+				case "queued":
+				case "processing":
+					await Task.Delay (TimeSpan.FromSeconds (1), cancellationToken);
+					break;
+				default:
+					throw new InvalidOperationException ($"AI job returned unknown status: {status}");
+			}
+		}
+	}
+
+	private static string ReadJobId (JsonElement root)
+	{
+		if (root.TryGetProperty ("id", out JsonElement value) &&
+			value.GetString () is string jobId && !string.IsNullOrWhiteSpace (jobId))
+			return jobId;
+		throw new InvalidOperationException ("AI response did not include a job id.");
+	}
+
+	private static string ReadError (JsonElement root)
+		=> root.TryGetProperty ("error_message", out JsonElement value)
+			? value.GetString () ?? "Unknown server error."
+			: "Unknown server error.";
+
+	private static void Log (Action<string>? log, string message)
+	{
+		Console.WriteLine (message);
+		log?.Invoke (message);
+	}
+}

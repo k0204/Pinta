@@ -37,6 +37,7 @@ public sealed partial class ProgressDialog : IProgressDialog
 	private Gtk.ProgressBar progress_bar;
 
 	public event EventHandler? Canceled;
+	public Gtk.Window Window => this;
 
 	[MemberNotNull (nameof (text_label))]
 	[MemberNotNull (nameof (progress_bar))]

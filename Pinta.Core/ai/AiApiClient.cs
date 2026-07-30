@@ -21,6 +21,9 @@ public sealed class AiAuthenticationException : InvalidOperationException
 public sealed class AiApiClient
 {
 	private static readonly HttpClient client = new () { Timeout = TimeSpan.FromMinutes (6) };
+	private static readonly HttpClient loopback_client = new (new HttpClientHandler { UseProxy = false }) {
+		Timeout = TimeSpan.FromMinutes (6),
+	};
 	private static readonly TimeSpan[] retry_delays = [TimeSpan.FromSeconds (2), TimeSpan.FromSeconds (5)];
 
 	private readonly AiAuthService? auth;
@@ -148,7 +151,8 @@ public sealed class AiApiClient
 				using HttpRequestMessage request = CreateRequest (method, path);
 				request.Content = createContent?.Invoke ();
 				Console.WriteLine ($"AI HTTP request: method={method.Method}, url={request.RequestUri?.GetLeftPart (UriPartial.Path)}, auth={(request.Headers.Authorization is null ? "none" : "bearer")}, attempt={attempt + 1}");
-				HttpResponseMessage response = await client.SendAsync (request, cancellationToken);
+				HttpClient transport = request.RequestUri?.IsLoopback == true ? loopback_client : client;
+				HttpResponseMessage response = await transport.SendAsync (request, cancellationToken);
 				if (!IsTransientStatus (response) || attempt >= retry_delays.Length)
 					return response;
 

@@ -43,6 +43,7 @@ public sealed partial class LayerActions
 		confirmation.AddResponse (cancel_response, Translations.GetString ("_Cancel"));
 		confirmation.AddResponse (confirm_response, Translations.GetString ("_Detect"));
 		confirmation.SetResponseAppearance (confirm_response, Adw.ResponseAppearance.Suggested);
+		confirmation.Modal = true;
 		confirmation.DefaultResponse = confirm_response;
 		confirmation.CloseResponse = cancel_response;
 		if (await confirmation.RunAsync () != confirm_response)
@@ -127,4 +128,3 @@ public sealed partial class LayerActions
 	}
 
 }
-

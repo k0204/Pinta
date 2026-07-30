@@ -39,6 +39,8 @@ public sealed partial class LayerActions
 	private async Task RunImageGenerationAsync ()
 	{
 		Document? referenceDocument = workspace.ActiveDocumentOrDefault;
+		if (referenceDocument is null)
+			return;
 		AiImageRequestOptions? options = await PromptAiImageRequestAsync (
 			AiImageRequestMode.ImageGeneration,
 			referenceDocument,
@@ -49,7 +51,7 @@ public sealed partial class LayerActions
 		await GenerateImageAsync (referenceDocument, options);
 	}
 
-	private async Task GenerateImageAsync (Document? referenceDocument, AiImageRequestOptions options)
+	private async Task GenerateImageAsync (Document referenceDocument, AiImageRequestOptions options)
 	{
 
 		cutout_running = true;
@@ -66,9 +68,8 @@ public sealed partial class LayerActions
 
 		try {
 			List<(byte[] Png, string FileName)> references = [];
-			if (referenceDocument is not null)
-				foreach (UserLayer layer in options.Layers.OrderByDescending (IsCharacterAnchor))
-					references.Add ((CreateLayerPng (referenceDocument, layer), GetAiReferenceFileName (layer, references.Count + 1)));
+			foreach (UserLayer layer in options.Layers.OrderByDescending (IsCharacterAnchor))
+			references.Add ((CreateLayerPng (referenceDocument, layer), GetAiReferenceFileName (layer, references.Count + 1)));
 			foreach (Gio.File file in options.Files)
 				references.Add (LoadReferenceImage (file));
 
@@ -86,13 +87,18 @@ public sealed partial class LayerActions
 				message => SaveCutoutDebugLog (debugDir, message),
 				cts.Token);
 
-			SetProgress (Translations.GetString ("Opening generated image..."), 0.85);
-			using Cairo.ImageSurface generated = LoadPngAsSurface (generatedPng, options.ImageSize);
+			SetProgress (Translations.GetString ("Creating generated image layer..."), 0.85);
 			if (options.Spritesheet is null) {
-				Document generatedDocument = workspace.NewDocumentFromImage (generated);
-				generatedDocument.Layers.CurrentUserLayer.Name = options.ResultLayerName;
+				UserLayer result = AddAiResultLayer (referenceDocument, options.ResultLayerName, options.ImageSize);
+				DrawPngOnLayer (generatedPng, result);
+				referenceDocument.History.PushNewItem (new AddLayerHistoryItem (
+					Resources.Icons.LayerNew,
+					options.ResultLayerName,
+					result,
+					referenceDocument.Layers.GetPosition (result)));
+				referenceDocument.Workspace.Invalidate ();
 			} else {
-				InsertSpritesheetAttempt (referenceDocument!, generatedPng, options.Spritesheet);
+				InsertSpritesheetAttempt (referenceDocument, generatedPng, options.Spritesheet);
 			}
 			SetProgress (Translations.GetString ("Refreshing balance..."), 0.95);
 			await PintaCore.AiAuth.RefreshAccountSummaryAsync (cts.Token);
@@ -103,7 +109,7 @@ public sealed partial class LayerActions
 			chrome.SetStatusBarText (Translations.GetString ("Image generation canceled."));
 		} catch (Exception ex) {
 			await chrome.ShowErrorDialog (
-				chrome.MainWindow,
+				progress.Window,
 				Translations.GetString ("Image Generation Failed"),
 				Translations.GetString ("Check the selected images, API server logs, balance, and login status, then try again."),
 				ex.ToString ());
@@ -204,7 +210,7 @@ public sealed partial class LayerActions
 			chrome.SetStatusBarText (Translations.GetString ("Background cleanup canceled."));
 		} catch (Exception ex) {
 			await chrome.ShowErrorDialog (
-				chrome.MainWindow,
+				progress.Window,
 				Translations.GetString ("Background Cleanup Failed"),
 				Translations.GetString ("Check the selected images, API server logs, balance, and login status, then try again."),
 				ex.ToString ());
@@ -329,7 +335,7 @@ public sealed partial class LayerActions
 			chrome.SetStatusBarText (Translations.GetString ("Cutout canceled."));
 		} catch (Exception ex) {
 			await chrome.ShowErrorDialog (
-				chrome.MainWindow,
+				progress.Window,
 				Translations.GetString ("Cutout Failed"),
 				Translations.GetString ("Check the selected API, server logs, balance, and image, then try again."),
 				ex.ToString ());
@@ -378,7 +384,7 @@ public sealed partial class LayerActions
 		Console.Error.WriteLine ("Pinta: {0} request failed\n{1}", operation, ex);
 
 		using Adw.MessageDialog confirmation = Adw.MessageDialog.New (
-			chrome.MainWindow,
+			chrome.ProgressDialog.Window,
 			operation,
 			$"{Translations.GetString ("The image request failed. Try the request again?")}\n\n{ex.Message}");
 		const string cancel_response = "cancel";
@@ -386,6 +392,7 @@ public sealed partial class LayerActions
 		confirmation.AddResponse (cancel_response, Translations.GetString ("_Cancel"));
 		confirmation.AddResponse (retry_response, Translations.GetString ("_Retry"));
 		confirmation.SetResponseAppearance (retry_response, Adw.ResponseAppearance.Suggested);
+		confirmation.Modal = true;
 		confirmation.DefaultResponse = retry_response;
 		confirmation.CloseResponse = cancel_response;
 		return await confirmation.RunAsync () == retry_response;
@@ -406,8 +413,8 @@ public sealed partial class LayerActions
 		serviceCombobox.Hexpand = true;
 
 		Gtk.ComboBoxText providerCombobox = Gtk.ComboBoxText.New ();
-		providerCombobox.AppendText (AI.AiRequestSettings.ZzswitchProvider);
-		providerCombobox.AppendText (AI.AiRequestSettings.LukyfaceProvider);
+		IReadOnlyList<AI.AiProviderInfo> gptProviders = GetGptImageProviders ();
+		PopulateProviderCombo (providerCombobox, gptProviders);
 		providerCombobox.Hexpand = true;
 		Gtk.Label providerLabel = CreateSettingsLabel (Translations.GetString ("GPT provider:"));
 
@@ -430,7 +437,6 @@ public sealed partial class LayerActions
 			AI.AiRequestSettings.BaiduService => 2,
 			_ => 1,
 		};
-		providerCombobox.Active = AI.AiRequestSettings.GetGptProvider (PintaCore.Settings) == AI.AiRequestSettings.ZzswitchProvider ? 0 : 1;
 
 		void UpdateVisibility ()
 		{
@@ -457,9 +463,9 @@ public sealed partial class LayerActions
 			2 => AI.AiRequestSettings.BaiduService,
 			_ => AI.AiRequestSettings.GptImageService,
 		};
-		string gptProvider = providerCombobox.Active == 0
-			? AI.AiRequestSettings.ZzswitchProvider
-			: AI.AiRequestSettings.LukyfaceProvider;
+		string gptProvider = imageService == AI.AiRequestSettings.GptImageService
+			? GetSelectedProvider (providerCombobox, gptProviders)
+			: AI.AiRequestSettings.GetGptProvider (PintaCore.Settings);
 		AI.AiRequestSettings.Save (PintaCore.Settings, imageService, gptProvider);
 		PintaCore.Settings.DoSaveSettingsBeforeQuit ();
 		return response == Gtk.ResponseType.Apply
@@ -532,9 +538,8 @@ public sealed partial class LayerActions
 		serviceCombobox.AppendText (Translations.GetString ("GPT Image"));
 		serviceCombobox.Active = AI.AiRequestSettings.GetImageService (PintaCore.Settings) == AI.AiRequestSettings.AgnesService ? 0 : 1;
 		Gtk.ComboBoxText providerCombobox = Gtk.ComboBoxText.New ();
-		providerCombobox.AppendText (AI.AiRequestSettings.ZzswitchProvider);
-		providerCombobox.AppendText (AI.AiRequestSettings.LukyfaceProvider);
-		providerCombobox.Active = AI.AiRequestSettings.GetGptProvider (PintaCore.Settings) == AI.AiRequestSettings.ZzswitchProvider ? 0 : 1;
+		IReadOnlyList<AI.AiProviderInfo> gptProviders = GetGptImageProviders ();
+		PopulateProviderCombo (providerCombobox, gptProviders);
 		Gtk.Label providerLabel = CreateSettingsLabel (Translations.GetString ("GPT provider:"));
 		AiImageSizePicker sizePicker = new ();
 
@@ -825,6 +830,7 @@ public sealed partial class LayerActions
 
 		if (await dialog.RunAsync () != Gtk.ResponseType.Ok)
 			return null;
+		dialog.Hide ();
 
 		List<UserLayer> layers = [];
 		foreach ((Gtk.CheckButton check, UserLayer layer) in layerChoices)
@@ -840,9 +846,9 @@ public sealed partial class LayerActions
 			string imageService = serviceCombobox.Active == 0
 				? AI.AiRequestSettings.AgnesService
 				: AI.AiRequestSettings.GptImageService;
-			string provider = providerCombobox.Active == 0
-				? AI.AiRequestSettings.ZzswitchProvider
-				: AI.AiRequestSettings.LukyfaceProvider;
+			string provider = imageService == AI.AiRequestSettings.GptImageService
+				? GetSelectedProvider (providerCombobox, gptProviders)
+				: AI.AiRequestSettings.GetGptProvider (PintaCore.Settings);
 			AI.AiRequestSettings.Save (PintaCore.Settings, imageService, provider);
 			PintaCore.Settings.DoSaveSettingsBeforeQuit ();
 		}
