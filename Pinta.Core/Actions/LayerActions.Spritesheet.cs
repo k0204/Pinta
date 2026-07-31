@@ -114,7 +114,23 @@ public sealed partial class LayerActions
 	{
 		attempt = source.Parent;
 		info = null;
-		if (attempt is not GroupLayer || !attempt.Metadata.TryGetValue (spritesheet_attempt_metadata, out string? json))
+		if (attempt is not GroupLayer)
+			return false;
+		if (!source.Metadata.TryGetValue (spritesheet_attempt_metadata, out string? json)
+			&& !attempt.Metadata.TryGetValue (spritesheet_attempt_metadata, out json))
+			return false;
+		try {
+			info = JsonSerializer.Deserialize<AI.SpritesheetAttemptInfo> (json);
+			return info is not null;
+		} catch (JsonException) {
+			return false;
+		}
+	}
+
+	private static bool TryGetSpritesheetAttemptInfo (UserLayer attempt, out AI.SpritesheetAttemptInfo? info)
+	{
+		info = null;
+		if (!attempt.Metadata.TryGetValue (spritesheet_attempt_metadata, out string? json))
 			return false;
 		try {
 			info = JsonSerializer.Deserialize<AI.SpritesheetAttemptInfo> (json);

@@ -14,6 +14,7 @@ internal sealed partial class SpritesheetSplitDialog : IDisposable
 	private const string grid_source_mode = "grid";
 	private readonly UserLayer source;
 	private readonly AI.SpritesheetAttemptInfo info;
+	private readonly IReadOnlyList<UserLayer> output_attempts;
 	private readonly Action<SpritesheetSplitData> save_analysis;
 	private readonly Gtk.Dialog dialog;
 	private readonly Gtk.Widget submit;
@@ -28,6 +29,7 @@ internal sealed partial class SpritesheetSplitDialog : IDisposable
 	private readonly Gtk.SpinButton canvas_width;
 	private readonly Gtk.SpinButton canvas_height;
 	private readonly Gtk.CheckButton align_character;
+	private readonly Gtk.ComboBoxText output_attempt;
 	private readonly Adw.ViewStack source_mode_stack;
 	private readonly Gtk.DrawingArea source_preview;
 	private readonly Gtk.DrawingArea frame_preview;
@@ -49,12 +51,14 @@ internal sealed partial class SpritesheetSplitDialog : IDisposable
 		Gtk.Window parent,
 		UserLayer source,
 		AI.SpritesheetAttemptInfo info,
+		IReadOnlyList<UserLayer> outputAttempts,
 		Func<string, Task<AI.SpriteSegmentationAnalysis>> analyze,
 		Action<SpritesheetSplitData> saveAnalysis,
 		SpritesheetSplitData? savedAnalysis)
 	{
 		this.source = source;
 		this.info = info;
+		output_attempts = outputAttempts;
 		this.analyze = analyze;
 		save_analysis = saveAnalysis;
 		dialog = Gtk.Dialog.New ();
@@ -80,6 +84,7 @@ internal sealed partial class SpritesheetSplitDialog : IDisposable
 		align_character = Gtk.CheckButton.NewWithLabel (
 			Translations.GetString ("Detect and align character registration"));
 		align_character.Active = true;
+		output_attempt = CreateOutputAttemptCombo ();
 		source_mode_stack = Adw.ViewStack.New ();
 
 		source_preview = CreatePreview (260);
@@ -133,6 +138,8 @@ internal sealed partial class SpritesheetSplitDialog : IDisposable
 			(Translations.GetString ("Canvas width:"), canvas_width),
 			(Translations.GetString ("Canvas height:"), canvas_height),
 		]));
+		panel.Append (CreateHeading (Translations.GetString ("Output attempt")));
+		panel.Append (output_attempt);
 		validation_label.Wrap = true;
 		validation_label.Halign = Gtk.Align.Start;
 		panel.Append (validation_label);
@@ -180,6 +187,7 @@ internal sealed partial class SpritesheetSplitDialog : IDisposable
 			spinner.OnValueChanged += (_, _) => ResetAnalysisAndRefresh ();
 		foreach (Gtk.SpinButton spinner in new[] { canvas_width, canvas_height })
 			spinner.OnValueChanged += (_, _) => ClampGuidesAndRefresh ();
+		output_attempt.OnChanged += (_, _) => Refresh ();
 		columns.OnValueChanged += (_, _) => ResetAnalysisAndRebuildFrames ();
 		rows.OnValueChanged += (_, _) => ResetAnalysisAndRebuildFrames ();
 		frame_list.OnRowSelected += (_, args) => SelectFrame (args.Row?.GetIndex () ?? 0);
@@ -309,6 +317,8 @@ internal sealed partial class SpritesheetSplitDialog : IDisposable
 	{
 		if (IsAiSourceMode && source_rectangles is null)
 			return Translations.GetString ("Run AI analysis to detect sprites.");
+		if (!OutputCanvasMatchesTarget ())
+			return Translations.GetString ("The output canvas must match the frames already in the selected attempt.");
 		return valid
 			? Translations.GetString ("{0} sprites will be created.", frames.Count)
 			: Translations.GetString ("The grid exceeds the source image, contains more than 256 cells, or the output canvases are too large.");
@@ -316,6 +326,8 @@ internal sealed partial class SpritesheetSplitDialog : IDisposable
 
 	private bool IsValid ()
 	{
+		if (!OutputCanvasMatchesTarget ())
+			return false;
 		if (IsAiSourceMode && source_rectangles is null)
 			return false;
 		if (source_rectangles is not null)

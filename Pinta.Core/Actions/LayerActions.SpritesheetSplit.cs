@@ -19,6 +19,7 @@ public sealed partial class LayerActions
 			chrome.MainWindow,
 			source,
 			info,
+			GetCompatibleSplitTargets (attempt, info),
 			provider => sprite_segmentation.AnalyzeAsync (
 				CreateSurfacePng (source.Surface),
 				source.Surface.Width,
@@ -31,7 +32,23 @@ public sealed partial class LayerActions
 			return;
 
 		tools.Commit ();
-		ApplySpritesheetSplit (document, attempt, source, info, split);
+		ApplySpritesheetSplit (document, attempt, source, info, split, dialog.OutputAttempt);
+	}
+
+	private static IReadOnlyList<UserLayer> GetCompatibleSplitTargets (
+		UserLayer sourceAttempt,
+		AI.SpritesheetAttemptInfo sourceInfo)
+	{
+		if (sourceAttempt.Parent is not UserLayer action)
+			return [];
+
+		return [.. action.Children.Where (candidate =>
+			candidate is GroupLayer
+			&& candidate != sourceAttempt
+			&& TryGetSpritesheetAttemptInfo (candidate, out AI.SpritesheetAttemptInfo? targetInfo)
+			&& targetInfo?.ActionId == sourceInfo.ActionId
+			&& targetInfo.FrameCount == sourceInfo.FrameCount
+			&& sourceInfo.DirectionIds.All (direction => candidate.Children.All (child => child.Name != direction)))];
 	}
 
 	private static void ApplySpritesheetSplit (
@@ -39,12 +56,19 @@ public sealed partial class LayerActions
 		UserLayer attempt,
 		UserLayer source,
 		AI.SpritesheetAttemptInfo info,
-		SpritesheetSplitData split)
+		SpritesheetSplitData split,
+		UserLayer? outputAttempt)
 	{
 		CompoundHistoryItem history = new (Resources.Icons.ImageCrop, Translations.GetString ("Split Spritesheet"));
-		bool newAttempt = attempt.Children.Any (child => child is GroupLayer);
-		if (newAttempt)
+		bool newAttempt = outputAttempt is null && attempt.Children.Any (child => child is GroupLayer);
+		if (outputAttempt is not null) {
+			attempt = outputAttempt;
+			source = CopySplitSource (document, attempt, source, info, split, history);
+			MergeAttemptDirections (attempt, info, history);
+		} else if (newAttempt) {
 			(attempt, source) = CreateResplitAttempt (document, attempt, source, history);
+		}
+		SaveFinalSplit (source, split, history, newAttempt || outputAttempt is not null);
 
 		UserLayer last = source;
 		foreach (IGrouping<string, int> group in Enumerable.Range (0, split.Frames.Count).GroupBy (cell => GetFrameGroupName (info, cell))) {
@@ -68,6 +92,71 @@ public sealed partial class LayerActions
 		document.Layers.SetCurrentUserLayer (last);
 		document.History.PushNewItem (history);
 		document.Workspace.Invalidate ();
+	}
+
+	private static UserLayer CopySplitSource (
+		Document document,
+		UserLayer attempt,
+		UserLayer original,
+		AI.SpritesheetAttemptInfo info,
+		SpritesheetSplitData split,
+		CompoundHistoryItem history)
+	{
+		UserLayer source = document.Layers.CreateLayer (
+			GetNextSourceName (attempt),
+			original.Surface.Width,
+			original.Surface.Height);
+		using (Cairo.Context context = new (source.Surface)) {
+			context.SetSourceSurface (original.Surface, 0, 0);
+			context.Paint ();
+		}
+		source.Hidden = original.Hidden;
+		foreach ((string key, string value) in original.Metadata)
+			source.Metadata.Add (key, value);
+		source.Metadata[spritesheet_attempt_metadata] = System.Text.Json.JsonSerializer.Serialize (info);
+		source.SpritesheetSplit = split;
+		document.Layers.Insert (source, new LayerPosition (attempt, attempt.Children.Count));
+		history.Push (CreateAddHistory (document, source));
+		return source;
+	}
+
+	private static string GetNextSourceName (UserLayer attempt)
+	{
+		int next = 2;
+		while (attempt.Children.Any (child => child.Name == $"source-sheet-{next:D2}"))
+			next++;
+		return $"source-sheet-{next:D2}";
+	}
+
+	private static void MergeAttemptDirections (
+		UserLayer attempt,
+		AI.SpritesheetAttemptInfo sourceInfo,
+		CompoundHistoryItem history)
+	{
+		if (!TryGetSpritesheetAttemptInfo (attempt, out AI.SpritesheetAttemptInfo? targetInfo) || targetInfo is null)
+			return;
+
+		string[] directions = [.. targetInfo.DirectionIds.Concat (sourceInfo.DirectionIds).Distinct ()];
+		string json = System.Text.Json.JsonSerializer.Serialize (targetInfo with { DirectionIds = directions });
+		history.Push (new SpritesheetMetadataHistoryItem (attempt, spritesheet_attempt_metadata, json));
+		SetMetadata (attempt, spritesheet_attempt_metadata, json);
+	}
+
+	private static void SaveFinalSplit (
+		UserLayer source,
+		SpritesheetSplitData split,
+		CompoundHistoryItem history,
+		bool sourceIsNew)
+	{
+		if (sourceIsNew || source.SpritesheetSplit == split) {
+			source.SpritesheetSplit = split;
+			return;
+		}
+		history.Push (new SpritesheetSplitHistoryItem (
+			source,
+			split,
+			Translations.GetString ("Split Spritesheet")));
+		source.SpritesheetSplit = split;
 	}
 
 	private static void SaveSpritesheetAnalysis (
@@ -129,6 +218,8 @@ public sealed partial class LayerActions
 			context.Paint ();
 		}
 		frame.Hidden = !placement.Visible;
+		frame.Metadata["pinta.spritesheet.source-layer"] = source.Name;
+		frame.Metadata["pinta.spritesheet.source-cell"] = (cell + 1).ToString (System.Globalization.CultureInfo.InvariantCulture);
 		frame.Surface.MarkDirty ();
 		return frame;
 	}

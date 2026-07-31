@@ -10,7 +10,7 @@ public sealed partial class LayerActions
 	private static void AlignSpriteFrame (Cairo.ImageSurface surface, string backgroundId, bool alignBaseline)
 	{
 		if (!TryGetSpriteBackground (backgroundId, out ColorBgra background)
-			|| !TryGetSpriteBounds (surface, background, out RectangleI bounds))
+			|| !TryGetSpriteBounds (surface, background, out RectangleI bounds, out bool transparentBackground))
 			return;
 
 		int shiftX = (surface.Width - bounds.Width) / 2 - bounds.X;
@@ -25,7 +25,7 @@ public sealed partial class LayerActions
 		using Cairo.ImageSurface source = surface.Clone ();
 		using Cairo.Context context = new (surface);
 		context.Operator = Cairo.Operator.Source;
-		context.SetSourceColor (background.ToCairoColor ());
+		context.SetSourceColor (transparentBackground ? new Cairo.Color (0, 0, 0, 0) : background.ToCairoColor ());
 		context.Paint ();
 		context.Operator = Cairo.Operator.Over;
 		context.SetSourceSurface (source, shiftX, shiftY);
@@ -36,16 +36,20 @@ public sealed partial class LayerActions
 	private static bool TryGetSpriteBounds (
 		Cairo.ImageSurface surface,
 		ColorBgra background,
-		out RectangleI bounds)
+		out RectangleI bounds,
+		out bool transparentBackground)
 	{
 		ReadOnlySpan<ColorBgra> pixels = surface.GetReadOnlyPixelData ();
+		transparentBackground = false;
 		int minX = surface.Width;
 		int minY = surface.Height;
 		int maxX = -1;
 		int maxY = -1;
 		for (int y = 0; y < surface.Height; y++) {
 			for (int x = 0; x < surface.Width; x++) {
-				if (!IsSpriteForeground (pixels[y * surface.Width + x], background))
+				ColorBgra color = pixels[y * surface.Width + x];
+				transparentBackground |= color.A <= 16;
+				if (!IsSpriteForeground (color, background))
 					continue;
 				minX = Math.Min (minX, x);
 				minY = Math.Min (minY, y);
