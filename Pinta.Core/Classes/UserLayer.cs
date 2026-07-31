@@ -67,6 +67,7 @@ public class UserLayer : Layer
 	public UserLayer? Parent { get; private set; }
 	public IReadOnlyList<UserLayer> Children => children;
 	public Dictionary<string, string> Metadata { get; } = [];
+	public SpritesheetSplitData? SpritesheetSplit { get; internal set; }
 	public bool HasChildren => children.Count > 0;
 	internal List<UserLayer> MutableChildren => children;
 	internal string? DocumentId { get; set; }

@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text.Json;
 
 namespace Pinta.Core;
 
@@ -24,8 +23,10 @@ public sealed partial class LayerActions
 				CreateSurfacePng (source.Surface),
 				source.Surface.Width,
 				source.Surface.Height,
-				provider));
-		SpritesheetSplitOptions? split = await dialog.RunAsync ();
+				provider),
+			split => SaveSpritesheetAnalysis (document, source, split),
+			source.SpritesheetSplit);
+		SpritesheetSplitData? split = await dialog.RunAsync ();
 		if (split is null)
 			return;
 
@@ -38,7 +39,7 @@ public sealed partial class LayerActions
 		UserLayer attempt,
 		UserLayer source,
 		AI.SpritesheetAttemptInfo info,
-		SpritesheetSplitOptions split)
+		SpritesheetSplitData split)
 	{
 		CompoundHistoryItem history = new (Resources.Icons.ImageCrop, Translations.GetString ("Split Spritesheet"));
 		bool newAttempt = attempt.Children.Any (child => child is GroupLayer);
@@ -59,13 +60,30 @@ public sealed partial class LayerActions
 				history.Push (CreateAddHistory (document, direction));
 		}
 
-		string splitJson = JsonSerializer.Serialize (split);
-		SpritesheetMetadataHistoryItem metadataHistory = new (attempt, spritesheet_split_metadata, splitJson);
-		SetMetadata (attempt, spritesheet_split_metadata, splitJson);
-		history.Push (metadataHistory);
+		history.Push (new SpritesheetSplitHistoryItem (
+			attempt,
+			split,
+			Translations.GetString ("Split Spritesheet")));
+		attempt.SpritesheetSplit = split;
 		document.Layers.SetCurrentUserLayer (last);
 		document.History.PushNewItem (history);
 		document.Workspace.Invalidate ();
+	}
+
+	private static void SaveSpritesheetAnalysis (
+		Document document,
+		UserLayer source,
+		SpritesheetSplitData split)
+	{
+		if (source.SpritesheetSplit == split)
+			return;
+
+		SpritesheetSplitHistoryItem history = new (
+			source,
+			split,
+			Translations.GetString ("Analyze Spritesheet"));
+		source.SpritesheetSplit = split;
+		document.History.PushNewItem (history);
 	}
 
 	private static (UserLayer Attempt, UserLayer Source) CreateResplitAttempt (
@@ -79,6 +97,7 @@ public sealed partial class LayerActions
 		GroupLayer attempt = document.Layers.CreateGroupLayer (GetNextAttemptName (action));
 		foreach ((string key, string value) in currentAttempt.Metadata)
 			attempt.Metadata.Add (key, value);
+		attempt.SpritesheetSplit = currentAttempt.SpritesheetSplit;
 
 		UserLayer source = document.Layers.CreateLayer ("source-sheet", currentSource.Surface.Width, currentSource.Surface.Height);
 		using (Cairo.Context context = new (source.Surface)) {
@@ -87,6 +106,7 @@ public sealed partial class LayerActions
 		}
 		foreach ((string key, string value) in currentSource.Metadata)
 			source.Metadata.Add (key, value);
+		source.SpritesheetSplit = currentSource.SpritesheetSplit;
 		attempt.InsertChild (0, source);
 		document.Layers.Insert (attempt, new LayerPosition (action, action.Children.Count));
 		history.Push (CreateAddHistory (document, attempt));
@@ -97,7 +117,7 @@ public sealed partial class LayerActions
 		Document document,
 		UserLayer source,
 		AI.SpritesheetAttemptInfo info,
-		SpritesheetSplitOptions split,
+		SpritesheetSplitData split,
 		int cell,
 		string name)
 	{
@@ -116,7 +136,7 @@ public sealed partial class LayerActions
 	internal static Cairo.ImageSurface CreateSplitFrameSurface (
 		UserLayer source,
 		AI.SpritesheetAttemptInfo info,
-		SpritesheetSplitOptions split,
+		SpritesheetSplitData split,
 		int cell)
 	{
 		RectangleI bounds = split.SourceRectangles is not null
@@ -132,7 +152,7 @@ public sealed partial class LayerActions
 		return crop;
 	}
 
-	private static RectangleI GetGridCellBounds (SpritesheetSplitOptions split, int cell)
+	private static RectangleI GetGridCellBounds (SpritesheetSplitData split, int cell)
 	{
 		int column = cell % split.Columns;
 		int row = cell / split.Columns;
@@ -154,5 +174,26 @@ public sealed partial class LayerActions
 		int expected = info.DirectionIds.Count * info.FrameCount;
 		int frame = cell < expected ? cell % info.FrameCount : cell - expected;
 		return $"frame-{frame + 1:D2}";
+	}
+
+	private sealed class SpritesheetSplitHistoryItem : BaseHistoryItem
+	{
+		private readonly UserLayer layer;
+		private readonly SpritesheetSplitData? old_value;
+		private readonly SpritesheetSplitData new_value;
+
+		public SpritesheetSplitHistoryItem (
+			UserLayer layer,
+			SpritesheetSplitData newValue,
+			string text)
+			: base (Resources.Icons.ImageCrop, text)
+		{
+			this.layer = layer;
+			old_value = layer.SpritesheetSplit;
+			new_value = newValue;
+		}
+
+		public override void Undo () => layer.SpritesheetSplit = old_value;
+		public override void Redo () => layer.SpritesheetSplit = new_value;
 	}
 }

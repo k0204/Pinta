@@ -29,7 +29,9 @@ public sealed class SpriteSegmentationService
 	{
 		if (string.IsNullOrWhiteSpace (provider))
 			throw new ArgumentException ("Sprite analysis provider is required.", nameof (provider));
-		string prompt = ReadPrompt ();
+		string prompt = $"{ReadPrompt ()}\n\n" +
+			$"The input image dimensions are exactly {imageWidth}x{imageHeight} pixels. " +
+			$"Return image_width={imageWidth} and image_height={imageHeight}; do not estimate them.";
 		string debugDirectory = CreateDebugDirectory ();
 		var request = new {
 			text = prompt,
@@ -52,9 +54,6 @@ public sealed class SpriteSegmentationService
 			?? throw new InvalidOperationException ("Sprite analysis JSON was empty.");
 		if (analysis.Items is null)
 			throw new InvalidOperationException ("Sprite analysis did not include items.");
-		analysis = IncludeFootAnchors (analysis);
-		Validate (analysis, analysis.ImageWidth, analysis.ImageHeight);
-		analysis = ScaleToSourceImage (analysis, imageWidth, imageHeight);
 		Validate (analysis, imageWidth, imageHeight);
 		return analysis with { Items = [.. analysis.Items.OrderBy (item => item.Index)] };
 	}
@@ -113,58 +112,6 @@ public sealed class SpriteSegmentationService
 		} catch (Exception ex) {
 			Console.WriteLine ($"Warning: failed to save sprite segmentation debug file '{fileName}': {ex.Message}");
 		}
-	}
-
-	private static SpriteSegmentationAnalysis ScaleToSourceImage (
-		SpriteSegmentationAnalysis analysis,
-		int imageWidth,
-		int imageHeight)
-	{
-		if (analysis.ImageWidth == imageWidth && analysis.ImageHeight == imageHeight)
-			return analysis;
-
-		double scaleX = imageWidth / (double) analysis.ImageWidth;
-		double scaleY = imageHeight / (double) analysis.ImageHeight;
-		return analysis with {
-			ImageWidth = imageWidth,
-			ImageHeight = imageHeight,
-			Items = [.. analysis.Items.Select (item => item with {
-				Bbox = ScaleBox (item.Bbox, scaleX, scaleY, imageWidth, imageHeight),
-				FootAnchor = new (item.FootAnchor.X * scaleX, item.FootAnchor.Y * scaleY),
-			})],
-		};
-	}
-
-	private static SpriteSegmentationBox ScaleBox (
-		SpriteSegmentationBox box,
-		double scaleX,
-		double scaleY,
-		int imageWidth,
-		int imageHeight)
-	{
-		int left = (int) Math.Floor (box.X * scaleX);
-		int top = (int) Math.Floor (box.Y * scaleY);
-		int right = Math.Min (imageWidth, (int) Math.Ceiling ((box.X + box.Width) * scaleX));
-		int bottom = Math.Min (imageHeight, (int) Math.Ceiling ((box.Y + box.Height) * scaleY));
-		return new (left, top, right - left, bottom - top);
-	}
-
-	private static SpriteSegmentationAnalysis IncludeFootAnchors (SpriteSegmentationAnalysis analysis)
-		=> analysis with {
-			Items = [.. analysis.Items.Select (item => item with {
-				Bbox = IncludePoint (item.Bbox, item.FootAnchor),
-			})],
-		};
-
-	private static SpriteSegmentationBox IncludePoint (
-		SpriteSegmentationBox box,
-		SpriteSegmentationPoint point)
-	{
-		int left = Math.Min (box.X, (int) Math.Floor (point.X));
-		int top = Math.Min (box.Y, (int) Math.Floor (point.Y));
-		int right = Math.Max (box.X + box.Width, (int) Math.Ceiling (point.X));
-		int bottom = Math.Max (box.Y + box.Height, (int) Math.Ceiling (point.Y));
-		return new (left, top, right - left, bottom - top);
 	}
 
 	private static void Validate (SpriteSegmentationAnalysis analysis, int imageWidth, int imageHeight)

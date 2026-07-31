@@ -71,6 +71,7 @@ internal sealed partial class SpritesheetSplitDialog
 		validation_label.SetText (Translations.GetString ("Analyzing sprite bounds..."));
 		try {
 			ApplyAnalysis (await analyze (providers[provider.Active].Id));
+			save_analysis (ReadOptions ());
 			validation_label.SetText (Translations.GetString ("Smart analysis found {0} sprites.", frames.Count));
 		} catch (Exception ex) {
 			validation_label.AddCssClass (AdwaitaStyles.Error);
@@ -110,6 +111,37 @@ internal sealed partial class SpritesheetSplitDialog
 		ApplyAnchorAlignment (analysis.Items);
 		Refresh ();
 	}
+
+	private bool TryRestoreAnalysis (SpritesheetSplitData? split)
+	{
+		if (split?.SourceRectangles is not { Count: > 0 } rectangles
+			|| rectangles.Count > max_frames
+			|| split.Frames is not { } savedFrames
+			|| savedFrames.Count != rectangles.Count
+			|| split.CanvasWidth is < 1 or > 16384
+			|| split.CanvasHeight is < 1 or > 16384
+			|| rectangles.Count * (long) split.CanvasWidth * split.CanvasHeight > max_output_pixels
+			|| rectangles.Any (IsInvalidSourceRectangle))
+			return false;
+
+		source_mode_stack.VisibleChildName = ai_source_mode;
+		source_rectangles = [.. rectangles];
+		canvas_width.Value = split.CanvasWidth;
+		canvas_height.Value = split.CanvasHeight;
+		align_character.Active = split.AlignCharacter;
+		frames.AddRange (savedFrames.Select (frame => new EditableFrame {
+			X = frame.X,
+			Y = frame.Y,
+			Visible = frame.Visible,
+		}));
+		RebuildFrames (rectangles.Count);
+		return true;
+	}
+
+	private bool IsInvalidSourceRectangle (RectangleI rectangle)
+		=> rectangle.X < 0 || rectangle.Y < 0 || rectangle.Width <= 0 || rectangle.Height <= 0
+			|| (long) rectangle.X + rectangle.Width > source.Surface.Width
+			|| (long) rectangle.Y + rectangle.Height > source.Surface.Height;
 
 	private void ChangeSourceMode ()
 	{

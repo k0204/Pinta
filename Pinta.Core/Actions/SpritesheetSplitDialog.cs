@@ -6,23 +6,6 @@ using Cairo;
 
 namespace Pinta.Core;
 
-internal sealed record SpritesheetFrameSplit (int X, int Y, bool Visible);
-
-internal sealed record SpritesheetSplitOptions (
-	int Columns,
-	int Rows,
-	int CellWidth,
-	int CellHeight,
-	int OffsetX,
-	int OffsetY,
-	int GapX,
-	int GapY,
-	int CanvasWidth,
-	int CanvasHeight,
-	bool AlignCharacter,
-	IReadOnlyList<SpritesheetFrameSplit> Frames,
-	IReadOnlyList<RectangleI>? SourceRectangles);
-
 internal sealed partial class SpritesheetSplitDialog : IDisposable
 {
 	private const int max_frames = 256;
@@ -31,6 +14,7 @@ internal sealed partial class SpritesheetSplitDialog : IDisposable
 	private const string grid_source_mode = "grid";
 	private readonly UserLayer source;
 	private readonly AI.SpritesheetAttemptInfo info;
+	private readonly Action<SpritesheetSplitData> save_analysis;
 	private readonly Gtk.Dialog dialog;
 	private readonly Gtk.Widget submit;
 	private readonly Gtk.SpinButton columns;
@@ -65,11 +49,14 @@ internal sealed partial class SpritesheetSplitDialog : IDisposable
 		Gtk.Window parent,
 		UserLayer source,
 		AI.SpritesheetAttemptInfo info,
-		Func<string, Task<AI.SpriteSegmentationAnalysis>> analyze)
+		Func<string, Task<AI.SpriteSegmentationAnalysis>> analyze,
+		Action<SpritesheetSplitData> saveAnalysis,
+		SpritesheetSplitData? savedAnalysis)
 	{
 		this.source = source;
 		this.info = info;
 		this.analyze = analyze;
+		save_analysis = saveAnalysis;
 		dialog = Gtk.Dialog.New ();
 		dialog.Title = Translations.GetString ("Split Spritesheet");
 		dialog.TransientFor = parent;
@@ -111,13 +98,14 @@ internal sealed partial class SpritesheetSplitDialog : IDisposable
 
 		BuildContent ();
 		ConnectEvents ();
-		RebuildFrames ();
+		if (!TryRestoreAnalysis (savedAnalysis))
+			RebuildFrames ();
 		Refresh ();
 	}
 
 	public void Dispose () => dialog.Dispose ();
 
-	public async Task<SpritesheetSplitOptions?> RunAsync ()
+	public async Task<SpritesheetSplitData?> RunAsync ()
 		=> await dialog.RunAsync () == Gtk.ResponseType.Ok ? ReadOptions () : null;
 
 	private void BuildContent ()
@@ -343,7 +331,7 @@ internal sealed partial class SpritesheetSplitDialog : IDisposable
 
 	private bool IsAiSourceMode => source_mode_stack.VisibleChildName == ai_source_mode;
 
-	private SpritesheetSplitOptions ReadOptions ()
+	private SpritesheetSplitData ReadOptions ()
 		=> new (
 			(int) columns.Value, (int) rows.Value, (int) cell_width.Value, (int) cell_height.Value,
 			(int) offset_x.Value, (int) offset_y.Value, (int) gap_x.Value, (int) gap_y.Value,

@@ -593,6 +593,7 @@ public sealed partial class DocumentLayers
 		layer.Transform = source.Transform.Clone ();
 		foreach ((string key, string value) in source.Metadata)
 			layer.Metadata.Add (key, value);
+		layer.SpritesheetSplit = source.SpritesheetSplit;
 
 		foreach (UserLayer child in source.Children)
 			layer.InsertChild (layer.Children.Count, DuplicateLayerTree (child));

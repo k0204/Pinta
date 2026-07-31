@@ -8,7 +8,6 @@ namespace Pinta.Core;
 public sealed partial class LayerActions
 {
 	private const string spritesheet_attempt_metadata = "pinta.spritesheet.attempt";
-	private const string spritesheet_split_metadata = "pinta.spritesheet.split";
 	private const string spritesheet_anchor_metadata = "pinta.spritesheet.character-anchor";
 
 	private async void HandlePintaCoreActionsLayersGenerateSpritesheetActivated (object sender, EventArgs e)

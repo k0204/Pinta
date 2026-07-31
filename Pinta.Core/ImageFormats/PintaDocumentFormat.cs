@@ -146,6 +146,7 @@ public sealed class PintaDocumentFormat : IImageImporter, IImageExporter
 			SurfaceHeight = layer is GroupLayer ? null : layer.Surface.Height,
 			ReferencePath = layer.ReferencePath,
 			Metadata = new (layer.Metadata),
+			SpritesheetSplit = layer.SpritesheetSplit,
 			Transform = new () {
 				Xx = xAxis.X - origin.X,
 				Yx = xAxis.Y - origin.Y,
@@ -206,6 +207,7 @@ public sealed class PintaDocumentFormat : IImageImporter, IImageExporter
 			layer.Expanded = node.Expanded;
 			foreach ((string key, string value) in node.Metadata)
 				layer.Metadata.Add (key, value);
+			layer.SpritesheetSplit = node.SpritesheetSplit;
 			layer.Transform = CairoExtensions.CreateMatrix (
 				node.Transform.Xx,
 				node.Transform.Xy,
