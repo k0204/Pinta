@@ -530,7 +530,7 @@ public sealed partial class LayerActions
 				: string.Empty,
 			-1);
 		Gtk.ScrolledWindow promptScroll = Gtk.ScrolledWindow.New ();
-		promptScroll.HeightRequest = 110;
+		promptScroll.HeightRequest = spritesheetMode ? 240 : 110;
 		promptScroll.SetChild (promptView);
 
 		Gtk.ComboBoxText serviceCombobox = Gtk.ComboBoxText.New ();

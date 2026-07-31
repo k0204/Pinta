@@ -74,8 +74,6 @@ public sealed partial class LayersListView
 		factory.OnBind += HandleFactoryBind;
 
 		Gtk.ListView listView = Gtk.ListView.New (selectionModel, factory);
-		listView.CanFocus = false;
-		listView.OnActivate += HandleRowActivated;
 
 		Gtk.DrawingArea dragPreviewThumbnail = Gtk.DrawingArea.New ();
 		dragPreviewThumbnail.SetSizeRequest (60, 40);
@@ -141,6 +139,7 @@ public sealed partial class LayersListView
 		Gtk.SignalListItemFactory.SetupSignalArgs args)
 	{
 		var item = (Gtk.ListItem) args.Object;
+		item.Focusable = false;
 		LayersListViewItemWidget widget = LayersListViewItemWidget.New ();
 		widget.LayerDragEnded += HandleLayerDragEnded;
 		widget.LayerDragUpdated += HandleLayerDragUpdated;
@@ -189,24 +188,12 @@ public sealed partial class LayersListView
 		}
 	}
 
-	private void HandleRowActivated (
-		Gtk.ListView sender,
-		Gtk.ListView.ActivateSignalArgs args)
-	{
-		var modelItem = (LayersListViewItem) list_model.GetObject (args.Position)!;
-		LayersListViewItemWidget? widget = row_widgets.FirstOrDefault (widget => widget.UserLayer == modelItem.UserLayer);
-		if (widget is not null) {
-			GLib.Functions.IdleAdd (GLib.Constants.PRIORITY_DEFAULT_IDLE, () => {
-				if (widget.UserLayer == modelItem.UserLayer)
-					widget.BeginRename ();
-				return false;
-			});
-		}
-	}
-
 	private void HandleLayerSelectionRequested (object? sender, LayerSelectionEventArgs e)
 	{
 		ArgumentNullException.ThrowIfNull (active_document);
+		foreach (LayersListViewItemWidget widget in row_widgets)
+			if (widget.UserLayer != e.Layer)
+				widget.CommitRename ();
 
 		int index = FindModelIndex (e.Layer);
 		bool shift = e.Modifiers.IsShiftPressed ();

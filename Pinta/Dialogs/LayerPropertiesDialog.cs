@@ -47,7 +47,8 @@ public sealed partial class LayerPropertiesDialog
 	private Gtk.Scale opacity_slider;
 	private Gtk.ComboBoxText blend_combo_box;
 
-	private WorkspaceManager workspace = null!; // NRT - set by factory method
+	private Document document = null!; // NRT - set by factory method
+	private UserLayer layer = null!; // NRT - set by factory method
 
 	[MemberNotNull (nameof (layer_name_entry))]
 	[MemberNotNull (nameof (visibility_checkbox))]
@@ -143,24 +144,23 @@ public sealed partial class LayerPropertiesDialog
 		opacity_slider = opacitySlider;
 	}
 
-	public static LayerPropertiesDialog New (IChromeService chrome, WorkspaceManager workspace)
+	public static LayerPropertiesDialog New (IChromeService chrome, Document document, UserLayer layer)
 	{
 		LayerPropertiesDialog dialog = NewWithProperties ([]);
-		dialog.Configure (chrome, workspace);
+		dialog.Configure (chrome, document, layer);
 		return dialog;
 	}
 
-	private void Configure (IChromeService chrome, WorkspaceManager workspace)
+	private void Configure (IChromeService chrome, Document document, UserLayer layer)
 	{
-		this.workspace = workspace;
+		this.document = document;
+		this.layer = layer;
 		TransientFor = chrome.MainWindow;
 
-		Document doc = workspace.ActiveDocument;
-
-		string currentLayerName = doc.Layers.CurrentUserLayer.Name;
-		bool currentLayerHidden = doc.Layers.CurrentUserLayer.Hidden;
-		double currentLayerOpacity = doc.Layers.CurrentUserLayer.Opacity;
-		BlendMode currentLayerBlendMode = doc.Layers.CurrentUserLayer.BlendMode;
+		string currentLayerName = layer.Name;
+		bool currentLayerHidden = layer.Hidden;
+		double currentLayerOpacity = layer.Opacity;
+		BlendMode currentLayerBlendMode = layer.BlendMode;
 
 		LayerProperties initialProperties = new (
 			currentLayerName,
@@ -203,23 +203,19 @@ public sealed partial class LayerPropertiesDialog
 
 	private void OnLayerNameChanged (object? sender, EventArgs e)
 	{
-		Document doc = workspace.ActiveDocument;
 		current_layer_name = layer_name_entry.GetText ();
-		doc.Layers.CurrentUserLayer.Name = current_layer_name;
+		layer.Name = current_layer_name;
 	}
 
 	private void OnVisibilityToggled (object? sender, EventArgs e)
 	{
-		Document doc = workspace.ActiveDocument;
-
 		current_layer_hidden = !visibility_checkbox.Active;
+		layer.Hidden = current_layer_hidden;
 
-		doc.Layers.CurrentUserLayer.Hidden = current_layer_hidden;
+		if (document.Layers.CurrentUserLayer == layer)
+			document.Layers.SelectionLayer.Hidden = layer.Hidden;
 
-		if (doc.Layers.SelectionLayer != null)
-			doc.Layers.SelectionLayer.Hidden = doc.Layers.CurrentUserLayer.Hidden; // Update Visibility for SelectionLayer and force redraw
-
-		workspace.Invalidate ();
+		document.Workspace.Invalidate ();
 	}
 
 	private void OnOpacitySliderChanged (object? sender, EventArgs e)
@@ -236,31 +232,25 @@ public sealed partial class LayerPropertiesDialog
 
 	private void UpdateOpacity ()
 	{
-		Document doc = workspace.ActiveDocument;
-
 		//TODO check redraws are being throttled.
 		current_layer_opacity = opacity_spinner.Value / 100d;
+		layer.Opacity = current_layer_opacity;
 
-		doc.Layers.CurrentUserLayer.Opacity = current_layer_opacity;
+		if (document.Layers.CurrentUserLayer == layer)
+			document.Layers.SelectionLayer.Opacity = layer.Opacity;
 
-		if (doc.Layers.SelectionLayer != null)
-			doc.Layers.SelectionLayer.Opacity = doc.Layers.CurrentUserLayer.Opacity; // Update Opacity for SelectionLayer and force redraw
-
-		workspace.Invalidate ();
+		document.Workspace.Invalidate ();
 	}
 
 	private void OnBlendModeChanged (object? sender, EventArgs e)
 	{
-		Document doc = workspace.ActiveDocument;
-
 		current_layer_blend_mode = UserBlendOps.GetBlendModeByName (blend_combo_box.GetActiveText ()!);
+		layer.BlendMode = current_layer_blend_mode;
 
-		doc.Layers.CurrentUserLayer.BlendMode = current_layer_blend_mode;
+		if (document.Layers.CurrentUserLayer == layer)
+			document.Layers.SelectionLayer.BlendMode = layer.BlendMode;
 
-		if (doc.Layers.SelectionLayer != null)
-			doc.Layers.SelectionLayer.BlendMode = doc.Layers.CurrentUserLayer.BlendMode; //Update BlendMode for SelectionLayer and force redraw
-
-		workspace.Invalidate ();
+		document.Workspace.Invalidate ();
 	}
 }
 

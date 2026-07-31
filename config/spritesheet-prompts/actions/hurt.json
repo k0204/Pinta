@@ -1,9 +1,9 @@
 {
   "id": "hurt",
-  "label": "Hurt",
+  "label": "受伤",
   "defaultFrameCount": 4,
   "order": 60,
   "loop": false,
-  "keyPoses": ["neutral entry", "impact recoil", "peak reaction", "controlled recovery"],
-  "prompt": "Create a short readable hurt reaction: neutral entry, impact recoil, peak reaction, and controlled recovery. Preserve anatomy and costume details; do not introduce wounds or effects not requested by the user."
+  "keyPoses": ["中立进入", "受击后仰", "反应峰值", "受控恢复"],
+  "prompt": "创建简短清晰的受伤反应：中立进入、受击后仰、反应峰值和受控恢复。\n保留解剖结构和服装细节；不要添加用户未要求的伤口或特效。"
 }

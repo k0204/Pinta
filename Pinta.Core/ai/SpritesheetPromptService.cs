@@ -63,7 +63,7 @@ public sealed class SpritesheetPromptCatalog
 	{
 		string root = Path.Combine (AppContext.BaseDirectory, "config", config_directory);
 		CommonPromptConfig common = ReadJson<CommonPromptConfig> (Path.Combine (root, "common.json"));
-		DirectionPromptConfig direction = ReadJson<DirectionPromptConfig> (Path.Combine (root, "direction-sheet.json"));
+		string directionPrompt = ReadPrompt (Path.Combine (root, "direction-sheet.txt"));
 		string actionsDirectory = Path.Combine (root, "actions");
 		if (!Directory.Exists (actionsDirectory))
 			throw new InvalidOperationException ($"Spritesheet action prompt directory was not found: {actionsDirectory}");
@@ -81,8 +81,8 @@ public sealed class SpritesheetPromptCatalog
 			.OrderBy (action => action.Order)
 			.ToArray ();
 
-		Validate (common, direction, actions);
-		return new (common, direction.Prompt, actions);
+		Validate (common, directionPrompt, actions);
+		return new (common, directionPrompt, actions);
 	}
 
 	public string BuildPrompt (
@@ -111,30 +111,30 @@ public sealed class SpritesheetPromptCatalog
 			: BuildActionPrompt (actionId, customAction, framesPerDirection)];
 
 		sections.Add (directionSheet
-			? $"Generate {selectedDirections.Length} canonical direction views, one frame per direction."
-			: $"Use exactly {framesPerDirection} frames for every selected direction. Total animation frames: {totalFrames}.");
+			? $"生成 {selectedDirections.Length} 个标准方向视图。\n每个方向 1 帧。"
+			: $"每个选中方向严格使用 {framesPerDirection} 帧。\n动画总帧数：{totalFrames}。");
 		if (!directionSheet)
 			sections.Add (
-				"For each frame index, every selected direction must show the same normalized animation phase and semantic key pose. "
-				+ "Change only the viewing direction; keep timing, contact state, body mechanics, held objects, "
-				+ "and action intensity equivalent across directions.");
+				"同一帧序号下，所有选中方向必须表现相同的标准化动画阶段和语义关键姿势。\n"
+				+ "只改变观察方向。\n"
+				+ "各方向的时序、接触状态、身体力学、手持物和动作强度必须一致。");
 
 		List<string> directionLines = [];
 		int firstCell = 1;
 		foreach (SpritesheetDirection direction in selectedDirections) {
 			int lastCell = firstCell + framesPerDirection - 1;
-			string cells = firstCell == lastCell ? $"cell {firstCell}" : $"cells {firstCell}-{lastCell}";
-			directionLines.Add ($"- {cells}: {direction.Label}. {direction.Prompt}");
+			string cells = firstCell == lastCell ? $"单元格 {firstCell}" : $"单元格 {firstCell}-{lastCell}";
+			directionLines.Add ($"- {cells}：{direction.Label}\n  {direction.Prompt}");
 			firstCell = lastCell + 1;
 		}
-		sections.Add ($"Direction and cell assignment (fixed row-major order):\n{string.Join (Environment.NewLine, directionLines)}");
+		sections.Add ($"方向与单元格分配（固定行优先顺序）：\n{string.Join (Environment.NewLine, directionLines)}");
 
 		int unusedCells = columns * rows - totalFrames;
 		sections.Add (
-			$"Output one {imageSize.Width}x{imageSize.Height} raster spritesheet arranged as {columns} columns x {rows} rows. "
-			+ "Number cells from 1 at the top-left, moving left-to-right and then top-to-bottom. "
-			+ "Every cell must have identical dimensions."
-			+ (unusedCells > 0 ? $" Leave the final {unusedCells} unused cell(s) completely empty except for the selected background." : string.Empty));
+			$"输出一张 {imageSize.Width}x{imageSize.Height} 的光栅精灵图，排列为 {columns} 列 x {rows} 行。\n"
+			+ "从左上角的 1 号单元格开始编号，先从左到右，再从上到下。\n"
+			+ "所有单元格尺寸必须完全相同。"
+			+ (unusedCells > 0 ? $"\n最后 {unusedCells} 个未使用的单元格除选定背景外必须完全留空。" : string.Empty));
 		sections.Add (common.SharedRules);
 		sections.Add (background.Prompt);
 		sections.Add (common.ForbiddenContent);
@@ -170,7 +170,7 @@ public sealed class SpritesheetPromptCatalog
 		SpritesheetActionPreset action = Actions.FirstOrDefault (item => item.Id == actionId)
 			?? throw new InvalidOperationException ($"Unknown spritesheet action: {actionId}");
 		string prompt = action.Id == "custom"
-			? $"{action.Prompt}\nCustom action: {customAction.Trim ()}"
+			? $"{action.Prompt}\n自定义动作：{customAction.Trim ()}"
 			: action.Prompt;
 		return $"{prompt}\n{BuildFramePlan (action, frameCount)}";
 	}
@@ -185,9 +185,9 @@ public sealed class SpritesheetPromptCatalog
 			int pose = action.Loop
 				? Math.Min ((int) (phase * action.KeyPoses.Count), action.KeyPoses.Count - 1)
 				: (int) Math.Round (phase * (action.KeyPoses.Count - 1));
-			frames.Add ($"- frame {frame + 1}: phase {phase:0.###}; {action.KeyPoses[pose]}");
+			frames.Add ($"- 第 {frame + 1} 帧：阶段 {phase:0.###}；{action.KeyPoses[pose]}");
 		}
-		return $"Frame plan for every direction (fixed):\n{string.Join (Environment.NewLine, frames)}";
+		return $"所有方向统一使用以下固定帧计划：\n{string.Join (Environment.NewLine, frames)}";
 	}
 
 	private static T ReadJson<T> (string path)
@@ -202,9 +202,19 @@ public sealed class SpritesheetPromptCatalog
 		}
 	}
 
+	private static string ReadPrompt (string path)
+	{
+		if (!File.Exists (path))
+			throw new InvalidOperationException ($"Spritesheet prompt file was not found: {path}");
+		string prompt = File.ReadAllText (path).Trim ();
+		if (string.IsNullOrWhiteSpace (prompt))
+			throw new InvalidOperationException ($"Spritesheet prompt file is empty: {path}");
+		return prompt;
+	}
+
 	private static void Validate (
 		CommonPromptConfig common,
-		DirectionPromptConfig direction,
+		string directionPrompt,
 		IReadOnlyList<SpritesheetActionPreset> actions)
 	{
 		if (string.IsNullOrWhiteSpace (common.SharedRules) || string.IsNullOrWhiteSpace (common.ForbiddenContent))
@@ -213,7 +223,7 @@ public sealed class SpritesheetPromptCatalog
 			throw new InvalidOperationException ("Spritesheet prompts must define exactly eight valid directions.");
 		if (common.Backgrounds.Count != 3 || common.Backgrounds.All (item => item.Id != "white"))
 			throw new InvalidOperationException ("Spritesheet prompts must define white, magenta, and green backgrounds.");
-		if (string.IsNullOrWhiteSpace (direction.Prompt))
+		if (string.IsNullOrWhiteSpace (directionPrompt))
 			throw new InvalidOperationException ("Direction sheet prompt cannot be empty.");
 		if (actions.Count != 8 || actions.Any (item => item.DefaultFrameCount is < 1 or > 16
 			|| string.IsNullOrWhiteSpace (item.Prompt)
@@ -231,11 +241,6 @@ public sealed class SpritesheetPromptCatalog
 		public string ForbiddenContent { get; set; } = string.Empty;
 		public List<SpritesheetDirection> Directions { get; set; } = [];
 		public List<SpritesheetBackground> Backgrounds { get; set; } = [];
-	}
-
-	private sealed class DirectionPromptConfig
-	{
-		public string Prompt { get; set; } = string.Empty;
 	}
 
 	private sealed class ActionPromptConfig

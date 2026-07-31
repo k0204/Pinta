@@ -81,9 +81,7 @@ internal sealed class PasteAction : IActionHandler
 
 		PointD canvasPos = doc.Workspace.ViewPointToCanvas (viewPoint);
 
-		// Paste into the active document.
-		// The 'false' argument indicates that paste should be
-		// performed into the current (not a new) layer.
+		// Allow the current tool to consume text; image paste reuses only an empty layer.
 		Paste (
 			actions: actions,
 			chrome: chrome,
@@ -98,8 +96,8 @@ internal sealed class PasteAction : IActionHandler
 	/// <summary>
 	/// Pastes an image from the clipboard.
 	/// </summary>
-	/// <param name="toNewLayer">Set to TRUE to paste into a
-	/// new layer.  Otherwise, will paste to the current layer.</param>
+	/// <param name="toNewLayer">Whether to always create a new layer. Otherwise, an empty
+	/// current layer is reused.</param>
 	/// <param name="x">Optional. Location within image to paste to.
 	/// Position will be adjusted if pasted image would hang
 	/// over right or bottom edges of canvas.</param>
@@ -117,11 +115,6 @@ internal sealed class PasteAction : IActionHandler
 	{
 		if (!toNewLayer && !doc.Layers.CurrentUserLayer.IsEditable)
 			return;
-
-		// Create a compound history item for recording several
-		// operations so that they can all be undone/redone together.
-		var history_text = toNewLayer ? Translations.GetString ("Paste Into New Layer") : Translations.GetString ("Paste");
-		CompoundHistoryItem paste_action = new (Resources.StandardIcons.EditPaste, history_text);
 
 		var cb = GdkExtensions.GetDefaultClipboard ();
 
@@ -142,6 +135,12 @@ internal sealed class PasteAction : IActionHandler
 		}
 
 		Cairo.ImageSurface cb_image = cb_texture.ToSurface ();
+		bool create_new_layer = toNewLayer || LayerHasContent (doc.Layers.CurrentUserLayer);
+		CompoundHistoryItem paste_action = new (
+			Resources.StandardIcons.EditPaste,
+			create_new_layer
+				? Translations.GetString ("Paste Into New Layer")
+				: Translations.GetString ("Paste"));
 
 		var canvas_size = workspace.ImageSize;
 
@@ -171,9 +170,7 @@ internal sealed class PasteAction : IActionHandler
 			Y: Math.Clamp (pastePosition.Y, 0, Math.Max (0, canvas_size.Height - cb_image.Height))
 		);
 
-		// If requested, create a new layer, make it the current
-		// layer and record it's creation in the history
-		if (toNewLayer) {
+		if (create_new_layer) {
 			var l = doc.Layers.AddNewLayer (string.Empty);
 			paste_action.Push (new AddLayerHistoryItem (Resources.Icons.LayerNew, Translations.GetString ("Add New Layer"), l, doc.Layers.GetPosition (l)));
 		}
@@ -204,6 +201,16 @@ internal sealed class PasteAction : IActionHandler
 
 		paste_action.Push (new PasteHistoryItem (cb_image, old_selection));
 		doc.History.PushNewItem (paste_action);
+	}
+
+	private static bool LayerHasContent (UserLayer layer)
+	{
+		foreach (ColorBgra pixel in layer.Surface.GetReadOnlyPixelData ()) {
+			if (pixel.A != 0)
+				return true;
+		}
+
+		return false;
 	}
 
 	public static Task ShowClipboardEmptyDialog (ChromeManager chrome)

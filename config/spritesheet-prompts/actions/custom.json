@@ -1,9 +1,9 @@
 {
   "id": "custom",
-  "label": "Custom",
+  "label": "自定义",
   "defaultFrameCount": 8,
   "order": 80,
   "loop": false,
-  "keyPoses": ["clear starting pose", "anticipation", "main action", "peak action", "follow-through", "clear ending pose"],
-  "prompt": "Create a coherent animation sequence for the custom action described below. Show clear anticipation, readable key poses, consistent in-betweens, and an appropriate ending or loop transition."
+  "keyPoses": ["明确的起始姿势", "预备", "主要动作", "动作峰值", "随动", "明确的结束姿势"],
+  "prompt": "为下方描述的自定义动作创建连贯的动画序列。\n表现清晰的预备动作、易读的关键姿势、一致的中间帧，以及合适的结束姿势或循环过渡。"
 }

@@ -14,6 +14,8 @@ The server deducts user balance according to `config/usageCosts.json` in the API
 - `/api/chat`: default cost configured by the server
 
 Requests with insufficient balance return `402 Payment Required`.
+There are no daily, monthly, or concurrent job-count limits. A valid request is accepted
+when the account balance covers its configured usage cost.
 
 ## Image Job Retention
 
@@ -72,7 +74,7 @@ All requests in this section include `Authorization: Bearer <token>`.
 
 - Method: `GET`
 - Path: `/api/me/plan`
-- Response JSON includes `daily_jobs_remaining`, `monthly_jobs_remaining`, upload limits, concurrency limits, and allowed operations.
+- Response JSON includes job usage, upload limits, and allowed operations. The daily, monthly, and concurrent job limit fields are `null` because job counts are unlimited.
 - Client behavior: not used by the current Pinta account display.
 
 ## Character Border Recognition
@@ -176,7 +178,7 @@ All requests in this section include `Authorization: Bearer <token>`.
   - `provider`: optional provider ID (`agnes`, `zzswitch`, or `lukyface`); omitted values use the server default
 - Response: `202 Accepted` with an image job object. The client polls the standard image job endpoints.
 - Result JSON includes `operation`, `provider`, `model`, `text`, `finish_reason`, and `usage`.
-- `/api/chat` is a generic pass-through: it does not select prompts, request a JSON schema, or parse model text. Smart spritesheet analysis lists the catalog entries with `supports_chat=true`, persists that selection independently from image generation settings, loads its prompt specification from `config/sprite-segmentation-prompt.json`, and sends the selected `source-sheet` PNG as the first `image_base64` array item. Pinta saves each request and response under `ai-sprite-segmentation-logs/<timestamp>/` in the application directory (`request.png`, `request.json`, `accepted.json`, `status.json`, and `result.json`); `request.json` includes the selected `provider`. It parses the returned text as JSON, expands each bounding box when needed to include its returned foot anchor, scales vision-model coordinates from the reported `image_width` and `image_height` to the source PNG dimensions, and validates the returned sprite count, unique indices, bounding boxes, and foot anchors before using each `items[].bbox` as a source crop. `foot_anchor` must be an object containing numeric `x` and `y`; other shapes are rejected. AI analysis does not request or consume grid dimensions or cell positions; the returned `items` are authoritative and sorted by `index`. It aligns output canvases from `items[].foot_anchor`.
+- `/api/chat` is a generic pass-through: it does not select prompts, request a JSON schema, or parse model text. Smart spritesheet analysis lists the catalog entries with `supports_chat=true`, persists that selection independently from image generation settings, loads its prompt text from `config/sprite-segmentation-prompt.txt`, and sends the selected `source-sheet` PNG as the first `image_base64` array item. Pinta saves each request and response under `ai-sprite-segmentation-logs/<timestamp>/` in the application directory (`request.png`, `request.json`, `accepted.json`, `status.json`, and `result.json`); `request.json` includes the selected `provider`. It parses the returned text as JSON, expands each bounding box when needed to include its returned foot anchor, scales vision-model coordinates from the reported `image_width` and `image_height` to the source PNG dimensions, and validates the returned sprite count, unique indices, bounding boxes, and foot anchors before using each `items[].bbox` as a source crop. `foot_anchor` must be an object containing numeric `x` and `y`; other shapes are rejected. AI analysis does not request or consume grid dimensions or cell positions; the returned `items` are authoritative and sorted by `index`. It aligns output canvases from `items[].foot_anchor`.
 
 ## Baidu Human Segmentation
 
@@ -215,5 +217,5 @@ All client requests in this section include `Authorization: Bearer <token>`. Bai
 - After the user marks an approved direction-sheet `source-sheet` as the character anchor, it is selected by default as `character-anchor.png` for later action requests. It remains a normal repeated `reference_files` part; multipart order and endpoint behavior are unchanged.
 - Manual grid splitting is local and sends no API request; AI analysis uses `/api/chat` with the provider selected in the split dialog. The two source extraction modes are separate tabs. Grid mode allows independent row/column counts, cell size, offsets, and gaps. AI mode creates one frame for each returned item and uses its bounding box and foot anchor, including for sparse sheets with empty grid positions. Both modes share output-canvas sizing, frame visibility, X/Y placement, preview dragging, and guides. Character registration correction is enabled by default for manual grids; AI analysis uses the returned foot anchors instead. Re-splitting an attempt that already has direction groups creates a new attempt and preserves the original source and frames.
 - Cutout of a spritesheet frame continues to use the existing Agnes, GPT Image, or Baidu endpoint. The client sends only that frame at its configured output-canvas size and creates a numbered `frame-NN-cutout-NN` sibling without replacing the original frame.
-- Spritesheet prompt rules are loaded from `config/spritesheet-prompts/`: shared direction/background rules are in `common.json`, direction-sheet rules are in `direction-sheet.json`, and each action has its own file under `actions/`. The assembled prompt remains editable and is sent unchanged.
+- Spritesheet prompt rules are loaded from `config/spritesheet-prompts/`: shared direction/background rules are in `common.json`, direction-sheet prompt text is in `direction-sheet.txt`, and each action has its own file under `actions/`. The assembled prompt remains editable and is sent unchanged.
 - If the document size is unsupported, the client chooses the closest supported size that can contain it, pads the source image equally on each side to center it, and center-crops the result back to the document size. It only resizes as a fallback when a provider returns an unexpected size.

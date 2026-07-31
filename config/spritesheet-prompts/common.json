@@ -1,19 +1,19 @@
 {
-  "sharedRules": "Treat the supplied character-anchor reference as the authoritative identity, costume, palette, proportions, asymmetry, and direction reference when present. Do not redesign or simplify the character. Preserve the character's own left/right anatomy and asymmetric details; never swap the weapon hand, accessories, hair part, armor, markings, or costume sides. Use the same invisible registration coordinates in every cell: the character root axis is at exactly 50% of the cell width and the ground line is at exactly 96% of the cell height. Keep the midpoint of the planted-foot contact area on that root axis. Keep the projection, camera elevation, lens, framing, cell origin, character scale, lighting, and rendering style fixed; rotate only the character to the requested direction. For grounded actions keep the ground-contact anchor fixed. For airborne actions keep the ground line and camera fixed while allowing the body to move vertically above it. Every cell must show the complete subject inside its boundaries with clean separation from adjacent cells.",
-  "forbiddenContent": "No text, labels, captions, borders, grid lines, guides, watermarks, cast shadows, reflections, scenery, extra characters, cropped limbs, duplicated subjects, camera movement, random position shifts, scale changes, stretching, squashing, or style drift.",
+  "sharedRules": "参考图中的角色锚点是身份、服装、配色、比例、不对称细节和方向的唯一依据。\n不要重新设计或简化角色。\n保留角色自身的左右解剖结构和不对称细节；不得交换持武器的手、配饰、发缝、护甲、标记或服装左右侧。\n每个单元格使用完全相同的隐形注册坐标：角色根轴位于单元格宽度的 50%，地面线位于单元格高度的 96%。\n着地脚接触区域的中点必须位于根轴上。\n固定投影、相机高度、镜头、构图、单元格原点、角色缩放、光照和渲染风格；只将角色旋转到要求的方向。\n着地动作保持地面接触锚点固定。\n空中动作保持地面线和相机固定，只允许身体在其上方垂直移动。\n每个单元格必须完整显示主体，边界清晰，不得与相邻单元格粘连。",
+  "forbiddenContent": "禁止文字、标签、说明、边框、网格线、辅助线、水印、投影、反射、场景、额外角色、被裁切的四肢、重复主体、相机移动、随机位置偏移、缩放变化、拉伸、压缩或风格漂移。",
   "directions": [
-    { "id": "down", "label": "Down / front", "prompt": "The character faces directly toward the camera while retaining the intended top-down or three-quarter game view." },
-    { "id": "down-left", "label": "Down-left / front-left", "prompt": "The character faces diagonally toward the front-left with a clear, consistent three-quarter silhouette." },
-    { "id": "left", "label": "Left", "prompt": "The character faces strictly left in a readable side view." },
-    { "id": "up-left", "label": "Up-left / back-left", "prompt": "The character faces diagonally away toward the back-left with a clear, consistent three-quarter silhouette." },
-    { "id": "up", "label": "Up / back", "prompt": "The character faces directly away from the camera with the back view clearly visible." },
-    { "id": "up-right", "label": "Up-right / back-right", "prompt": "The character faces diagonally away toward the back-right with a clear, consistent three-quarter silhouette." },
-    { "id": "right", "label": "Right", "prompt": "The character faces strictly right in a readable side view." },
-    { "id": "down-right", "label": "Down-right / front-right", "prompt": "The character faces diagonally toward the front-right with a clear, consistent three-quarter silhouette." }
+    { "id": "down", "label": "下 / 正面", "prompt": "角色正面朝向相机，同时保持预期的俯视或三分之二游戏视角。" },
+    { "id": "down-left", "label": "左下 / 左前方", "prompt": "角色斜向左前方，保持清晰且一致的三分之二侧面轮廓。" },
+    { "id": "left", "label": "左侧", "prompt": "角色严格朝向左侧，使用清晰易读的侧面视图。" },
+    { "id": "up-left", "label": "左上 / 左后方", "prompt": "角色斜向远离相机的左后方，保持清晰且一致的三分之二侧面轮廓。" },
+    { "id": "up", "label": "上 / 背面", "prompt": "角色背对相机，必须清晰显示背面。" },
+    { "id": "up-right", "label": "右上 / 右后方", "prompt": "角色斜向远离相机的右后方，保持清晰且一致的三分之二侧面轮廓。" },
+    { "id": "right", "label": "右侧", "prompt": "角色严格朝向右侧，使用清晰易读的侧面视图。" },
+    { "id": "down-right", "label": "右下 / 右前方", "prompt": "角色斜向右前方，保持清晰且一致的三分之二侧面轮廓。" }
   ],
   "backgrounds": [
-    { "id": "white", "label": "White", "prompt": "Use a perfectly uniform pure white (#FFFFFF) background in every cell." },
-    { "id": "magenta", "label": "Magenta", "prompt": "Use a perfectly uniform pure magenta (#FF00FF) chroma-key background in every cell." },
-    { "id": "green", "label": "Green", "prompt": "Use a perfectly uniform pure green (#00FF00) chroma-key background in every cell." }
+    { "id": "white", "label": "白色", "prompt": "每个单元格使用完全均匀的纯白色（#FFFFFF）背景。" },
+    { "id": "magenta", "label": "洋红色", "prompt": "每个单元格使用完全均匀的纯洋红色（#FF00FF）抠像背景。" },
+    { "id": "green", "label": "绿色", "prompt": "每个单元格使用完全均匀的纯绿色（#00FF00）抠像背景。" }
   ]
 }

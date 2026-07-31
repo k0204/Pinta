@@ -1,9 +1,9 @@
 {
   "id": "walk",
-  "label": "Walk",
+  "label": "行走",
   "defaultFrameCount": 8,
   "order": 20,
   "loop": true,
-  "keyPoses": ["contact", "down", "passing", "up", "opposite contact", "opposite down", "opposite passing", "opposite up"],
-  "prompt": "Create a seamless walk cycle with coherent contact, down, passing, up, opposite contact, opposite down, opposite passing, and opposite up poses. Feet and hips must describe a believable gait. Keep the root registered and avoid sliding, floating, or random pose variants."
+  "keyPoses": ["接触", "下沉", "经过", "抬升", "反侧接触", "反侧下沉", "反侧经过", "反侧抬升"],
+  "prompt": "创建无缝循环的行走动画，依次包含接触、下沉、经过、抬升、反侧接触、反侧下沉、反侧经过和反侧抬升姿势。\n双脚和髋部必须形成可信的步态。\n保持根位置注册固定，避免滑动、漂浮或随机姿势变化。"
 }

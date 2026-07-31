@@ -1,9 +1,9 @@
 {
   "id": "jump",
-  "label": "Jump",
+  "label": "跳跃",
   "defaultFrameCount": 8,
   "order": 50,
   "loop": false,
-  "keyPoses": ["anticipation", "takeoff", "ascent", "apex", "descent", "landing", "compression", "recovery"],
-  "prompt": "Create one complete jump sequence: anticipation, takeoff, ascent, apex, descent, landing, compression, and recovery. Keep the camera fixed and express vertical movement through the pose while maintaining consistent cell registration."
+  "keyPoses": ["预备", "起跳", "上升", "顶点", "下降", "落地", "压缩", "恢复"],
+  "prompt": "创建一套完整的跳跃序列：预备、起跳、上升、顶点、下降、落地、压缩和恢复。\n保持相机固定，通过姿势表现垂直运动，同时保持单元格注册一致。"
 }

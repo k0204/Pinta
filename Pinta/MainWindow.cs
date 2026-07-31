@@ -39,7 +39,7 @@ using Pinta.Resources;
 
 namespace Pinta;
 
-internal sealed class MainWindow
+internal sealed partial class MainWindow
 {
 	readonly Adw.Application app;
 	// NRT - Created in OnActivated
@@ -142,6 +142,12 @@ internal sealed class MainWindow
 		key_controller.OnKeyPressed += HandleGlobalKeyPress;
 		key_controller.OnKeyReleased += HandleGlobalKeyRelease;
 		window_shell.Window.AddController (key_controller);
+
+		var click_controller = Gtk.GestureClick.New ();
+		click_controller.SetButton (GtkExtensions.MOUSE_LEFT_BUTTON);
+		click_controller.SetPropagationPhase (Gtk.PropagationPhase.Capture);
+		click_controller.OnPressed += HandleGlobalPointerPressed;
+		window_shell.Window.AddController (click_controller);
 
 		// TODO: These need to be [re]moved when we redo zoom support
 		PintaCore.Actions.View.ZoomToWindow.Activated += ZoomToWindow_Activated;
@@ -300,7 +306,7 @@ internal sealed class MainWindow
 	{
 		// Give the widget that has focus a first shot at handling the event.
 		// Otherwise, key presses may be intercepted by shortcuts for menu items.
-		if (SendToFocusWidget (controller))
+		if (HandleFocusedEntryShortcut (args) || SendToFocusWidget (controller))
 			return true;
 
 		// Give the Canvas (and by extension the tools)

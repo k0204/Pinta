@@ -1,4 +1,3 @@
-using System;
 using Pinta.Core;
 
 namespace Pinta.Gui.Widgets;
@@ -12,15 +11,37 @@ public sealed partial class LayersListViewItemWidget
 
 	private Gtk.Widget CreateNameEditor (Gtk.Label label)
 	{
+		Gtk.GestureClick renameGesture = Gtk.GestureClick.New ();
+		renameGesture.SetButton (GtkExtensions.MOUSE_LEFT_BUTTON);
+		renameGesture.OnPressed += (_, args) => {
+			if (args.NPress != 2)
+				return;
+
+			renameGesture.SetState (Gtk.EventSequenceState.Claimed);
+			UserLayer? layer = item?.UserLayer;
+			GLib.Functions.IdleAdd (GLib.Constants.PRIORITY_DEFAULT_IDLE, () => {
+				if (item?.UserLayer == layer)
+					BeginRename ();
+				return false;
+			});
+		};
+		label.AddController (renameGesture);
+
 		Gtk.Entry entry = Gtk.Entry.New ();
 		entry.Hexpand = true;
 		entry.OnActivate += (_, _) => CommitRename ();
+		(entry.GetFirstChild () ?? entry).OnMap += (_, _) =>
+			GLib.Functions.IdleAdd (GLib.Constants.PRIORITY_DEFAULT_IDLE, () => {
+				FocusNameEntry (entry);
+				return false;
+			});
 
 		Gtk.EventControllerFocus focus = Gtk.EventControllerFocus.New ();
 		focus.OnLeave += (_, _) => CommitRename ();
 		entry.AddController (focus);
 
 		Gtk.EventControllerKey keys = Gtk.EventControllerKey.New ();
+		keys.SetPropagationPhase (Gtk.PropagationPhase.Capture);
 		keys.OnKeyPressed += HandleRenameKeyPressed;
 		entry.AddController (keys);
 
@@ -42,8 +63,16 @@ public sealed partial class LayersListViewItemWidget
 
 		name_entry.SetText (item.UserLayer.Name);
 		name_editor.VisibleChildName = "entry";
-		name_entry.GrabFocus ();
-		name_entry.SelectRegion (0, (int) name_entry.TextLength);
+	}
+
+	private void FocusNameEntry (Gtk.Entry entry)
+	{
+		if (name_entry != entry || !IsRenaming)
+			return;
+
+		Gtk.Widget target = entry.GetFirstChild () ?? entry;
+		entry.GetRoot ()?.SetFocus (target);
+		entry.SelectRegion (0, (int) entry.TextLength);
 	}
 
 	private bool HandleRenameKeyPressed (
@@ -58,7 +87,7 @@ public sealed partial class LayersListViewItemWidget
 		return true;
 	}
 
-	private void CommitRename ()
+	internal void CommitRename ()
 	{
 		if (name_editor?.VisibleChildName != "entry" || item?.UserLayer is not UserLayer layer)
 			return;

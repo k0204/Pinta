@@ -57,30 +57,32 @@ internal sealed class LayerPropertiesAction : IActionHandler
 	private async void Activated (object sender, EventArgs e)
 	{
 		Document active = workspace.ActiveDocument;
-		using LayerPropertiesDialog dialog = LayerPropertiesDialog.New (chrome, workspace);
+		UserLayer layer = active.Layers.CurrentUserLayer;
+		using LayerPropertiesDialog dialog = LayerPropertiesDialog.New (chrome, active, layer);
 		try {
 			Gtk.ResponseType response = await dialog.RunAsync ();
 
 			if (response == Gtk.ResponseType.Ok && dialog.AreLayerPropertiesUpdated) {
 				UpdateLayerPropertiesHistoryItem historyItem = GetLayerUpdateHistoryItem (
-					active.Layers.CurrentUserLayer,
+					layer,
 					dialog.InitialLayerProperties,
 					dialog.UpdatedLayerProperties);
 
 				active.History.PushNewItem (historyItem);
 
-				workspace.ActiveWorkspace.Invalidate ();
+				active.Workspace.Invalidate ();
 			} else {
-				Layer layer = active.Layers.CurrentUserLayer;
-				Layer selectionLayer = active.Layers.SelectionLayer;
 				LayerProperties initial = dialog.InitialLayerProperties;
+				bool redraw = layer.Opacity != initial.Opacity
+					|| layer.BlendMode != initial.BlendMode
+					|| layer.Hidden != initial.Hidden;
 				initial.SetProperties (layer);
 
-				if (selectionLayer != null)
-					initial.SetProperties (selectionLayer);
+				if (active.Layers.CurrentUserLayer == layer)
+					initial.SetProperties (active.Layers.SelectionLayer);
 
-				if ((layer.Opacity != initial.Opacity) || (layer.BlendMode != initial.BlendMode) || (layer.Hidden != initial.Hidden))
-					workspace.ActiveWorkspace.Invalidate ();
+				if (redraw)
+					active.Workspace.Invalidate ();
 			}
 		} finally {
 			dialog.Destroy ();

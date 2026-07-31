@@ -1,9 +1,9 @@
 {
   "id": "idle",
-  "label": "Idle",
+  "label": "待机",
   "defaultFrameCount": 8,
   "order": 10,
   "loop": true,
-  "keyPoses": ["neutral breathing pose", "slight inhale and weight rise", "neutral transition", "slight exhale and weight settle"],
-  "prompt": "Create a seamless idle animation loop. Animate only restrained breathing, subtle weight settling, blinking, and secondary hair or clothing motion. Keep both feet planted and the root fixed. The last frame must lead naturally into the first without duplicating a held final frame."
+  "keyPoses": ["中立呼吸姿势", "轻微吸气并抬高重心", "中立过渡", "轻微呼气并下沉重心"],
+  "prompt": "创建无缝循环的待机动画。\n只表现克制的呼吸、轻微重心变化、眨眼以及头发或服装的次级运动。\n双脚保持着地，根位置保持固定。\n最后一帧必须自然衔接第一帧，不得复制静止的末帧。"
 }

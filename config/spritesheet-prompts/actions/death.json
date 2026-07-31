@@ -1,9 +1,9 @@
 {
   "id": "death",
-  "label": "Death",
+  "label": "倒下",
   "defaultFrameCount": 8,
   "order": 70,
   "loop": false,
-  "keyPoses": ["standing", "initial hit", "loss of balance", "fall begins", "mid-fall", "ground contact", "settling", "stable final pose"],
-  "prompt": "Create a non-looping defeat sequence from standing through loss of balance and collapse to a stable final pose. Maintain anatomical continuity and keep the complete body visible in every cell. Do not include gore unless explicitly requested."
+  "keyPoses": ["站立", "初次受击", "失去平衡", "开始倒下", "倒下过程", "接触地面", "稳定过程", "稳定终止姿势"],
+  "prompt": "创建非循环的倒下序列：从站立开始，经过失去平衡和倒下，最终形成稳定姿势。\n保持解剖结构连续，并在每个单元格中完整显示身体。\n除非用户明确要求，否则不要包含血腥内容。"
 }

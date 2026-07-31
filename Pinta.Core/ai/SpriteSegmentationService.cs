@@ -11,7 +11,7 @@ namespace Pinta.Core.AI;
 
 public sealed class SpriteSegmentationService
 {
-	private const string prompt_config_file = "sprite-segmentation-prompt.json";
+	private const string prompt_config_file = "sprite-segmentation-prompt.txt";
 
 	private readonly AiJobService jobs;
 
@@ -47,7 +47,7 @@ public sealed class SpriteSegmentationService
 		string json = result.RootElement.GetProperty ("text").GetString ()
 			?? throw new InvalidOperationException ("Sprite analysis response did not include JSON text.");
 		SpriteSegmentationAnalysis analysis = JsonSerializer.Deserialize<SpriteSegmentationAnalysis> (
-			json,
+			UnwrapJsonCodeFence (json),
 			new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
 			?? throw new InvalidOperationException ("Sprite analysis JSON was empty.");
 		if (analysis.Items is null)
@@ -59,14 +59,31 @@ public sealed class SpriteSegmentationService
 		return analysis with { Items = [.. analysis.Items.OrderBy (item => item.Index)] };
 	}
 
+	private static string UnwrapJsonCodeFence (string response)
+	{
+		string json = response.Trim ();
+		if (!json.StartsWith ("```", StringComparison.Ordinal) ||
+			!json.EndsWith ("```", StringComparison.Ordinal))
+			return json;
+
+		int contentStart = json.IndexOf ('\n');
+		if (contentStart < 0)
+			return json;
+
+		string fence = json[..contentStart].TrimEnd ('\r');
+		if (fence != "```" && !fence.Equals ("```json", StringComparison.OrdinalIgnoreCase))
+			return json;
+
+		return json[(contentStart + 1)..^3].Trim ();
+	}
+
 	private static string ReadPrompt ()
 	{
 		string path = Path.Combine (AppContext.BaseDirectory, "config", prompt_config_file);
-		using JsonDocument config = JsonDocument.Parse (File.ReadAllText (path));
-		if (!config.RootElement.TryGetProperty ("prompt", out JsonElement value) ||
-			value.GetString () is not string prompt || string.IsNullOrWhiteSpace (prompt))
+		string prompt = File.ReadAllText (path).Trim ();
+		if (string.IsNullOrWhiteSpace (prompt))
 			throw new InvalidOperationException ($"Sprite segmentation prompt is missing: {path}");
-		return prompt.Trim ();
+		return prompt;
 	}
 
 	private static string CreateDebugDirectory ()

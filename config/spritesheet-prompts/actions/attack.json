@@ -1,9 +1,9 @@
 {
   "id": "attack",
-  "label": "Attack",
+  "label": "攻击",
   "defaultFrameCount": 8,
   "order": 40,
   "loop": false,
-  "keyPoses": ["starting stance", "anticipation", "wind-up", "strike", "impact", "follow-through", "recovery", "return to starting stance"],
-  "prompt": "Create one complete attack sequence: anticipation, wind-up, strike, impact, follow-through, recovery, and return to the starting stance. Preserve weapon and hand continuity. Do not add detached effects unless they are explicitly present in the reference."
+  "keyPoses": ["起始姿势", "预备", "蓄力", "出击", "命中", "随动", "恢复", "回到起始姿势"],
+  "prompt": "创建一套完整的攻击序列：预备、蓄力、出击、命中、随动、恢复并回到起始姿势。\n保持武器和手部动作连续。\n除非参考图中明确存在，否则不要添加脱离角色的特效。"
 }
