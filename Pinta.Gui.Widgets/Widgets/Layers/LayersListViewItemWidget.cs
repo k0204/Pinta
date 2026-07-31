@@ -508,10 +508,17 @@ public sealed partial class LayersListViewItemWidget
                 disclosure_button.IconName = item.CanExpand ? (item.Expanded ? "pan-down-symbolic" : "pan-end-symbolic") : string.Empty;
 			bool isGroup = item.UserLayer is GroupLayer;
 			bool isReference = item.UserLayer?.IsReference == true;
+			bool isSpritesheetAnchor = item.UserLayer?.IsSpritesheetOutputAnchor == true;
 			item_thumbnail.Visible = !isGroup;
-			layer_icon.IconName = isGroup ? Resources.StandardIcons.Folder : isReference ? "object-locked-symbolic" : string.Empty;
+			layer_icon.IconName = isSpritesheetAnchor
+				? Resources.Icons.SpritesheetAnchor
+				: isGroup ? Resources.StandardIcons.Folder : isReference ? "object-locked-symbolic" : string.Empty;
+			layer_icon.RemoveCssClass ("spritesheet-anchor-icon");
+			if (isSpritesheetAnchor)
+				layer_icon.AddCssClass ("spritesheet-anchor-icon");
 			layer_icon.TooltipText = isReference
 				? item.UserLayer!.ReferenceMissing ? Translations.GetString ("Referenced image is missing") : Translations.GetString ("Referenced layer is locked")
+				: isSpritesheetAnchor ? Translations.GetString ("Spritesheet anchor")
 				: null;
 			layer_icon.Visible = isGroup || isReference;
 			cutout_button.Sensitive = item.UserLayer?.IsEditable == true;

@@ -6,6 +6,8 @@ namespace Pinta.Core;
 
 public sealed partial class LayerActions
 {
+	private const string split_frames_group_name = "frames";
+
 	private async void HandlePintaCoreActionsLayersSplitSpritesheetActivated (object sender, EventArgs e)
 	{
 		Document document = workspace.ActiveDocument;
@@ -45,10 +47,11 @@ public sealed partial class LayerActions
 		return [.. action.Children.Where (candidate =>
 			candidate is GroupLayer
 			&& candidate != sourceAttempt
+			&& candidate.Children.Any (child => child is GroupLayer && child.Name == split_frames_group_name)
 			&& TryGetSpritesheetAttemptInfo (candidate, out AI.SpritesheetAttemptInfo? targetInfo)
 			&& targetInfo?.ActionId == sourceInfo.ActionId
 			&& targetInfo.FrameCount == sourceInfo.FrameCount
-			&& sourceInfo.DirectionIds.All (direction => candidate.Children.All (child => child.Name != direction)))];
+			&& sourceInfo.DirectionIds.All (direction => candidate.GetSelfAndDescendants ().All (child => child.Name != direction)))];
 	}
 
 	private static void ApplySpritesheetSplit (
@@ -70,6 +73,21 @@ public sealed partial class LayerActions
 		}
 		SaveFinalSplit (source, split, history, newAttempt || outputAttempt is not null);
 
+		GroupLayer? frames = attempt.Children
+			.OfType<GroupLayer> ()
+			.FirstOrDefault (child => child.Name == split_frames_group_name);
+		bool newFramesGroup = frames is null;
+		frames ??= document.Layers.CreateGroupLayer (
+			split_frames_group_name,
+			1,
+			1);
+		frames.Metadata[SpritesheetLayerMetadata.OutputCanvas] = "true";
+		frames.SpritesheetSplit = split;
+		List<(UserLayer Layer, Cairo.Matrix Transform)> oldTransforms = newFramesGroup
+			? []
+			: [.. GetOutputCanvasLayers (frames).Select (layer => (layer, layer.Transform.Clone ()))];
+		Cairo.Matrix anchor_transform = SpritesheetLayerMetadata.CreateAnchorTransform (document.ImageSize);
+		Cairo.Matrix canvas_transform = CreateOutputCanvasTransform (document, split);
 		UserLayer last = source;
 		foreach (IGrouping<string, int> group in Enumerable.Range (0, split.Frames.Count).GroupBy (cell => GetFrameGroupName (info, cell))) {
 			GroupLayer direction = document.Layers.CreateGroupLayer (group.Key);
@@ -79,9 +97,21 @@ public sealed partial class LayerActions
 				direction.InsertChild (direction.Children.Count, frame);
 				last = frame;
 			}
-			document.Layers.Insert (direction, new LayerPosition (attempt, attempt.Children.Count));
+			if (newFramesGroup)
+				frames.InsertChild (frames.Children.Count, direction);
+			else {
+				document.Layers.Insert (direction, new LayerPosition (frames, frames.Children.Count));
+				if (!newAttempt)
+					history.Push (CreateAddHistory (document, direction));
+			}
+		}
+		ApplyOutputCanvasTransform (frames, anchor_transform, canvas_transform);
+		if (oldTransforms.Count > 0)
+			history.Push (new SpritesheetTransformsHistoryItem (oldTransforms));
+		if (newFramesGroup) {
+			document.Layers.Insert (frames, new LayerPosition (attempt, attempt.Children.Count));
 			if (!newAttempt)
-				history.Push (CreateAddHistory (document, direction));
+			history.Push (CreateAddHistory (document, frames));
 		}
 
 		history.Push (new SpritesheetSplitHistoryItem (
@@ -92,6 +122,31 @@ public sealed partial class LayerActions
 		document.Layers.SetCurrentUserLayer (last);
 		document.History.PushNewItem (history);
 		document.Workspace.Invalidate ();
+	}
+
+	private static Cairo.Matrix CreateOutputCanvasTransform (Document document, SpritesheetSplitData split)
+		=> SpritesheetLayerMetadata.CreateOutputTransform (
+			document.ImageSize,
+			new Size (split.CanvasWidth, split.CanvasHeight));
+
+	private static void ApplyOutputCanvasTransform (
+		UserLayer frames,
+		Cairo.Matrix anchorTransform,
+		Cairo.Matrix canvasTransform)
+	{
+		// Rendering currently flattens image descendants without inheriting the group transform.
+		frames.Transform = anchorTransform;
+		foreach (UserLayer layer in frames.GetSelfAndDescendants ())
+			if (layer is not GroupLayer)
+				layer.Transform = canvasTransform.Clone ();
+	}
+
+	private static IEnumerable<UserLayer> GetOutputCanvasLayers (UserLayer frames)
+	{
+		yield return frames;
+		foreach (UserLayer layer in frames.GetSelfAndDescendants ())
+			if (layer != frames && layer is not GroupLayer)
+				yield return layer;
 	}
 
 	private static UserLayer CopySplitSource (
@@ -286,5 +341,34 @@ public sealed partial class LayerActions
 
 		public override void Undo () => layer.SpritesheetSplit = old_value;
 		public override void Redo () => layer.SpritesheetSplit = new_value;
+	}
+
+	private sealed class SpritesheetTransformsHistoryItem : BaseHistoryItem
+	{
+		private readonly IReadOnlyList<(
+			UserLayer Layer,
+			Cairo.Matrix OldTransform,
+			Cairo.Matrix NewTransform)> transforms;
+
+		public SpritesheetTransformsHistoryItem (
+			IReadOnlyList<(UserLayer Layer, Cairo.Matrix Transform)> oldTransforms)
+		{
+			transforms = [.. oldTransforms.Select (item => (
+				item.Layer,
+				item.Transform,
+				item.Layer.Transform.Clone ()))];
+		}
+
+		public override void Undo ()
+		{
+			foreach ((UserLayer layer, Cairo.Matrix transform, _) in transforms)
+				layer.Transform = transform.Clone ();
+		}
+
+		public override void Redo ()
+		{
+			foreach ((UserLayer layer, _, Cairo.Matrix transform) in transforms)
+				layer.Transform = transform.Clone ();
+		}
 	}
 }

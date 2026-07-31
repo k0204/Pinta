@@ -186,7 +186,10 @@ internal sealed partial class SpritesheetSplitDialog : IDisposable
 		foreach (Gtk.SpinButton spinner in new[] { cell_width, cell_height, offset_x, offset_y, gap_x, gap_y })
 			spinner.OnValueChanged += (_, _) => ResetAnalysisAndRefresh ();
 		foreach (Gtk.SpinButton spinner in new[] { canvas_width, canvas_height })
-			spinner.OnValueChanged += (_, _) => ClampGuidesAndRefresh ();
+			spinner.OnValueChanged += (_, _) => {
+				RepositionFramesAroundAnchor ();
+				ClampGuidesAndRefresh ();
+			};
 		output_attempt.OnChanged += (_, _) => Refresh ();
 		columns.OnValueChanged += (_, _) => ResetAnalysisAndRebuildFrames ();
 		rows.OnValueChanged += (_, _) => ResetAnalysisAndRebuildFrames ();
@@ -234,6 +237,8 @@ internal sealed partial class SpritesheetSplitDialog : IDisposable
 		}
 
 		selected_frame = Math.Clamp (selected_frame, 0, frames.Count - 1);
+		if (!IsAiSourceMode)
+			ApplyGridPlacement ();
 		frame_list.SelectRow (frame_list.GetRowAtIndex (selected_frame));
 		SelectFrame (selected_frame);
 		Refresh ();
@@ -247,7 +252,8 @@ internal sealed partial class SpritesheetSplitDialog : IDisposable
 		visible.Halign = Gtk.Align.Fill;
 		visible.OnToggled += (_, _) => {
 			frame.Visible = visible.Active;
-			frame_list.SelectRow (frame_list.GetRowAtIndex (index));
+			if (visible.Active)
+				frame_list.SelectRow (frame_list.GetRowAtIndex (index));
 			Refresh ();
 		};
 		frame_list.Append (visible);
@@ -262,16 +268,30 @@ internal sealed partial class SpritesheetSplitDialog : IDisposable
 		frame_x.Value = frames[selected_frame].X;
 		frame_y.Value = frames[selected_frame].Y;
 		syncing = false;
-		previous_frame.Sensitive = selected_frame > 0;
-		next_frame.Sensitive = selected_frame < frames.Count - 1;
+		previous_frame.Sensitive = FindVisibleFrame (selected_frame, -1) >= 0;
+		next_frame.Sensitive = FindVisibleFrame (selected_frame, 1) >= 0;
 		Refresh ();
+	}
+
+	private int FindVisibleFrame (int from, int direction)
+	{
+		int i = from + direction;
+		while (i >= 0 && i < frames.Count) {
+			if (frames[i].Visible)
+				return i;
+			i += direction;
+		}
+		return -1;
 	}
 
 	private void MoveFrameSelection (int offset)
 	{
 		if (frames.Count == 0)
 			return;
-		Gtk.ListBoxRow? row = frame_list.GetRowAtIndex (Math.Clamp (selected_frame + offset, 0, frames.Count - 1));
+		int target = FindVisibleFrame (selected_frame, offset);
+		if (target < 0)
+			return;
+		Gtk.ListBoxRow? row = frame_list.GetRowAtIndex (target);
 		if (row is null)
 			return;
 
@@ -285,7 +305,38 @@ internal sealed partial class SpritesheetSplitDialog : IDisposable
 			return;
 		frames[selected_frame].X = (int) frame_x.Value;
 		frames[selected_frame].Y = (int) frame_y.Value;
+		if (frames[selected_frame].AnchorX is not null && frames[selected_frame].AnchorY is not null) {
+			frames[selected_frame].AnchorX = canvas_width.Value / 2.0 - frames[selected_frame].X;
+			frames[selected_frame].AnchorY = canvas_height.Value - frames[selected_frame].Y;
+		}
 		Refresh ();
+	}
+
+	private void RepositionFramesAroundAnchor ()
+	{
+		foreach (EditableFrame frame in frames) {
+			if (frame.AnchorX is not double anchorX || frame.AnchorY is not double anchorY)
+				continue;
+			frame.X = (int) Math.Round (canvas_width.Value / 2.0 - anchorX);
+			frame.Y = (int) Math.Round (canvas_height.Value - anchorY);
+		}
+
+		if (frames.Count == 0)
+			return;
+		syncing = true;
+		frame_x.Value = frames[selected_frame].X;
+		frame_y.Value = frames[selected_frame].Y;
+		syncing = false;
+	}
+
+	private void ApplyGridPlacement ()
+	{
+		for (int index = 0; index < frames.Count; index++) {
+			RectangleD bounds = GetCellBounds (index);
+			frames[index].AnchorX = bounds.Width / 2.0;
+			frames[index].AnchorY = bounds.Height;
+		}
+		RepositionFramesAroundAnchor ();
 	}
 
 	private void DragSelectedFrame (double offsetX, double offsetY)
@@ -484,6 +535,8 @@ internal sealed partial class SpritesheetSplitDialog : IDisposable
 	{
 		public int X { get; set; }
 		public int Y { get; set; }
+		public double? AnchorX { get; set; }
+		public double? AnchorY { get; set; }
 		public bool Visible { get; set; }
 	}
 }

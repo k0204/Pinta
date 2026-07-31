@@ -39,6 +39,7 @@ namespace Pinta.Core;
 public sealed class Document
 {
 	private string display_name = string.Empty;
+	private Size image_size;
 	private Gio.File? file = null;
 	private FileSystemWatcher? resource_watcher;
 	private int reference_reload_scheduled;
@@ -157,7 +158,13 @@ public sealed class Document
 
 	public DocumentHistory History => Workspace.History;
 
-	public Size ImageSize { get; set; }
+	public Size ImageSize {
+		get => image_size;
+		set {
+			image_size = value;
+			Layers.UpdateSpritesheetOutputTransforms ();
+		}
+	}
 
 	/// <summary>
 	/// Absolute URI of the directory used to resolve referenced layer paths.
@@ -521,7 +528,8 @@ public sealed class Document
                 Guides.ClampAllToImageBounds ();
 
 		foreach (var layer in Layers.AllLayers)
-			layer.ResizeCanvas (newSize, anchor);
+			if (!Layers.IsSpritesheetOutputLayer (layer))
+				layer.ResizeCanvas (newSize, anchor);
 
 		hist.FinishSnapshotOfImage ();
 
@@ -554,7 +562,8 @@ public sealed class Document
                 Guides.ClampAllToImageBounds ();
 
 		foreach (var layer in Layers.AllLayers)
-			layer.Resize (newSize, resamplingMode);
+			if (!Layers.IsSpritesheetOutputLayer (layer))
+				layer.Resize (newSize, resamplingMode);
 
 		hist.FinishSnapshotOfImage ();
 

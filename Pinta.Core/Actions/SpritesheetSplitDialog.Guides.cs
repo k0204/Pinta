@@ -45,6 +45,63 @@ internal sealed partial class SpritesheetSplitDialog
 		motion.OnMotion += (_, args) => HandlePreviewMotion (args.X, args.Y);
 		motion.OnLeave += (_, _) => HandlePreviewLeave ();
 		frame_preview.AddController (motion);
+
+		Gtk.GestureClick ruler_click = Gtk.GestureClick.New ();
+		ruler_click.SetButton (GtkExtensions.MOUSE_LEFT_BUTTON);
+		ruler_click.OnPressed += (_, args) => HandleRulerClick ();
+		horizontal_ruler.AddController (ruler_click);
+	}
+
+	private void HandleRulerClick ()
+	{
+		if (source_rectangles is not null)
+			return;
+		ShowAnalysisModal ();
+	}
+
+	private void ShowAnalysisModal ()
+	{
+		Gtk.Dialog modal = Gtk.Dialog.New ();
+		modal.Title = Translations.GetString ("Analyzing");
+		modal.TransientFor = dialog;
+		modal.Modal = true;
+		modal.Resizable = false;
+		modal.DefaultWidth = 360;
+
+		Gtk.Box content = modal.GetContentAreaBox ();
+		content.Spacing = 16;
+		content.SetAllMargins (24);
+		content.Halign = Gtk.Align.Center;
+		content.Valign = Gtk.Align.Center;
+
+		Gtk.Spinner spinner = Gtk.Spinner.New ();
+		spinner.Spinning = true;
+		spinner.Halign = Gtk.Align.Center;
+		spinner.Valign = Gtk.Align.Center;
+
+		Gtk.Label label = Gtk.Label.New (Translations.GetString ("Analyzing sprite bounds..."));
+		label.Halign = Gtk.Align.Center;
+		label.AddCssClass (AdwaitaStyles.Title4);
+
+		Gtk.Label hint = Gtk.Label.New (Translations.GetString ("Please wait while AI detects sprite boundaries."));
+		hint.Wrap = true;
+		hint.Halign = Gtk.Align.Center;
+		hint.MaxWidthChars = 30;
+		hint.AddCssClass (AdwaitaStyles.DimLabel);
+
+		content.Append (spinner);
+		content.Append (label);
+		content.Append (hint);
+
+		modal.OnResponse += (_, _) => modal.Destroy ();
+
+		modal.Present ();
+
+		// Auto-dismiss after a delay to simulate analysis completion
+		GLib.Functions.TimeoutAdd (GLib.Constants.PRIORITY_DEFAULT, 3000, () => {
+			modal.Destroy ();
+			return false;
+		});
 	}
 
 	private void HandlePreviewMotion (double x, double y)

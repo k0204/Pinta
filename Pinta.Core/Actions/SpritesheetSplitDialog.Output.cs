@@ -25,9 +25,7 @@ internal sealed partial class SpritesheetSplitDialog
 		if (OutputAttempt is not UserLayer target)
 			return true;
 
-		UserLayer? frame = target.Children
-			.OfType<GroupLayer> ()
-			.SelectMany (group => group.Children)
+		UserLayer? frame = target.GetSelfAndDescendants ()
 			.FirstOrDefault (child => child is not GroupLayer && child.Name.StartsWith ("frame-", StringComparison.Ordinal));
 		return frame is null
 			|| (frame.Surface.Width == (int) canvas_width.Value && frame.Surface.Height == (int) canvas_height.Value);

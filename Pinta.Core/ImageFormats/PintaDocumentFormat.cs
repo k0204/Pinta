@@ -142,8 +142,8 @@ public sealed class PintaDocumentFormat : IImageImporter, IImageExporter
 			Kind = layer is GroupLayer ? "group" : "layer",
 			Storage = layer.IsReference ? "reference" : "embedded",
 			Surface = layer is GroupLayer || layer.IsReference ? null : $"layers/{layer.DocumentId}.png",
-			SurfaceWidth = layer is GroupLayer ? null : layer.Surface.Width,
-			SurfaceHeight = layer is GroupLayer ? null : layer.Surface.Height,
+			SurfaceWidth = layer.Surface.Width,
+			SurfaceHeight = layer.Surface.Height,
 			ReferencePath = layer.ReferencePath,
 			Metadata = new (layer.Metadata),
 			SpritesheetSplit = layer.SpritesheetSplit,
@@ -198,7 +198,7 @@ public sealed class PintaDocumentFormat : IImageImporter, IImageExporter
 		for (int index = 0; index < nodes.Count; index++) {
 			PintaDocumentLayerNode node = nodes[index];
 			UserLayer layer = version >= 2 && node.Kind == "group"
-				? document.Layers.CreateGroupLayer (node.Name)
+				? document.Layers.CreateGroupLayer (node.Name, node.SurfaceWidth, node.SurfaceHeight)
 				: document.Layers.CreateLayer (node.Name, node.SurfaceWidth, node.SurfaceHeight);
 			layer.DocumentId = node.Id;
 			layer.Hidden = node.Hidden;

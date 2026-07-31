@@ -49,7 +49,7 @@ public sealed class SpriteSegmentationService
 		string json = result.RootElement.GetProperty ("text").GetString ()
 			?? throw new InvalidOperationException ("Sprite analysis response did not include JSON text.");
 		SpriteSegmentationAnalysis analysis = JsonSerializer.Deserialize<SpriteSegmentationAnalysis> (
-			UnwrapJsonCodeFence (json),
+			ExtractJsonObject (json),
 			new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
 			?? throw new InvalidOperationException ("Sprite analysis JSON was empty.");
 		if (analysis.Items is null)
@@ -58,22 +58,37 @@ public sealed class SpriteSegmentationService
 		return analysis with { Items = [.. analysis.Items.OrderBy (item => item.Index)] };
 	}
 
-	private static string UnwrapJsonCodeFence (string response)
+	private static string ExtractJsonObject (string response)
 	{
-		string json = response.Trim ();
-		if (!json.StartsWith ("```", StringComparison.Ordinal) ||
-			!json.EndsWith ("```", StringComparison.Ordinal))
-			return json;
+		string text = response.Trim ();
+		int start = text.IndexOf ('{');
+		if (start < 0)
+			return text;
 
-		int contentStart = json.IndexOf ('\n');
-		if (contentStart < 0)
-			return json;
+		int depth = 0;
+		bool inString = false;
+		bool escaped = false;
+		for (int i = start; i < text.Length; i++) {
+			char character = text[i];
+			if (inString) {
+				if (escaped)
+					escaped = false;
+				else if (character == '\\')
+					escaped = true;
+				else if (character == '"')
+					inString = false;
+				continue;
+			}
 
-		string fence = json[..contentStart].TrimEnd ('\r');
-		if (fence != "```" && !fence.Equals ("```json", StringComparison.OrdinalIgnoreCase))
-			return json;
+			if (character == '"')
+				inString = true;
+			else if (character == '{')
+				depth++;
+			else if (character == '}' && --depth == 0)
+				return text[start..(i + 1)];
+		}
 
-		return json[(contentStart + 1)..^3].Trim ();
+		return text;
 	}
 
 	private static string ReadPrompt ()

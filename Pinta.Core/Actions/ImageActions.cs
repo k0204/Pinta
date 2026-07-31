@@ -328,7 +328,8 @@ public sealed class ImageActions
 		view.UpdateCanvasScale ();
 
 		foreach (var layer in doc.Layers.AllLayers)
-			layer.Crop (rect, selection);
+			if (!doc.Layers.IsSpritesheetOutputLayer (layer))
+				layer.Crop (rect, selection);
 
 		hist.FinishSnapshotOfImage ();
 

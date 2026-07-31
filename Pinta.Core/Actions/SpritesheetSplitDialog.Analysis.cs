@@ -108,7 +108,7 @@ internal sealed partial class SpritesheetSplitDialog
 			item.Bbox.X, item.Bbox.Y, item.Bbox.Width, item.Bbox.Height))];
 		align_character.Active = false;
 		RebuildFrames (analysis.Items.Count);
-		ApplyAnchorAlignment (analysis.Items);
+		ApplyAnalysisPlacement (analysis.Items);
 		Refresh ();
 	}
 
@@ -132,6 +132,8 @@ internal sealed partial class SpritesheetSplitDialog
 		frames.AddRange (savedFrames.Select (frame => new EditableFrame {
 			X = frame.X,
 			Y = frame.Y,
+			AnchorX = split.CanvasWidth / 2.0 - frame.X,
+			AnchorY = split.CanvasHeight - frame.Y,
 			Visible = frame.Visible,
 		}));
 		RebuildFrames (rectangles.Count);
@@ -146,6 +148,7 @@ internal sealed partial class SpritesheetSplitDialog
 	private void ChangeSourceMode ()
 	{
 		source_rectangles = null;
+		ClearFrameAnchors ();
 		align_character.Active = !IsAiSourceMode;
 		if (IsAiSourceMode)
 			RebuildFrames (0);
@@ -153,27 +156,33 @@ internal sealed partial class SpritesheetSplitDialog
 			RebuildFrames ();
 	}
 
-	private void ApplyAnchorAlignment (IReadOnlyList<AI.SpriteSegmentationItem> items)
+	private void ApplyAnalysisPlacement (IReadOnlyList<AI.SpriteSegmentationItem> items)
 	{
-		double left = items.Max (item => item.FootAnchor.X - item.Bbox.X);
-		double right = items.Max (item => item.Bbox.X + item.Bbox.Width - item.FootAnchor.X);
-		double top = items.Max (item => item.FootAnchor.Y - item.Bbox.Y);
-		double bottom = items.Max (item => item.Bbox.Y + item.Bbox.Height - item.FootAnchor.Y);
-		int anchorX = (int) Math.Ceiling (left);
-		int anchorY = (int) Math.Ceiling (top);
-		canvas_width.Value = Math.Ceiling (left + right);
-		canvas_height.Value = Math.Ceiling (top + bottom);
 		for (int index = 0; index < items.Count; index++) {
-			frames[index].X = (int) Math.Round (anchorX - (items[index].FootAnchor.X - items[index].Bbox.X));
-			frames[index].Y = (int) Math.Round (anchorY - (items[index].FootAnchor.Y - items[index].Bbox.Y));
+			AI.SpriteSegmentationItem item = items[index];
+			frames[index].AnchorX = item.FootAnchor.X - item.Bbox.X;
+			frames[index].AnchorY = item.FootAnchor.Y - item.Bbox.Y;
 		}
+		RepositionFramesAroundAnchor ();
 		SelectFrame (0);
+	}
+
+	private void ClearFrameAnchors ()
+	{
+		foreach (EditableFrame frame in frames) {
+			frame.AnchorX = null;
+			frame.AnchorY = null;
+		}
 	}
 
 	private void ResetAnalysisAndRefresh ()
 	{
-		if (!syncing)
+		if (!syncing) {
 			source_rectangles = null;
+			ClearFrameAnchors ();
+			if (!IsAiSourceMode)
+				ApplyGridPlacement ();
+		}
 		Refresh ();
 	}
 
@@ -182,6 +191,7 @@ internal sealed partial class SpritesheetSplitDialog
 		if (syncing)
 			return;
 		source_rectangles = null;
+		ClearFrameAnchors ();
 		RebuildFrames ();
 	}
 }

@@ -182,8 +182,16 @@ public sealed partial class LayerActions
 		=> layer is not GroupLayer
 		&& layer.Name.StartsWith ("frame-", StringComparison.Ordinal)
 		&& !layer.Name.Contains ("-cutout-", StringComparison.Ordinal)
-		&& layer.Parent?.Parent is UserLayer attempt
-		&& attempt.Metadata.ContainsKey (spritesheet_attempt_metadata);
+		&& HasSpritesheetAttemptAncestor (layer);
+
+	private static bool HasSpritesheetAttemptAncestor (UserLayer layer)
+	{
+		for (UserLayer? ancestor = layer.Parent; ancestor is not null; ancestor = ancestor.Parent)
+			if (ancestor.Metadata.ContainsKey (spritesheet_attempt_metadata))
+				return true;
+
+		return false;
+	}
 
 	private static string GetCutoutResultName (UserLayer source)
 	{
