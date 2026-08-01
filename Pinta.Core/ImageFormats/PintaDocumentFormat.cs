@@ -13,7 +13,7 @@ namespace Pinta.Core;
 public sealed class PintaDocumentFormat : IImageImporter, IImageExporter
 {
 	public const string FormatName = "pinta-document";
-	public const int CurrentVersion = 3;
+	public const int CurrentVersion = 4;
 
 	private static readonly JsonSerializerOptions json_options = new () {
 		PropertyNameCaseInsensitive = true,
@@ -60,6 +60,8 @@ public sealed class PintaDocumentFormat : IImageImporter, IImageExporter
 
 		foreach (UserLayer layer in document.Layers.AllLayers.Where (layer => layer is not GroupLayer && !layer.IsReference))
 			WriteLayerSurface (archive, layer);
+		foreach (SpriteSheetLayer layer in document.Layers.AllLayers.OfType<SpriteSheetLayer> ())
+			WriteSpriteSheetFrames (archive, layer);
 
 		PintaDocumentManifest manifest = CreateManifest (document);
 		ZipArchiveEntry manifestEntry = archive.CreateEntry ("project.json");
@@ -87,6 +89,32 @@ public sealed class PintaDocumentFormat : IImageImporter, IImageExporter
 			source.CopyTo (destination);
 		} finally {
 			File.Delete (temporaryFile);
+		}
+	}
+
+	private static void WriteSpriteSheetFrames (ZipArchive archive, SpriteSheetLayer layer)
+	{
+		int index = 0;
+		foreach (SpriteSheetFrameData frame in layer.GetFrames ()) {
+			string temporaryFile = System.IO.Path.GetTempFileName ();
+			try {
+				using Pixbuf pixbuf = frame.Surface.ToPixbuf ();
+				using Gio.File temporary = Gio.FileHelper.NewForPath (temporaryFile);
+				using (Gio.OutputStream output = temporary.Replace ()) {
+					try {
+						pixbuf.SaveToStreamv (output, "png", optionKeys: [], optionValues: [], cancellable: null);
+					} finally {
+						output.Close (null);
+					}
+				}
+
+				ZipArchiveEntry entry = archive.CreateEntry ($"spritesheets/{layer.DocumentId}/frame-{index++:D4}.png");
+				using Stream source = File.OpenRead (temporaryFile);
+				using Stream destination = entry.Open ();
+				source.CopyTo (destination);
+			} finally {
+				File.Delete (temporaryFile);
+			}
 		}
 	}
 
@@ -139,7 +167,7 @@ public sealed class PintaDocumentFormat : IImageImporter, IImageExporter
 			Opacity = layer.Opacity,
 			BlendMode = layer.BlendMode.ToString (),
 			Expanded = layer.Expanded,
-			Kind = layer is GroupLayer ? "group" : "layer",
+			Kind = layer is SpriteSheetLayer ? "spritesheet" : layer is GroupLayer ? "group" : "layer",
 			Storage = layer.IsReference ? "reference" : "embedded",
 			Surface = layer is GroupLayer || layer.IsReference ? null : $"layers/{layer.DocumentId}.png",
 			SurfaceWidth = layer.Surface.Width,
@@ -147,6 +175,9 @@ public sealed class PintaDocumentFormat : IImageImporter, IImageExporter
 			ReferencePath = layer.ReferencePath,
 			Metadata = new (layer.Metadata),
 			SpritesheetSplit = layer.SpritesheetSplit,
+			PositionOffsetX = layer is SpriteSheetLayer sprite ? sprite.PositionOffset.X : 0,
+			PositionOffsetY = layer is SpriteSheetLayer spriteLayer ? spriteLayer.PositionOffset.Y : 0,
+			SpriteSheetAnimations = layer is SpriteSheetLayer spriteData ? CreateSpriteSheetAnimations (spriteData) : [],
 			Transform = new () {
 				Xx = xAxis.X - origin.X,
 				Yx = xAxis.Y - origin.Y,
@@ -157,6 +188,28 @@ public sealed class PintaDocumentFormat : IImageImporter, IImageExporter
 			},
 			Children = [.. layer.Children.Select (CreateLayerModel)],
 		};
+	}
+
+	private static List<PintaDocumentSpriteSheetAnimation> CreateSpriteSheetAnimations (SpriteSheetLayer layer)
+	{
+		int index = 0;
+		return [.. layer.Animations.Select (animation => new PintaDocumentSpriteSheetAnimation {
+			ActionId = animation.ActionId,
+			CanvasWidth = animation.CanvasWidth,
+			CanvasHeight = animation.CanvasHeight,
+			Directions = [.. animation.Directions.Select (direction => new PintaDocumentSpriteSheetDirection {
+				DirectionId = direction.DirectionId,
+				Frames = [.. direction.Frames.Select (frame => new PintaDocumentSpriteSheetFrame {
+					FrameIndex = frame.FrameIndex,
+					X = frame.X,
+					Y = frame.Y,
+					Visible = frame.Visible,
+					Surface = $"spritesheets/{layer.DocumentId}/frame-{index++:D4}.png",
+					Width = frame.Surface.Width,
+					Height = frame.Surface.Height,
+				})],
+			})],
+		})];
 	}
 
 	private static PintaDocumentSelection CreateSelectionModel (DocumentSelection selection)
@@ -197,9 +250,11 @@ public sealed class PintaDocumentFormat : IImageImporter, IImageExporter
 	{
 		for (int index = 0; index < nodes.Count; index++) {
 			PintaDocumentLayerNode node = nodes[index];
-			UserLayer layer = version >= 2 && node.Kind == "group"
-				? document.Layers.CreateGroupLayer (node.Name, node.SurfaceWidth, node.SurfaceHeight)
-				: document.Layers.CreateLayer (node.Name, node.SurfaceWidth, node.SurfaceHeight);
+			UserLayer layer = version >= 4 && node.Kind == "spritesheet"
+				? CreateSpriteSheetLayer (document, node)
+				: version >= 2 && node.Kind == "group"
+					? document.Layers.CreateGroupLayer (node.Name, node.SurfaceWidth, node.SurfaceHeight)
+					: document.Layers.CreateLayer (node.Name, node.SurfaceWidth, node.SurfaceHeight);
 			layer.DocumentId = node.Id;
 			layer.Hidden = node.Hidden;
 			layer.Opacity = node.Opacity;
@@ -216,7 +271,9 @@ public sealed class PintaDocumentFormat : IImageImporter, IImageExporter
 				node.Transform.X0,
 				node.Transform.Y0);
 
-			if (version == 1 || (node.Kind == "layer" && node.Storage == "embedded"))
+			if (version >= 4 && node.Kind == "spritesheet")
+				LoadSpriteSheetSurfaces (archive, (SpriteSheetLayer) layer, node);
+			else if (version == 1 || (node.Kind == "layer" && node.Storage == "embedded"))
 				LoadSurface (archive.GetEntry (node.Surface!)!, layer);
 			else if (node.Storage == "reference") {
 				layer.ReferencePath = node.ReferencePath;
@@ -228,7 +285,46 @@ public sealed class PintaDocumentFormat : IImageImporter, IImageExporter
 		}
 	}
 
+	private static SpriteSheetLayer CreateSpriteSheetLayer (Document document, PintaDocumentLayerNode node)
+	{
+		PintaDocumentSpriteSheetAnimation animation = node.SpriteSheetAnimations.FirstOrDefault ()
+			?? throw new InvalidDataException ($"Spritesheet layer '{node.Id}' has no animation data.");
+		SpriteSheetLayer layer = document.Layers.CreateSpriteSheetLayer (node.Name, animation.CanvasWidth, animation.CanvasHeight);
+		List<SpriteSheetAnimationData> animations = [];
+		foreach (PintaDocumentSpriteSheetAnimation sourceAnimation in node.SpriteSheetAnimations) {
+			SpriteSheetAnimationData animationData = new (sourceAnimation.ActionId, sourceAnimation.CanvasWidth, sourceAnimation.CanvasHeight);
+			foreach (PintaDocumentSpriteSheetDirection sourceDirection in sourceAnimation.Directions) {
+				SpriteSheetDirectionData directionData = animationData.AddDirection (sourceDirection.DirectionId);
+				foreach (PintaDocumentSpriteSheetFrame sourceFrame in sourceDirection.Frames) {
+					ImageSurface surface = CairoExtensions.CreateImageSurface (Format.Argb32, sourceFrame.Width, sourceFrame.Height);
+					directionData.Frames.Add (new SpriteSheetFrameData (sourceFrame.FrameIndex, sourceFrame.X, sourceFrame.Y, sourceFrame.Visible, surface));
+				}
+			}
+			animations.Add (animationData);
+		}
+		layer.ReplaceSnapshot (new SpriteSheetLayerSnapshot (
+			animation.CanvasWidth,
+			animation.CanvasHeight,
+			new PointD (node.PositionOffsetX, node.PositionOffsetY),
+			animations), document.ImageSize);
+		return layer;
+	}
+
+	private static void LoadSpriteSheetSurfaces (ZipArchive archive, SpriteSheetLayer layer, PintaDocumentLayerNode node)
+	{
+		int index = 0;
+		foreach (SpriteSheetFrameData frame in layer.GetFrames ()) {
+			PintaDocumentSpriteSheetFrame manifestFrame = node.SpriteSheetAnimations
+				.SelectMany (animation => animation.Directions.SelectMany (direction => direction.Frames))
+				.ElementAt (index++);
+			LoadSurface (archive.GetEntry (manifestFrame.Surface)!, frame.Surface);
+		}
+	}
+
 	private static void LoadSurface (ZipArchiveEntry entry, UserLayer layer)
+		=> LoadSurface (entry, layer.Surface);
+
+	private static void LoadSurface (ZipArchiveEntry entry, ImageSurface surface)
 	{
 		string temporaryFile = System.IO.Path.GetTempFileName ();
 		try {
@@ -238,10 +334,10 @@ public sealed class PintaDocumentFormat : IImageImporter, IImageExporter
 
 			using Pixbuf pixbuf = Pixbuf.NewFromFile (temporaryFile)
 				?? throw new InvalidDataException ($"Layer surface '{entry.FullName}' could not be decoded as PNG.");
-			if (pixbuf.Width != layer.Surface.Width || pixbuf.Height != layer.Surface.Height)
+			if (pixbuf.Width != surface.Width || pixbuf.Height != surface.Height)
 				throw new InvalidDataException ($"Layer surface '{entry.FullName}' does not match the document dimensions.");
 
-			using Context context = new (layer.Surface);
+			using Context context = new (surface);
 			context.DrawPixbuf (pixbuf, PointD.Zero);
 		} catch (GLib.GException e) {
 			throw new InvalidDataException ($"Layer surface '{entry.FullName}' is not a valid PNG.", e);
@@ -271,7 +367,7 @@ public sealed class PintaDocumentFormat : IImageImporter, IImageExporter
 	{
 		if (manifest.Format != FormatName)
 			throw new InvalidDataException ($"Unsupported Pinta document format '{manifest.Format}'.");
-		if (manifest.Version is not 1 and not 2 and not CurrentVersion)
+		if (manifest.Version is not 1 and not 2 and not 3 and not CurrentVersion)
 			throw new InvalidDataException ($"Unsupported Pinta document version {manifest.Version}.");
 		if (manifest.ResourceRoot is not null
 			&& (!Uri.TryCreate (manifest.ResourceRoot, UriKind.Absolute, out Uri? rootUri) || rootUri.Scheme != Uri.UriSchemeFile))
@@ -326,12 +422,19 @@ public sealed class PintaDocumentFormat : IImageImporter, IImageExporter
 				if (archive.GetEntry (node.Surface) is null)
 					throw new InvalidDataException ($"Layer surface '{node.Surface}' is missing.");
 			} else {
-				if (node.Kind is not ("layer" or "group"))
+				if (node.Kind == "spritesheet" && version < 4)
+					throw new InvalidDataException ($"Spritesheet layers require document version 4.");
+				if (node.Kind is not ("layer" or "group" or "spritesheet"))
 					throw new InvalidDataException ($"Layer '{node.Id}' has an invalid kind.");
 				if (node.Storage is not ("embedded" or "reference"))
 					throw new InvalidDataException ($"Layer '{node.Id}' has an invalid storage mode.");
 				if (node.Kind == "group" && (node.Storage != "embedded" || node.Surface is not null || node.ReferencePath is not null))
 					throw new InvalidDataException ($"Group '{node.Id}' cannot store image data.");
+				if (node.Kind == "spritesheet") {
+					ValidateSpriteSheetNode (node, archive);
+					if (node.Children is null || node.Children.Count > 0 || node.Surface is not null || node.ReferencePath is not null || node.Storage != "embedded")
+						throw new InvalidDataException ($"Spritesheet layer '{node.Id}' cannot contain child layers or a regular surface.");
+				}
 				if (node.Kind == "layer" && node.Storage == "embedded") {
 					if (node.Surface != $"layers/{node.Id}.png" || archive.GetEntry (node.Surface) is null)
 						throw new InvalidDataException ($"Layer surface for '{node.Id}' is missing or invalid.");
@@ -347,6 +450,46 @@ public sealed class PintaDocumentFormat : IImageImporter, IImageExporter
 				throw new InvalidDataException ($"Layer '{node.Id}' has no children collection.");
 
 			ValidateLayers (node.Children, archive, ids, version);
+		}
+	}
+
+	private static void ValidateSpriteSheetNode (PintaDocumentLayerNode node, ZipArchive archive)
+	{
+		if (node.SpriteSheetAnimations is null || node.SpriteSheetAnimations.Count == 0
+			|| !double.IsFinite (node.PositionOffsetX) || !double.IsFinite (node.PositionOffsetY))
+			throw new InvalidDataException ($"Spritesheet layer '{node.Id}' has invalid animation data.");
+
+		HashSet<(string Action, string Direction, int Frame)> keys = [];
+		int pathIndex = 0;
+		int canvasWidth = 0;
+		int canvasHeight = 0;
+		foreach (PintaDocumentSpriteSheetAnimation animation in node.SpriteSheetAnimations) {
+			if (animation is null
+				|| string.IsNullOrWhiteSpace (animation.ActionId)
+				|| animation.CanvasWidth <= 0
+				|| animation.CanvasHeight <= 0
+				|| animation.Directions is null
+				|| animation.Directions.Count == 0)
+				throw new InvalidDataException ($"Spritesheet layer '{node.Id}' has an invalid animation.");
+			if (canvasWidth == 0) {
+				canvasWidth = animation.CanvasWidth;
+				canvasHeight = animation.CanvasHeight;
+			} else if (canvasWidth != animation.CanvasWidth || canvasHeight != animation.CanvasHeight) {
+				throw new InvalidDataException ($"Spritesheet layer '{node.Id}' has inconsistent animation canvas sizes.");
+			}
+
+			foreach (PintaDocumentSpriteSheetDirection direction in animation.Directions) {
+				if (direction is null || string.IsNullOrWhiteSpace (direction.DirectionId) || direction.Frames is null || direction.Frames.Count == 0)
+					throw new InvalidDataException ($"Spritesheet layer '{node.Id}' has an invalid direction.");
+				foreach (PintaDocumentSpriteSheetFrame frame in direction.Frames) {
+					if (frame is null || frame.Width <= 0 || frame.Height <= 0 || frame.Surface != $"spritesheets/{node.Id}/frame-{pathIndex++:D4}.png")
+						throw new InvalidDataException ($"Spritesheet layer '{node.Id}' has an invalid frame path or size.");
+					if (!keys.Add ((animation.ActionId, direction.DirectionId, frame.FrameIndex)))
+						throw new InvalidDataException ($"Spritesheet layer '{node.Id}' contains duplicate frame keys.");
+					if (archive.GetEntry (frame.Surface) is null)
+						throw new InvalidDataException ($"Spritesheet frame '{frame.Surface}' is missing.");
+				}
+			}
 		}
 	}
 

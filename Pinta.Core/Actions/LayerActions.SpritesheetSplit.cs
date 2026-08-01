@@ -6,35 +6,128 @@ namespace Pinta.Core;
 
 public sealed partial class LayerActions
 {
-	private const string split_frames_group_name = "frames";
-
 	private async void HandlePintaCoreActionsLayersSplitSpritesheetActivated (object sender, EventArgs e)
 	{
 		Document document = workspace.ActiveDocument;
-		UserLayer source = document.Layers.CurrentUserLayer;
-		if (!TryGetSpritesheetAttempt (source, out UserLayer? attempt, out AI.SpritesheetAttemptInfo? info)
-			|| attempt is null
-			|| info is null)
+		UserLayer selected = document.Layers.CurrentUserLayer;
+		SpriteSheetLayer? editingLayer = selected as SpriteSheetLayer;
+		UserLayer source = selected;
+		UserLayer? attempt = null;
+		AI.SpritesheetAttemptInfo info;
+		IReadOnlyList<Cairo.ImageSurface>? frameSurfaces = null;
+		IReadOnlyList<SpritesheetFrameSplit>? existingFrames = null;
+		SpritesheetSplitData? savedAnalysis = null;
+
+		if (editingLayer is not null) {
+			(source, info, frameSurfaces, existingFrames, savedAnalysis) = CreateSpriteSheetEditorSource (editingLayer);
+		} else if (!TryGetSpritesheetAttempt (selected, out attempt, out AI.SpritesheetAttemptInfo? existingInfo)) {
+			if (!CanCreateSpritesheetAnimation (selected))
+				return;
+			info = CreateDefaultSpritesheetInfo (selected);
+		} else if (attempt is null || existingInfo is null) {
 			return;
+		} else {
+			info = existingInfo;
+		}
 
 		using SpritesheetSplitDialog dialog = new (
 			chrome.MainWindow,
 			source,
 			info,
-			GetCompatibleSplitTargets (attempt, info),
+			attempt is null ? [] : GetCompatibleSplitTargets (attempt, info),
 			provider => sprite_segmentation.AnalyzeAsync (
 				CreateSurfacePng (source.Surface),
 				source.Surface.Width,
 				source.Surface.Height,
 				provider),
 			split => SaveSpritesheetAnalysis (document, source, split),
-			source.SpritesheetSplit);
+			savedAnalysis ?? source.SpritesheetSplit,
+			frameSurfaces,
+			existingFrames);
 		SpritesheetSplitData? split = await dialog.RunAsync ();
 		if (split is null)
 			return;
 
 		tools.Commit ();
-		ApplySpritesheetSplit (document, attempt, source, info, split, dialog.OutputAttempt);
+		ApplySpritesheetSplit (document, attempt, source, info, split, dialog.OutputAttempt, editingLayer, frameSurfaces);
+	}
+
+	private static AI.SpritesheetAttemptInfo CreateDefaultSpritesheetInfo (UserLayer source)
+		=> new (
+			false,
+			"sequence",
+			["default"],
+			1,
+			1,
+			1,
+			string.Empty,
+			new Size (source.Surface.Width, source.Surface.Height),
+			string.Empty,
+			string.Empty,
+			string.Empty,
+			1);
+
+	private static (
+		UserLayer Source,
+		AI.SpritesheetAttemptInfo Info,
+		IReadOnlyList<Cairo.ImageSurface> Surfaces,
+		IReadOnlyList<SpritesheetFrameSplit> Frames,
+		SpritesheetSplitData SavedAnalysis) CreateSpriteSheetEditorSource (SpriteSheetLayer layer)
+	{
+		SpriteSheetAnimationData animation = layer.Animations.FirstOrDefault ()
+			?? new SpriteSheetAnimationData ("sequence", layer.CanvasWidth, layer.CanvasHeight);
+		SpriteSheetDirectionData direction = animation.Directions.FirstOrDefault ()
+			?? new SpriteSheetDirectionData ("default");
+		List<SpriteSheetFrameData> frames = [.. direction.Frames.OrderBy (frame => frame.FrameIndex)];
+		int cellWidth = Math.Max (1, frames.Select (frame => frame.Surface.Width).DefaultIfEmpty (1).Max ());
+		int cellHeight = Math.Max (1, frames.Select (frame => frame.Surface.Height).DefaultIfEmpty (1).Max ());
+		int count = Math.Max (1, frames.Count);
+		UserLayer source = new (CairoExtensions.CreateImageSurface (Cairo.Format.Argb32, cellWidth * count, cellHeight)) {
+			Name = layer.Name,
+		};
+		using (Cairo.Context context = new (source.Surface)) {
+			for (int index = 0; index < frames.Count; index++) {
+				context.SetSourceSurface (frames[index].Surface, index * cellWidth, 0);
+				context.Paint ();
+			}
+		}
+
+		AI.SpritesheetAttemptInfo info = new (
+			false,
+			animation.ActionId,
+			[direction.DirectionId],
+			count,
+			count,
+			1,
+			string.Empty,
+			new Size (source.Surface.Width, source.Surface.Height),
+			string.Empty,
+			string.Empty,
+			string.Empty,
+			1);
+		IReadOnlyList<SpritesheetFrameSplit> placements = frames
+			.Select (frame => new SpritesheetFrameSplit (frame.X, frame.Y, frame.Visible))
+			.ToArray ();
+		RectangleI[] rectangles = Enumerable.Range (0, count)
+			.Select (index => new RectangleI (index * cellWidth, 0, cellWidth, cellHeight))
+			.ToArray ();
+		if (placements.Count == 0)
+			placements = [new SpritesheetFrameSplit (0, 0, true)];
+		SpritesheetSplitData savedAnalysis = new (
+			count,
+			1,
+			cellWidth,
+			cellHeight,
+			0,
+			0,
+			0,
+			0,
+			layer.CanvasWidth,
+			layer.CanvasHeight,
+			false,
+			placements,
+			rectangles);
+		return (source, info, frames.Select (frame => frame.Surface).ToArray (), placements, savedAnalysis);
 	}
 
 	private static IReadOnlyList<UserLayer> GetCompatibleSplitTargets (
@@ -45,142 +138,94 @@ public sealed partial class LayerActions
 			return [];
 
 		return [.. action.Children.Where (candidate =>
-			candidate is GroupLayer
+			candidate is GroupLayer and not SpriteSheetLayer
 			&& candidate != sourceAttempt
-			&& candidate.Children.Any (child => child is GroupLayer && child.Name == split_frames_group_name)
+			&& candidate.Children.Any (child => child is SpriteSheetLayer)
 			&& TryGetSpritesheetAttemptInfo (candidate, out AI.SpritesheetAttemptInfo? targetInfo)
 			&& targetInfo?.ActionId == sourceInfo.ActionId
-			&& targetInfo.FrameCount == sourceInfo.FrameCount
-			&& sourceInfo.DirectionIds.All (direction => candidate.GetSelfAndDescendants ().All (child => child.Name != direction)))];
+			&& targetInfo.FrameCount == sourceInfo.FrameCount)];
 	}
 
 	private static void ApplySpritesheetSplit (
 		Document document,
-		UserLayer attempt,
+		UserLayer? attempt,
 		UserLayer source,
 		AI.SpritesheetAttemptInfo info,
 		SpritesheetSplitData split,
-		UserLayer? outputAttempt)
+		UserLayer? outputAttempt,
+		SpriteSheetLayer? editingLayer,
+		IReadOnlyList<Cairo.ImageSurface>? frameSurfaces)
 	{
-		CompoundHistoryItem history = new (Resources.Icons.ImageCrop, Translations.GetString ("Split Spritesheet"));
-		bool newAttempt = outputAttempt is null && attempt.Children.Any (child => child is GroupLayer);
+		CompoundHistoryItem history = new (Resources.Icons.ImageCrop, Translations.GetString ("Create Animation Frames"));
 		if (outputAttempt is not null) {
 			attempt = outputAttempt;
-			source = CopySplitSource (document, attempt, source, info, split, history);
 			MergeAttemptDirections (attempt, info, history);
-		} else if (newAttempt) {
-			(attempt, source) = CreateResplitAttempt (document, attempt, source, history);
-		}
-		SaveFinalSplit (source, split, history, newAttempt || outputAttempt is not null);
-
-		GroupLayer? frames = attempt.Children
-			.OfType<GroupLayer> ()
-			.FirstOrDefault (child => child.Name == split_frames_group_name);
-		bool newFramesGroup = frames is null;
-		frames ??= document.Layers.CreateGroupLayer (
-			split_frames_group_name,
-			1,
-			1);
-		frames.Metadata[SpritesheetLayerMetadata.OutputCanvas] = "true";
-		frames.SpritesheetSplit = split;
-		List<(UserLayer Layer, Cairo.Matrix Transform)> oldTransforms = newFramesGroup
-			? []
-			: [.. GetOutputCanvasLayers (frames).Select (layer => (layer, layer.Transform.Clone ()))];
-		Cairo.Matrix anchor_transform = SpritesheetLayerMetadata.CreateAnchorTransform (document.ImageSize);
-		Cairo.Matrix canvas_transform = CreateOutputCanvasTransform (document, split);
-		UserLayer last = source;
-		foreach (IGrouping<string, int> group in Enumerable.Range (0, split.Frames.Count).GroupBy (cell => GetFrameGroupName (info, cell))) {
-			GroupLayer direction = document.Layers.CreateGroupLayer (group.Key);
-			foreach (int cell in group) {
-				string name = GetFrameName (info, cell);
-				UserLayer frame = CreateFrameLayer (document, source, info, split, cell, name);
-				direction.InsertChild (direction.Children.Count, frame);
-				last = frame;
-			}
-			if (newFramesGroup)
-				frames.InsertChild (frames.Children.Count, direction);
-			else {
-				document.Layers.Insert (direction, new LayerPosition (frames, frames.Children.Count));
-				if (!newAttempt)
-					history.Push (CreateAddHistory (document, direction));
-			}
-		}
-		ApplyOutputCanvasTransform (frames, anchor_transform, canvas_transform);
-		if (oldTransforms.Count > 0)
-			history.Push (new SpritesheetTransformsHistoryItem (oldTransforms));
-		if (newFramesGroup) {
-			document.Layers.Insert (frames, new LayerPosition (attempt, attempt.Children.Count));
-			if (!newAttempt)
-			history.Push (CreateAddHistory (document, frames));
 		}
 
-		history.Push (new SpritesheetSplitHistoryItem (
-			attempt,
-			split,
-			Translations.GetString ("Split Spritesheet")));
-		attempt.SpritesheetSplit = split;
-		document.Layers.SetCurrentUserLayer (last);
+		if (editingLayer is null)
+			SaveFinalSplit (source, split, history, outputAttempt is not null);
+		SpriteSheetLayerSnapshot incoming = CreateSnapshot (source, info, split, frameSurfaces);
+		SpriteSheetLayer? layer = editingLayer
+			?? attempt?.Children.OfType<SpriteSheetLayer> ().FirstOrDefault ()
+			?? FindSiblingOutputLayer (document, source);
+
+		if (layer is null) {
+			layer = document.Layers.CreateSpriteSheetLayer ("SpriteSheetLayer", split.CanvasWidth, split.CanvasHeight);
+			if (attempt is null)
+				layer.Metadata["pinta.spritesheet.source-layer"] = source.Name;
+			layer.ReplaceSnapshot (incoming, document.ImageSize);
+			LayerPosition position = attempt is not null
+				? new LayerPosition (attempt, attempt.Children.Count)
+				: document.Layers.GetPosition (source) with { Index = document.Layers.GetPosition (source).Index + 1 };
+			document.Layers.Insert (layer, position);
+			history.Push (CreateAddHistory (document, layer));
+		} else {
+			SpriteSheetLayerSnapshot old = layer.CaptureSnapshot ();
+			incoming = new SpriteSheetLayerSnapshot (
+				incoming.CanvasWidth,
+				incoming.CanvasHeight,
+				old.PositionOffset,
+				incoming.Animations);
+			if (outputAttempt is null)
+				layer.ReplaceSnapshot (incoming, document.ImageSize);
+			else
+				layer.MergeSnapshot (incoming, document.ImageSize);
+			history.Push (new SpriteSheetLayerDataHistoryItem (document, layer, old, layer.CaptureSnapshot ()));
+		}
+
+		document.Layers.SetCurrentUserLayer (layer);
 		document.History.PushNewItem (history);
 		document.Workspace.Invalidate ();
 	}
 
-	private static Cairo.Matrix CreateOutputCanvasTransform (Document document, SpritesheetSplitData split)
-		=> SpritesheetLayerMetadata.CreateOutputTransform (
-			document.ImageSize,
-			new Size (split.CanvasWidth, split.CanvasHeight));
+	private static SpriteSheetLayer? FindSiblingOutputLayer (Document document, UserLayer source)
+		=> (source.Parent?.Children ?? document.Layers.RootLayers)
+			.OfType<SpriteSheetLayer> ()
+			.FirstOrDefault (layer => layer.Metadata.GetValueOrDefault ("pinta.spritesheet.source-layer") == source.Name);
 
-	private static void ApplyOutputCanvasTransform (
-		UserLayer frames,
-		Cairo.Matrix anchorTransform,
-		Cairo.Matrix canvasTransform)
-	{
-		// Rendering currently flattens image descendants without inheriting the group transform.
-		frames.Transform = anchorTransform;
-		foreach (UserLayer layer in frames.GetSelfAndDescendants ())
-			if (layer is not GroupLayer)
-				layer.Transform = canvasTransform.Clone ();
-	}
-
-	private static IEnumerable<UserLayer> GetOutputCanvasLayers (UserLayer frames)
-	{
-		yield return frames;
-		foreach (UserLayer layer in frames.GetSelfAndDescendants ())
-			if (layer != frames && layer is not GroupLayer)
-				yield return layer;
-	}
-
-	private static UserLayer CopySplitSource (
-		Document document,
-		UserLayer attempt,
-		UserLayer original,
+	private static SpriteSheetLayerSnapshot CreateSnapshot (
+		UserLayer source,
 		AI.SpritesheetAttemptInfo info,
 		SpritesheetSplitData split,
-		CompoundHistoryItem history)
+		IReadOnlyList<Cairo.ImageSurface>? frameSurfaces)
 	{
-		UserLayer source = document.Layers.CreateLayer (
-			GetNextSourceName (attempt),
-			original.Surface.Width,
-			original.Surface.Height);
-		using (Cairo.Context context = new (source.Surface)) {
-			context.SetSourceSurface (original.Surface, 0, 0);
-			context.Paint ();
-		}
-		source.Hidden = original.Hidden;
-		foreach ((string key, string value) in original.Metadata)
-			source.Metadata.Add (key, value);
-		source.Metadata[spritesheet_attempt_metadata] = System.Text.Json.JsonSerializer.Serialize (info);
-		source.SpritesheetSplit = split;
-		document.Layers.Insert (source, new LayerPosition (attempt, attempt.Children.Count));
-		history.Push (CreateAddHistory (document, source));
-		return source;
-	}
+		SpriteSheetAnimationData animation = new (info.ActionId, split.CanvasWidth, split.CanvasHeight);
+		SpriteSheetLayerSnapshot result = new (split.CanvasWidth, split.CanvasHeight, PointD.Zero, [animation]);
+		int expected = info.DirectionIds.Count * info.FrameCount;
 
-	private static string GetNextSourceName (UserLayer attempt)
-	{
-		int next = 2;
-		while (attempt.Children.Any (child => child.Name == $"source-sheet-{next:D2}"))
-			next++;
-		return $"source-sheet-{next:D2}";
+		for (int cell = 0; cell < split.Frames.Count; cell++) {
+			string directionId = cell < expected ? info.DirectionIds[cell / info.FrameCount] : "extra";
+			int frameIndex = cell < expected ? cell % info.FrameCount : cell - expected;
+			SpriteSheetDirectionData direction = animation.Directions.FirstOrDefault (item => item.DirectionId == directionId)
+				?? animation.AddDirection (directionId);
+			using Cairo.ImageSurface crop = frameSurfaces is not null && cell < frameSurfaces.Count
+				? frameSurfaces[cell].Clone ()
+				: CreateSplitFrameSurface (source, info, split, cell);
+			SpritesheetFrameSplit placement = split.Frames[cell];
+			direction.Frames.Add (new SpriteSheetFrameData (frameIndex, placement.X, placement.Y, placement.Visible, crop.Clone ()));
+		}
+
+		return result;
 	}
 
 	private static void MergeAttemptDirections (
@@ -207,76 +252,19 @@ public sealed partial class LayerActions
 			source.SpritesheetSplit = split;
 			return;
 		}
-		history.Push (new SpritesheetSplitHistoryItem (
-			source,
-			split,
-			Translations.GetString ("Split Spritesheet")));
+
+		history.Push (new SpritesheetSplitHistoryItem (source, split, Translations.GetString ("Create Animation Frames")));
 		source.SpritesheetSplit = split;
 	}
 
-	private static void SaveSpritesheetAnalysis (
-		Document document,
-		UserLayer source,
-		SpritesheetSplitData split)
+	private static void SaveSpritesheetAnalysis (Document document, UserLayer source, SpritesheetSplitData split)
 	{
 		if (source.SpritesheetSplit == split)
 			return;
 
-		SpritesheetSplitHistoryItem history = new (
-			source,
-			split,
-			Translations.GetString ("Analyze Spritesheet"));
+		SpritesheetSplitHistoryItem history = new (source, split, Translations.GetString ("Analyze Spritesheet"));
 		source.SpritesheetSplit = split;
 		document.History.PushNewItem (history);
-	}
-
-	private static (UserLayer Attempt, UserLayer Source) CreateResplitAttempt (
-		Document document,
-		UserLayer currentAttempt,
-		UserLayer currentSource,
-		CompoundHistoryItem history)
-	{
-		UserLayer action = currentAttempt.Parent
-			?? throw new InvalidOperationException ("A spritesheet attempt must belong to an action group.");
-		GroupLayer attempt = document.Layers.CreateGroupLayer (GetNextAttemptName (action));
-		foreach ((string key, string value) in currentAttempt.Metadata)
-			attempt.Metadata.Add (key, value);
-		attempt.SpritesheetSplit = currentAttempt.SpritesheetSplit;
-
-		UserLayer source = document.Layers.CreateLayer ("source-sheet", currentSource.Surface.Width, currentSource.Surface.Height);
-		using (Cairo.Context context = new (source.Surface)) {
-			context.SetSourceSurface (currentSource.Surface, 0, 0);
-			context.Paint ();
-		}
-		foreach ((string key, string value) in currentSource.Metadata)
-			source.Metadata.Add (key, value);
-		source.SpritesheetSplit = currentSource.SpritesheetSplit;
-		attempt.InsertChild (0, source);
-		document.Layers.Insert (attempt, new LayerPosition (action, action.Children.Count));
-		history.Push (CreateAddHistory (document, attempt));
-		return (attempt, source);
-	}
-
-	private static UserLayer CreateFrameLayer (
-		Document document,
-		UserLayer source,
-		AI.SpritesheetAttemptInfo info,
-		SpritesheetSplitData split,
-		int cell,
-		string name)
-	{
-		using Cairo.ImageSurface crop = CreateSplitFrameSurface (source, info, split, cell);
-		UserLayer frame = document.Layers.CreateLayer (name, split.CanvasWidth, split.CanvasHeight);
-		SpritesheetFrameSplit placement = split.Frames[cell];
-		using (Cairo.Context context = new (frame.Surface)) {
-			context.SetSourceSurface (crop, placement.X, placement.Y);
-			context.Paint ();
-		}
-		frame.Hidden = !placement.Visible;
-		frame.Metadata["pinta.spritesheet.source-layer"] = source.Name;
-		frame.Metadata["pinta.spritesheet.source-cell"] = (cell + 1).ToString (System.Globalization.CultureInfo.InvariantCulture);
-		frame.Surface.MarkDirty ();
-		return frame;
 	}
 
 	internal static Cairo.ImageSurface CreateSplitFrameSurface (
@@ -309,17 +297,28 @@ public sealed partial class LayerActions
 			split.CellHeight);
 	}
 
-	private static string GetFrameGroupName (AI.SpritesheetAttemptInfo info, int cell)
+	private sealed class SpriteSheetLayerDataHistoryItem : BaseHistoryItem
 	{
-		int expected = info.DirectionIds.Count * info.FrameCount;
-		return cell < expected ? info.DirectionIds[cell / info.FrameCount] : "extra";
-	}
+		private readonly Document document;
+		private readonly SpriteSheetLayer layer;
+		private readonly SpriteSheetLayerSnapshot oldSnapshot;
+		private readonly SpriteSheetLayerSnapshot newSnapshot;
 
-	private static string GetFrameName (AI.SpritesheetAttemptInfo info, int cell)
-	{
-		int expected = info.DirectionIds.Count * info.FrameCount;
-		int frame = cell < expected ? cell % info.FrameCount : cell - expected;
-		return $"frame-{frame + 1:D2}";
+		public SpriteSheetLayerDataHistoryItem (
+			Document document,
+			SpriteSheetLayer layer,
+			SpriteSheetLayerSnapshot oldSnapshot,
+			SpriteSheetLayerSnapshot newSnapshot)
+			: base (Resources.Icons.ImageCrop, Translations.GetString ("Create Animation Frames"))
+		{
+			this.document = document;
+			this.layer = layer;
+			this.oldSnapshot = oldSnapshot;
+			this.newSnapshot = newSnapshot;
+		}
+
+		public override void Undo () => layer.ReplaceSnapshot (oldSnapshot, document.ImageSize);
+		public override void Redo () => layer.ReplaceSnapshot (newSnapshot, document.ImageSize);
 	}
 
 	private sealed class SpritesheetSplitHistoryItem : BaseHistoryItem
@@ -328,10 +327,7 @@ public sealed partial class LayerActions
 		private readonly SpritesheetSplitData? old_value;
 		private readonly SpritesheetSplitData new_value;
 
-		public SpritesheetSplitHistoryItem (
-			UserLayer layer,
-			SpritesheetSplitData newValue,
-			string text)
+		public SpritesheetSplitHistoryItem (UserLayer layer, SpritesheetSplitData newValue, string text)
 			: base (Resources.Icons.ImageCrop, text)
 		{
 			this.layer = layer;
@@ -343,32 +339,4 @@ public sealed partial class LayerActions
 		public override void Redo () => layer.SpritesheetSplit = new_value;
 	}
 
-	private sealed class SpritesheetTransformsHistoryItem : BaseHistoryItem
-	{
-		private readonly IReadOnlyList<(
-			UserLayer Layer,
-			Cairo.Matrix OldTransform,
-			Cairo.Matrix NewTransform)> transforms;
-
-		public SpritesheetTransformsHistoryItem (
-			IReadOnlyList<(UserLayer Layer, Cairo.Matrix Transform)> oldTransforms)
-		{
-			transforms = [.. oldTransforms.Select (item => (
-				item.Layer,
-				item.Transform,
-				item.Layer.Transform.Clone ()))];
-		}
-
-		public override void Undo ()
-		{
-			foreach ((UserLayer layer, Cairo.Matrix transform, _) in transforms)
-				layer.Transform = transform.Clone ();
-		}
-
-		public override void Redo ()
-		{
-			foreach ((UserLayer layer, _, Cairo.Matrix transform) in transforms)
-				layer.Transform = transform.Clone ();
-		}
-	}
 }

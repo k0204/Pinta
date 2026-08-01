@@ -36,6 +36,9 @@ public sealed class MoveSelectedTool : BaseTransformTool
 	private DocumentSelection? original_selection;
 	private readonly Matrix original_transform = CairoExtensions.CreateIdentityMatrix ();
 	private Gtk.CheckButton? auto_select_layer;
+	private bool spritesheet_dragging;
+	private PointD spritesheet_start_point;
+	private PointD spritesheet_start_offset;
 
 	private readonly SystemManager system_manager;
 	public MoveSelectedTool (IServiceProvider services) : base (services)
@@ -88,20 +91,89 @@ public sealed class MoveSelectedTool : BaseTransformTool
 				document.Workspace.Invalidate ();
 			}
 
-			if (!layer.IsEditable)
+			if (!layer.CanMoveOnCanvas)
 				return;
 		}
 
-		if (!document.Layers.HasSelectedLayer || !document.Layers.CurrentUserLayer.IsEditable)
+		if (!document.Layers.HasSelectedLayer || !document.Layers.CurrentUserLayer.CanMoveOnCanvas)
 			return;
+
+		if (document.Layers.CurrentUserLayer is SpriteSheetLayer spriteSheet) {
+			if (e.MouseButton != MouseButton.Left || e.IsControlPressed)
+				return;
+
+			spritesheet_dragging = true;
+			spritesheet_start_point = e.PointDouble;
+			spritesheet_start_offset = spriteSheet.PositionOffset;
+			return;
+		}
 
 		base.OnMouseDown (document, e);
 	}
 
+	protected override void OnMouseMove (Document document, ToolMouseEventArgs e)
+	{
+		if (!spritesheet_dragging) {
+			base.OnMouseMove (document, e);
+			return;
+		}
+
+		SpriteSheetLayer layer = (SpriteSheetLayer) document.Layers.CurrentUserLayer;
+		PointD delta = new (
+			Math.Floor (e.PointDouble.X - spritesheet_start_point.X),
+			Math.Floor (e.PointDouble.Y - spritesheet_start_point.Y));
+		layer.SetPositionOffset (spritesheet_start_offset + delta, document.ImageSize);
+		document.Workspace.Invalidate ();
+	}
+
+	protected override void OnMouseUp (Document document, ToolMouseEventArgs e)
+	{
+		if (!spritesheet_dragging) {
+			base.OnMouseUp (document, e);
+			return;
+		}
+
+		spritesheet_dragging = false;
+		SpriteSheetLayer layer = (SpriteSheetLayer) document.Layers.CurrentUserLayer;
+		if (layer.PositionOffset != spritesheet_start_offset)
+			document.History.PushNewItem (new MoveSpriteSheetHistoryItem (
+				Icon,
+				Name,
+				document,
+				layer,
+				spritesheet_start_offset,
+				layer.PositionOffset));
+	}
+
 	protected override bool OnKeyDown (Document document, ToolKeyEventArgs e)
 	{
-		if (!document.Layers.HasSelectedLayer || !document.Layers.CurrentUserLayer.IsEditable)
+		if (!document.Layers.HasSelectedLayer || !document.Layers.CurrentUserLayer.CanMoveOnCanvas)
 			return false;
+
+		if (document.Layers.CurrentUserLayer is SpriteSheetLayer layer) {
+			double dx = e.IsControlPressed ? 10 : 1;
+			double dy = 0;
+			switch (e.Key.Value) {
+				case Gdk.Constants.KEY_Left: dx = -dx; break;
+				case Gdk.Constants.KEY_Right: break;
+				case Gdk.Constants.KEY_Up: dy = -dx; dx = 0; break;
+				case Gdk.Constants.KEY_Down: dy = dx; dx = 0; break;
+				default: return false;
+			}
+
+			PointD oldOffset = layer.PositionOffset;
+			PointD newOffset = oldOffset + new PointD (dx, dy);
+			layer.SetPositionOffset (newOffset, document.ImageSize);
+			document.History.PushNewItem (new MoveSpriteSheetHistoryItem (
+				Icon,
+				Name,
+				document,
+				layer,
+				oldOffset,
+				newOffset));
+			document.Workspace.Invalidate ();
+			return true;
+		}
 
 		return base.OnKeyDown (document, e);
 	}
@@ -112,7 +184,9 @@ public sealed class MoveSelectedTool : BaseTransformTool
 		: Utility.GetAlphaBounds (document.Layers.CurrentUserLayer.Surface).ToDouble ();
 
 	protected override bool ShouldShowTransformHandle (Document document)
-		=> TransformControlsVisible && document.Layers.CurrentUserLayer.IsEditable;
+		=> document.Layers.CurrentUserLayer is not SpriteSheetLayer
+			&& TransformControlsVisible
+			&& document.Layers.CurrentUserLayer.IsEditable;
 
 	protected override void OnStartTransform (Document document)
 	{
@@ -200,6 +274,18 @@ public sealed class MoveSelectedTool : BaseTransformTool
 	protected override void OnDeactivated (Document? document, BaseTool? newTool)
 	{
 		base.OnDeactivated (document, newTool);
+
+		if (spritesheet_dragging && document?.Layers.CurrentUserLayer is SpriteSheetLayer layer) {
+			if (layer.PositionOffset != spritesheet_start_offset)
+				document.History.PushNewItem (new MoveSpriteSheetHistoryItem (
+					Icon,
+					Name,
+					document,
+					layer,
+					spritesheet_start_offset,
+					layer.PositionOffset));
+			spritesheet_dragging = false;
+		}
 
 		document?.FinishSelection ();
 	}

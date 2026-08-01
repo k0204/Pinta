@@ -37,8 +37,7 @@ public sealed partial class DocumentLayers
 			&& ContainsPixel (SelectionLayer, point))
 			return userLayer;
 
-		return userLayer is not GroupLayer
-			&& userLayer.GetOwnLayersToPaint ().Reverse ().Any (layer => ContainsPixel (layer, point))
+		return userLayer.GetOwnLayersToPaint ().Reverse ().Any (layer => ContainsPixel (layer, point))
 			? userLayer
 			: null;
 	}

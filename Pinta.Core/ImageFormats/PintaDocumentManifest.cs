@@ -39,6 +39,34 @@ public sealed class PintaDocumentLayerNode
 	public SpritesheetSplitData? SpritesheetSplit { get; set; }
 	public PintaDocumentMatrix Transform { get; set; } = new ();
 	public List<PintaDocumentLayerNode> Children { get; set; } = [];
+	public double PositionOffsetX { get; set; }
+	public double PositionOffsetY { get; set; }
+	public List<PintaDocumentSpriteSheetAnimation> SpriteSheetAnimations { get; set; } = [];
+}
+
+public sealed class PintaDocumentSpriteSheetAnimation
+{
+	public string ActionId { get; set; } = string.Empty;
+	public int CanvasWidth { get; set; }
+	public int CanvasHeight { get; set; }
+	public List<PintaDocumentSpriteSheetDirection> Directions { get; set; } = [];
+}
+
+public sealed class PintaDocumentSpriteSheetDirection
+{
+	public string DirectionId { get; set; } = string.Empty;
+	public List<PintaDocumentSpriteSheetFrame> Frames { get; set; } = [];
+}
+
+public sealed class PintaDocumentSpriteSheetFrame
+{
+	public int FrameIndex { get; set; }
+	public int X { get; set; }
+	public int Y { get; set; }
+	public bool Visible { get; set; }
+	public string Surface { get; set; } = string.Empty;
+	public int Width { get; set; }
+	public int Height { get; set; }
 }
 
 public sealed class PintaDocumentSelection

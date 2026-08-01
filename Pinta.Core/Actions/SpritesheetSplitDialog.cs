@@ -14,6 +14,8 @@ internal sealed partial class SpritesheetSplitDialog : IDisposable
 	private const string grid_source_mode = "grid";
 	private readonly UserLayer source;
 	private readonly AI.SpritesheetAttemptInfo info;
+	private readonly IReadOnlyList<ImageSurface>? frame_surfaces;
+	private readonly bool editing_existing_frames;
 	private readonly IReadOnlyList<UserLayer> output_attempts;
 	private readonly Action<SpritesheetSplitData> save_analysis;
 	private readonly Gtk.Dialog dialog;
@@ -54,21 +56,25 @@ internal sealed partial class SpritesheetSplitDialog : IDisposable
 		IReadOnlyList<UserLayer> outputAttempts,
 		Func<string, Task<AI.SpriteSegmentationAnalysis>> analyze,
 		Action<SpritesheetSplitData> saveAnalysis,
-		SpritesheetSplitData? savedAnalysis)
+		SpritesheetSplitData? savedAnalysis,
+		IReadOnlyList<ImageSurface>? frameSurfaces = null,
+		IReadOnlyList<SpritesheetFrameSplit>? existingFrames = null)
 	{
 		this.source = source;
 		this.info = info;
+		frame_surfaces = frameSurfaces;
+		editing_existing_frames = frameSurfaces is not null;
 		output_attempts = outputAttempts;
 		this.analyze = analyze;
 		save_analysis = saveAnalysis;
 		dialog = Gtk.Dialog.New ();
-		dialog.Title = Translations.GetString ("Split Spritesheet");
+		dialog.Title = Translations.GetString ("Create Animation Frames");
 		dialog.TransientFor = parent;
 		dialog.Modal = true;
 		dialog.DefaultWidth = 1180;
 		dialog.DefaultHeight = 780;
 		dialog.AddButton (Translations.GetString ("_Cancel"), (int) Gtk.ResponseType.Cancel);
-		submit = dialog.AddButton (Translations.GetString ("Split"), (int) Gtk.ResponseType.Ok);
+		submit = dialog.AddButton (Translations.GetString ("Create"), (int) Gtk.ResponseType.Ok);
 		submit.AddCssClass (AdwaitaStyles.SuggestedAction);
 
 		columns = CreateSpinner (1, 32, info.Columns);
@@ -103,15 +109,31 @@ internal sealed partial class SpritesheetSplitDialog : IDisposable
 
 		BuildContent ();
 		ConnectEvents ();
-		if (!TryRestoreAnalysis (savedAnalysis))
+		if (editing_existing_frames) {
+			source_mode_stack.Sensitive = false;
+			output_attempt.Sensitive = false;
+			align_character.Sensitive = false;
+		}
+		if (!TryRestoreAnalysis (savedAnalysis)) {
+			if (editing_existing_frames)
+				frames.AddRange ((existingFrames ?? []).Select (frame => new EditableFrame {
+					X = frame.X,
+					Y = frame.Y,
+					Visible = frame.Visible,
+				}));
 			RebuildFrames ();
+		}
 		Refresh ();
 	}
 
 	public void Dispose () => dialog.Dispose ();
 
 	public async Task<SpritesheetSplitData?> RunAsync ()
-		=> await dialog.RunAsync () == Gtk.ResponseType.Ok ? ReadOptions () : null;
+	{
+		Gtk.ResponseType response = await dialog.RunAsync ();
+		dialog.Close ();
+		return response == Gtk.ResponseType.Ok ? ReadOptions () : null;
+	}
 
 	private void BuildContent ()
 	{
@@ -138,8 +160,10 @@ internal sealed partial class SpritesheetSplitDialog : IDisposable
 			(Translations.GetString ("Canvas width:"), canvas_width),
 			(Translations.GetString ("Canvas height:"), canvas_height),
 		]));
-		panel.Append (CreateHeading (Translations.GetString ("Output attempt")));
-		panel.Append (output_attempt);
+		if (output_attempts.Count > 0) {
+			panel.Append (CreateHeading (Translations.GetString ("Output attempt")));
+			panel.Append (output_attempt);
+		}
 		validation_label.Wrap = true;
 		validation_label.Halign = Gtk.Align.Start;
 		panel.Append (validation_label);
@@ -230,14 +254,12 @@ internal sealed partial class SpritesheetSplitDialog : IDisposable
 
 		if (frames.Count == 0) {
 			selected_frame = 0;
-			previous_frame.Sensitive = false;
-			next_frame.Sensitive = false;
 			Refresh ();
 			return;
 		}
 
 		selected_frame = Math.Clamp (selected_frame, 0, frames.Count - 1);
-		if (!IsAiSourceMode)
+		if (!IsAiSourceMode && !editing_existing_frames)
 			ApplyGridPlacement ();
 		frame_list.SelectRow (frame_list.GetRowAtIndex (selected_frame));
 		SelectFrame (selected_frame);
@@ -268,18 +290,19 @@ internal sealed partial class SpritesheetSplitDialog : IDisposable
 		frame_x.Value = frames[selected_frame].X;
 		frame_y.Value = frames[selected_frame].Y;
 		syncing = false;
-		previous_frame.Sensitive = FindVisibleFrame (selected_frame, -1) >= 0;
-		next_frame.Sensitive = FindVisibleFrame (selected_frame, 1) >= 0;
 		Refresh ();
 	}
 
 	private int FindVisibleFrame (int from, int direction)
 	{
-		int i = from + direction;
-		while (i >= 0 && i < frames.Count) {
+		if (frames.Count == 0)
+			return -1;
+
+		int i = from;
+		for (int count = 0; count < frames.Count; count++) {
+			i = (i + direction + frames.Count) % frames.Count;
 			if (frames[i].Visible)
 				return i;
-			i += direction;
 		}
 		return -1;
 	}
@@ -289,7 +312,7 @@ internal sealed partial class SpritesheetSplitDialog : IDisposable
 		if (frames.Count == 0)
 			return;
 		int target = FindVisibleFrame (selected_frame, offset);
-		if (target < 0)
+		if (target < 0 || target == selected_frame)
 			return;
 		Gtk.ListBoxRow? row = frame_list.GetRowAtIndex (target);
 		if (row is null)
@@ -354,6 +377,9 @@ internal sealed partial class SpritesheetSplitDialog : IDisposable
 	{
 		bool valid = IsValid ();
 		submit.Sensitive = valid;
+		bool canLoop = frames.Count (frame => frame.Visible) > 1;
+		previous_frame.Sensitive = canLoop;
+		next_frame.Sensitive = canLoop;
 		validation_label.SetText (GetValidationMessage (valid));
 		validation_label.RemoveCssClass (AdwaitaStyles.Error);
 		if (!valid && !(IsAiSourceMode && source_rectangles is null))
@@ -436,7 +462,7 @@ internal sealed partial class SpritesheetSplitDialog : IDisposable
 
 		if (frames.Count > 0 && frames[selected_frame].Visible) {
 			EditableFrame frame = frames[selected_frame];
-			using ImageSurface crop = LayerActions.CreateSplitFrameSurface (source, info, ReadOptions (), selected_frame);
+			using ImageSurface crop = CreatePreviewFrameSurface (selected_frame);
 			context.Save ();
 			context.Rectangle (0, 0, canvasWidth, canvasHeight);
 			context.Clip ();
@@ -445,7 +471,27 @@ internal sealed partial class SpritesheetSplitDialog : IDisposable
 			context.Restore ();
 		}
 		context.DrawRectangle (new RectangleD (0, 0, canvasWidth, canvasHeight), new Color (0.25, 0.25, 0.25), Math.Max (1, (int) Math.Ceiling (1 / scale)));
+		DrawAnchorMarker (context, canvasWidth / 2.0, canvasHeight);
 		DrawPreviewGuides (context, scale, canvasWidth, canvasHeight);
+	}
+
+	private ImageSurface CreatePreviewFrameSurface (int frame)
+		=> frame_surfaces is not null && frame < frame_surfaces.Count
+			? frame_surfaces[frame].Clone ()
+			: LayerActions.CreateSplitFrameSurface (source, info, ReadOptions (), frame);
+
+	private static void DrawAnchorMarker (Context context, double x, double y)
+	{
+		const double size = 8;
+		context.Save ();
+		context.SetSourceColor (new Color (0.9, 0.1, 0.1, 0.95));
+		context.LineWidth = 2;
+		context.MoveTo (x - size, y);
+		context.LineTo (x + size, y);
+		context.MoveTo (x, y - size);
+		context.LineTo (x, y + size);
+		context.Stroke ();
+		context.Restore ();
 	}
 
 	private RectangleD GetCellBounds (int cell)

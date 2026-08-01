@@ -25,6 +25,7 @@
 // THE SOFTWARE.
 
 using System;
+using System.Linq;
 using Cairo;
 
 namespace Pinta.Core;
@@ -184,22 +185,25 @@ public sealed class ImageActions
 
 	private void UpdateReferenceSensitiveState ()
 	{
-		bool canEditImage = workspace.ActiveDocumentOrDefault is Document document && !document.Layers.HasLockedReferences;
-		Resize.Sensitive = canEditImage;
-		CanvasSize.Sensitive = canEditImage;
-		FlipHorizontal.Sensitive = canEditImage;
-		FlipVertical.Sensitive = canEditImage;
-		RotateCW.Sensitive = canEditImage;
-		RotateCCW.Sensitive = canEditImage;
-		Rotate180.Sensitive = canEditImage;
-		Flatten.Sensitive = canEditImage && (workspace.ActiveDocumentOrDefault?.Layers.AllLayers.Count > 1);
-		CropToSelection.Sensitive = canEditImage && (workspace.ActiveDocumentOrDefault?.Selection.Visible == true);
-		AutoCrop.Sensitive = canEditImage;
+		Document? document = workspace.ActiveDocumentOrDefault;
+		bool canEditCanvas = document is not null && !document.Layers.HasLockedReferences;
+		bool hasSpriteSheet = document?.Layers.AllLayers.Any (layer => layer is SpriteSheetLayer) == true;
+		bool canEditPixels = canEditCanvas && !hasSpriteSheet;
+		Resize.Sensitive = canEditPixels;
+		CanvasSize.Sensitive = canEditCanvas;
+		FlipHorizontal.Sensitive = canEditPixels;
+		FlipVertical.Sensitive = canEditPixels;
+		RotateCW.Sensitive = canEditPixels;
+		RotateCCW.Sensitive = canEditPixels;
+		Rotate180.Sensitive = canEditPixels;
+		Flatten.Sensitive = canEditPixels && (document?.Layers.AllLayers.Count > 1);
+		CropToSelection.Sensitive = canEditPixels && (document?.Selection.Visible == true);
+		AutoCrop.Sensitive = canEditPixels;
 	}
 
 	private void HandlePintaCoreActionsImageRotateCCWActivated (object sender, EventArgs e)
 	{
-		if (workspace.ActiveDocument.Layers.HasLockedReferences) return;
+		if (!CanTransformPixels (workspace.ActiveDocument)) return;
 		Document doc = workspace.ActiveDocument;
 
 		tools.Commit ();
@@ -210,7 +214,7 @@ public sealed class ImageActions
 
 	private void HandlePintaCoreActionsImageRotateCWActivated (object sender, EventArgs e)
 	{
-		if (workspace.ActiveDocument.Layers.HasLockedReferences) return;
+		if (!CanTransformPixels (workspace.ActiveDocument)) return;
 		Document doc = workspace.ActiveDocument;
 
 		tools.Commit ();
@@ -221,7 +225,7 @@ public sealed class ImageActions
 
 	private void HandlePintaCoreActionsImageFlattenActivated (object sender, EventArgs e)
 	{
-		if (workspace.ActiveDocument.Layers.HasLockedReferences) return;
+		if (!CanTransformPixels (workspace.ActiveDocument)) return;
 		Document doc = workspace.ActiveDocument;
 
 		tools.Commit ();
@@ -250,7 +254,7 @@ public sealed class ImageActions
 
 	private void HandlePintaCoreActionsImageRotate180Activated (object sender, EventArgs e)
 	{
-		if (workspace.ActiveDocument.Layers.HasLockedReferences) return;
+		if (!CanTransformPixels (workspace.ActiveDocument)) return;
 		Document doc = workspace.ActiveDocument;
 
 		tools.Commit ();
@@ -261,7 +265,7 @@ public sealed class ImageActions
 
 	private void HandlePintaCoreActionsImageFlipVerticalActivated (object sender, EventArgs e)
 	{
-		if (workspace.ActiveDocument.Layers.HasLockedReferences) return;
+		if (!CanTransformPixels (workspace.ActiveDocument)) return;
 		Document doc = workspace.ActiveDocument;
 
 		tools.Commit ();
@@ -272,7 +276,7 @@ public sealed class ImageActions
 
 	private void HandlePintaCoreActionsImageFlipHorizontalActivated (object sender, EventArgs e)
 	{
-		if (workspace.ActiveDocument.Layers.HasLockedReferences) return;
+		if (!CanTransformPixels (workspace.ActiveDocument)) return;
 		Document doc = workspace.ActiveDocument;
 
 		tools.Commit ();
@@ -283,7 +287,7 @@ public sealed class ImageActions
 
 	private void HandlePintaCoreActionsImageCropToSelectionActivated (object sender, EventArgs e)
 	{
-		if (workspace.ActiveDocument.Layers.HasLockedReferences) return;
+		if (!CanTransformPixels (workspace.ActiveDocument)) return;
 		Document doc = workspace.ActiveDocument;
 
 		tools.Commit ();
@@ -295,7 +299,7 @@ public sealed class ImageActions
 
 	private void HandlePintaCoreActionsImageAutoCropActivated (object sender, EventArgs e)
 	{
-		if (workspace.ActiveDocument.Layers.HasLockedReferences) return;
+		if (!CanTransformPixels (workspace.ActiveDocument)) return;
 		Document doc = workspace.ActiveDocument;
 
 		tools.Commit ();
@@ -338,4 +342,8 @@ public sealed class ImageActions
 
 		doc.Workspace.Invalidate ();
 	}
+
+	private static bool CanTransformPixels (Document document)
+		=> !document.Layers.HasLockedReferences
+		&& !document.Layers.AllLayers.Any (layer => layer is SpriteSheetLayer);
 }

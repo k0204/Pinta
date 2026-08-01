@@ -257,13 +257,9 @@ public sealed partial class LayerActions
 		bool clearStatus = true;
 
 		try {
-			Size operationSize = IsSpritesheetFrame (sourceLayer)
-				? new Size (sourceLayer.Surface.Width, sourceLayer.Surface.Height)
-				: doc.ImageSize;
-			byte[] sourcePng = IsSpritesheetFrame (sourceLayer)
-				? CreateSurfacePng (sourceLayer.Surface)
-				: CreateLayerPng (doc, sourceLayer);
-			string cutoutName = GetCutoutResultName (sourceLayer);
+			Size operationSize = doc.ImageSize;
+			byte[] sourcePng = CreateLayerPng (doc, sourceLayer);
+			string cutoutName = Translations.GetString ("Transparent Cutout");
 			string imageService = AI.AiRequestSettings.GetImageService (PintaCore.Settings);
 			string debugDir = CreateCutoutDebugDirectory ();
 			SaveCutoutDebugLog (
@@ -308,7 +304,7 @@ public sealed partial class LayerActions
 
 				SetProgress (Translations.GetString ("Creating black and transparent layers..."), 0.85);
 				CompoundHistoryItem history = new (Resources.Icons.ColorModeTransparency, Translations.GetString ("Cutout"));
-				UserLayer blackLayer = AddAiResultLayer (doc, IsSpritesheetFrame (sourceLayer) ? $"{cutoutName}-black-source" : Translations.GetString ("Black Background"), operationSize);
+				UserLayer blackLayer = AddAiResultLayer (doc, Translations.GetString ("Black Background"), operationSize);
 				DrawPngOnLayer (blackPng, blackLayer);
 				history.Push (new AddLayerHistoryItem (
 					Resources.Icons.ColorModeColor,

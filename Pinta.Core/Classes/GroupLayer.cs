@@ -3,7 +3,7 @@ using Cairo;
 
 namespace Pinta.Core;
 
-public sealed class GroupLayer : UserLayer
+public class GroupLayer : UserLayer
 {
         public GroupLayer (ImageSurface surface)
                 : base (surface)

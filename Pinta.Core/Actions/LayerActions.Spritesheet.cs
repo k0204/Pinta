@@ -10,6 +10,9 @@ public sealed partial class LayerActions
 	private const string spritesheet_attempt_metadata = "pinta.spritesheet.attempt";
 	private const string spritesheet_anchor_metadata = "pinta.spritesheet.character-anchor";
 
+	private static bool CanCreateSpritesheetAnimation (UserLayer layer)
+		=> layer is SpriteSheetLayer || layer is not GroupLayer && layer.IsEditable;
+
 	private async void HandlePintaCoreActionsLayersGenerateSpritesheetActivated (object sender, EventArgs e)
 	{
 		if (cutout_running || !EnsureAiLoggedIn () || workspace.ActiveDocumentOrDefault is not Document document)
@@ -79,7 +82,7 @@ public sealed partial class LayerActions
 		CompoundHistoryItem history)
 	{
 		IReadOnlyList<UserLayer> children = parent?.Children ?? document.Layers.RootLayers;
-		if (children.FirstOrDefault (layer => layer is GroupLayer && layer.Name == name) is GroupLayer existing)
+		if (children.FirstOrDefault (layer => layer is GroupLayer && layer is not SpriteSheetLayer && layer.Name == name) is GroupLayer existing)
 			return existing;
 
 		GroupLayer group = document.Layers.CreateGroupLayer (name);
@@ -99,13 +102,10 @@ public sealed partial class LayerActions
 		return $"attempt-{next:D2}";
 	}
 
-	private static bool IsSpritesheetSource (UserLayer layer)
-		=> layer is not GroupLayer
-		&& layer.Name.StartsWith ("source-sheet", StringComparison.Ordinal)
-		&& TryGetSpritesheetAttempt (layer, out _, out _);
-
 	private static bool IsDirectionSheetSource (UserLayer layer)
-		=> IsSpritesheetSource (layer) && layer.Parent?.Parent?.Name == "direction-sheet";
+		=> layer is not GroupLayer
+		&& layer.Parent?.Parent?.Name == "direction-sheet"
+		&& TryGetSpritesheetAttempt (layer, out _, out _);
 
 	private static bool TryGetSpritesheetAttempt (
 		UserLayer source,
@@ -176,32 +176,6 @@ public sealed partial class LayerActions
 		return new (directionSheet, directionSheet ? "direction-sheet" : catalog.Actions[actionIndex].Id, ids, frames, columns, rows,
 			catalog.Backgrounds[backgroundIndex].Id, size, promptBuffer.GetText (start, end, true).Trim (),
 			AI.AiRequestSettings.GetImageService (PintaCore.Settings), AI.AiRequestSettings.GetGptProvider (PintaCore.Settings), 1);
-	}
-
-	private static bool IsSpritesheetFrame (UserLayer layer)
-		=> layer is not GroupLayer
-		&& layer.Name.StartsWith ("frame-", StringComparison.Ordinal)
-		&& !layer.Name.Contains ("-cutout-", StringComparison.Ordinal)
-		&& HasSpritesheetAttemptAncestor (layer);
-
-	private static bool HasSpritesheetAttemptAncestor (UserLayer layer)
-	{
-		for (UserLayer? ancestor = layer.Parent; ancestor is not null; ancestor = ancestor.Parent)
-			if (ancestor.Metadata.ContainsKey (spritesheet_attempt_metadata))
-				return true;
-
-		return false;
-	}
-
-	private static string GetCutoutResultName (UserLayer source)
-	{
-		if (!IsSpritesheetFrame (source) || source.Parent is null)
-			return Translations.GetString ("Transparent Cutout");
-
-		int next = 1;
-		while (source.Parent.Children.Any (layer => layer.Name == $"{source.Name}-cutout-{next:D2}"))
-			next++;
-		return $"{source.Name}-cutout-{next:D2}";
 	}
 
 	private static byte[] CreateSurfacePng (Cairo.ImageSurface surface)

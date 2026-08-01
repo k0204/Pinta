@@ -106,8 +106,8 @@ public sealed partial class LayerActions
 
 		SplitSpritesheet = new Command (
 			"splitspritesheet",
-			"图片拆分",
-			Translations.GetString ("Split the selected source sheet into direction frame layers"),
+			Translations.GetString ("Create Animation Frames"),
+			Translations.GetString ("Create or edit animation frames from the selected layer"),
 			Resources.Icons.ImageCrop);
 
 		SetSpritesheetAnchor = new Command (
@@ -290,7 +290,9 @@ public sealed partial class LayerActions
                 AddNewGroup.Sensitive = activeDoc != null;
 		GenerateImage.Sensitive = !cutout_running;
 		GenerateSpritesheet.Sensitive = activeDoc is not null && !cutout_running;
-		SplitSpritesheet.Sensitive = hasSelectedLayer && IsSpritesheetSource (activeDoc!.Layers.CurrentUserLayer) && !cutout_running;
+		SplitSpritesheet.Sensitive = hasSelectedLayer
+			&& CanCreateSpritesheetAnimation (activeDoc!.Layers.CurrentUserLayer)
+			&& !cutout_running;
 		SetSpritesheetAnchor.Sensitive = hasSelectedLayer && IsDirectionSheetSource (activeDoc!.Layers.CurrentUserLayer);
 
 		bool currentEditable = hasSelectedLayer && activeDoc!.Layers.CurrentUserLayer.IsEditable;

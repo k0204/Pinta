@@ -25,6 +25,7 @@
 // THE SOFTWARE.
 
 using System.Collections.Generic;
+using System.Linq;
 using Pinta.Actions;
 using Pinta.Core;
 
@@ -128,7 +129,8 @@ public sealed class ActionHandlers
 		Document? document = enable ? PintaCore.Workspace.ActiveDocumentOrDefault : null;
 		bool hasSelectedLayer = document?.Layers.HasSelectedLayer == true;
 		bool editableLayer = hasSelectedLayer && document!.Layers.CurrentUserLayer.IsEditable;
-		bool editableImage = document is not null && !document.Layers.HasLockedReferences;
+		bool editableCanvas = document is not null && !document.Layers.HasLockedReferences;
+		bool editableImage = editableCanvas && !document!.Layers.AllLayers.Any (layer => layer is SpriteSheetLayer);
 		bool selectionVisible = document?.Selection.Visible == true;
 
 		PintaCore.Actions.File.Close.Sensitive = enable;
@@ -155,7 +157,7 @@ public sealed class ActionHandlers
 
 		PintaCore.Actions.Image.CropToSelection.Sensitive = editableImage && selectionVisible;
 		PintaCore.Actions.Image.AutoCrop.Sensitive = editableImage;
-		PintaCore.Actions.Image.CanvasSize.Sensitive = editableImage;
+		PintaCore.Actions.Image.CanvasSize.Sensitive = editableCanvas;
 		PintaCore.Actions.Image.Resize.Sensitive = editableImage;
 		PintaCore.Actions.Image.FlipHorizontal.Sensitive = editableImage;
 		PintaCore.Actions.Image.FlipVertical.Sensitive = editableImage;
@@ -165,12 +167,15 @@ public sealed class ActionHandlers
 		PintaCore.Actions.Image.Flatten.Sensitive = editableImage && document!.Layers.AllLayers.Count > 1;
 
 		PintaCore.Actions.Layers.AddNewLayer.Sensitive = enable;
-                PintaCore.Actions.Layers.AddNewGroup.Sensitive = enable;
+		PintaCore.Actions.Layers.AddNewGroup.Sensitive = enable;
 		PintaCore.Actions.Layers.DeleteLayer.Sensitive = hasSelectedLayer;
 		PintaCore.Actions.Layers.DuplicateLayer.Sensitive = hasSelectedLayer;
-		PintaCore.Actions.Layers.MergeLayerDown.Sensitive = hasSelectedLayer;
+		bool canMergeDown = editableLayer
+			&& document!.Layers.CanMoveCurrentLayerDown ()
+			&& document.Layers.GetSiblingBelow (document.Layers.CurrentUserLayer).IsEditable;
+		PintaCore.Actions.Layers.MergeLayerDown.Sensitive = canMergeDown;
 		PintaCore.Actions.Layers.ImportFromFile.Sensitive = enable;
-		PintaCore.Actions.Layers.DetectBorder.Sensitive = hasSelectedLayer;
+		PintaCore.Actions.Layers.DetectBorder.Sensitive = editableLayer;
 		PintaCore.Actions.Layers.Cutout.Sensitive = editableLayer;
 		PintaCore.Actions.Layers.FlipHorizontal.Sensitive = editableLayer;
 		PintaCore.Actions.Layers.FlipVertical.Sensitive = editableLayer;

@@ -1,4 +1,3 @@
-using System;
 using System.Linq;
 
 namespace Pinta.Core;
@@ -11,9 +10,7 @@ internal sealed partial class SpritesheetSplitDialog
 	private Gtk.ComboBoxText CreateOutputAttemptCombo ()
 	{
 		Gtk.ComboBoxText combo = Gtk.ComboBoxText.New ();
-		combo.AppendText (source.Parent?.Children.Any (child => child is GroupLayer) == true
-			? Translations.GetString ("Create a new attempt")
-			: Translations.GetString ("Current attempt"));
+		combo.AppendText (Translations.GetString ("Current attempt"));
 		foreach (UserLayer attempt in output_attempts)
 			combo.AppendText (Translations.GetString ("Add directions to {0}", attempt.Name));
 		combo.Active = 0;
@@ -25,9 +22,8 @@ internal sealed partial class SpritesheetSplitDialog
 		if (OutputAttempt is not UserLayer target)
 			return true;
 
-		UserLayer? frame = target.GetSelfAndDescendants ()
-			.FirstOrDefault (child => child is not GroupLayer && child.Name.StartsWith ("frame-", StringComparison.Ordinal));
-		return frame is null
-			|| (frame.Surface.Width == (int) canvas_width.Value && frame.Surface.Height == (int) canvas_height.Value);
+		SpriteSheetLayer? spriteSheet = target.Children.OfType<SpriteSheetLayer> ().FirstOrDefault ();
+		return spriteSheet is null
+			|| (spriteSheet.CanvasWidth == (int) canvas_width.Value && spriteSheet.CanvasHeight == (int) canvas_height.Value);
 	}
 }

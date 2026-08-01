@@ -119,7 +119,6 @@ public static class Icons
 	public const string ColorModeTransparency = "tool-gradient-colormode-transparency-symbolic";
 
 	public const string CursorPosition = "ui-cursor-location-symbolic";
-	public const string SpritesheetAnchor = "spritesheet-anchor-symbolic";
 
 	public const string EditSelectionErase = "edit-selection-erase-symbolic";
 	public const string EditSelectionFill = "edit-selection-fill-symbolic";

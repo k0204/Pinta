@@ -68,8 +68,6 @@ public class UserLayer : Layer
 	public IReadOnlyList<UserLayer> Children => children;
 	public Dictionary<string, string> Metadata { get; } = [];
 	public SpritesheetSplitData? SpritesheetSplit { get; internal set; }
-	public bool IsSpritesheetOutputAnchor
-		=> Metadata.ContainsKey (SpritesheetLayerMetadata.OutputCanvas);
 	public bool HasChildren => children.Count > 0;
 	internal List<UserLayer> MutableChildren => children;
 	internal string? DocumentId { get; set; }
@@ -84,6 +82,7 @@ public class UserLayer : Layer
 	public Size ReferenceSize { get; internal set; }
 	public bool IsReference => ReferencePath is not null;
 	public bool IsEditable => this is not GroupLayer && !IsReference;
+	public virtual bool CanMoveOnCanvas => IsEditable;
 
 	//Rectangular boundary surrounding the editable text.
 	public RectangleI TextBounds { get; set; } = RectangleI.Zero;

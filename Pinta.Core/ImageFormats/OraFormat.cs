@@ -185,8 +185,8 @@ public sealed class OraFormat : IImageImporter, IImageExporter
                 IReadOnlyList<UserLayer> allLayers = document.Layers.AllLayers;
 
 		writer.WriteStartElement ("image");
-		writer.WriteAttributeString ("w", rootLayers[0].Surface.Width.ToString ());
-		writer.WriteAttributeString ("h", rootLayers[0].Surface.Height.ToString ());
+		writer.WriteAttributeString ("w", document.ImageSize.Width.ToString ());
+		writer.WriteAttributeString ("h", document.ImageSize.Height.ToString ());
 		writer.WriteAttributeString ("version", "0.0.5"); // Current version of the spec.
                 writer.WriteAttributeString ("xmlns", "pinta", null, pinta_namespace);
                 WriteGuideAttributes (writer, document.Guides.Items);
@@ -269,12 +269,25 @@ public sealed class OraFormat : IImageImporter, IImageExporter
 	private static void AddLayerEntries (ZipArchive archive, Document document)
 	{
 		for (int i = 0; i < document.Layers.AllLayers.Count; i++) {
-			using Pixbuf pb = document.Layers.AllLayers[i].Surface.ToPixbuf ();
+			using ImageSurface surface = CreateExportSurface (document, document.Layers.AllLayers[i]);
+			using Pixbuf pb = surface.ToPixbuf ();
 			byte[] buf = pb.SaveToBuffer ("png");
 			ZipArchiveEntry layerEntry = archive.CreateEntry ($"data/layer{i}.png");
 			using Stream layerStream = layerEntry.Open ();
 			layerStream.Write (buf, 0, buf.Length);
 		}
+	}
+
+	private static ImageSurface CreateExportSurface (Document document, UserLayer layer)
+	{
+		if (layer is not SpriteSheetLayer)
+			return layer.Surface.Clone ();
+
+		ImageSurface surface = CairoExtensions.CreateImageSurface (Format.Argb32, document.ImageSize.Width, document.ImageSize.Height);
+		using Context context = new (surface);
+		foreach (Layer renderLayer in layer.GetLayersToPaint ())
+			renderLayer.Draw (context);
+		return surface;
 	}
 
 	private static void AddStackEntry (ZipArchive archive, Document document)

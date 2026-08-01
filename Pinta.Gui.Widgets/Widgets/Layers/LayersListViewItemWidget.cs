@@ -64,8 +64,10 @@ public sealed partial class LayersListViewItem
 			throw new InvalidOperationException ($"{nameof (LayersListViewItem)} is not initialized");
 
 		ImageSurface surface = CairoExtensions.CreateImageSurface (Format.Argb32, widthRequest, heightRequest);
-                if (UserLayer is GroupLayer)
-                        return surface;
+		if (UserLayer is SpriteSheetLayer spriteSheet)
+			return spriteSheet.CreateThumbnailSurface () ?? surface;
+		if (UserLayer is GroupLayer)
+			return surface;
 
 		List<Layer> layers = UserLayer.GetLayersToPaint ().ToList ();
 		// For the current layer, show the selection layer too (e.g. when moving the selection's contents).
@@ -506,19 +508,12 @@ public sealed partial class LayersListViewItemWidget
                 disclosure_button.Opacity = item.CanExpand ? 1 : 0;
                 disclosure_button.Sensitive = item.CanExpand;
                 disclosure_button.IconName = item.CanExpand ? (item.Expanded ? "pan-down-symbolic" : "pan-end-symbolic") : string.Empty;
-			bool isGroup = item.UserLayer is GroupLayer;
+			bool isGroup = item.UserLayer is GroupLayer && item.UserLayer is not SpriteSheetLayer;
 			bool isReference = item.UserLayer?.IsReference == true;
-			bool isSpritesheetAnchor = item.UserLayer?.IsSpritesheetOutputAnchor == true;
 			item_thumbnail.Visible = !isGroup;
-			layer_icon.IconName = isSpritesheetAnchor
-				? Resources.Icons.SpritesheetAnchor
-				: isGroup ? Resources.StandardIcons.Folder : isReference ? "object-locked-symbolic" : string.Empty;
-			layer_icon.RemoveCssClass ("spritesheet-anchor-icon");
-			if (isSpritesheetAnchor)
-				layer_icon.AddCssClass ("spritesheet-anchor-icon");
+			layer_icon.IconName = isGroup ? Resources.StandardIcons.Folder : isReference ? "object-locked-symbolic" : string.Empty;
 			layer_icon.TooltipText = isReference
 				? item.UserLayer!.ReferenceMissing ? Translations.GetString ("Referenced image is missing") : Translations.GetString ("Referenced layer is locked")
-				: isSpritesheetAnchor ? Translations.GetString ("Spritesheet anchor")
 				: null;
 			layer_icon.Visible = isGroup || isReference;
 			cutout_button.Sensitive = item.UserLayer?.IsEditable == true;

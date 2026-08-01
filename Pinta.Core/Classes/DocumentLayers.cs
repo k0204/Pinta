@@ -172,6 +172,9 @@ public sealed partial class DocumentLayers
                 return layer;
         }
 
+	public SpriteSheetLayer CreateSpriteSheetLayer (string name, int canvasWidth, int canvasHeight)
+		=> new (name, canvasWidth, canvasHeight);
+
         /// <summary>
         /// Creates a new group and adds it to the Layer collection after the
         /// currently selected layer, making it the new selected layer.
@@ -273,6 +276,8 @@ public sealed partial class DocumentLayers
 	{
 		if (Count () < 2)
 			throw new InvalidOperationException ("Cannot flatten image because there is only one layer.");
+		if (AllLayers.Any (layer => layer is SpriteSheetLayer))
+			throw new InvalidOperationException ("Cannot flatten an image containing a SpriteSheetLayer.");
 
 		// Find the "bottom" layer
 		UserLayer bottom_layer = AllLayers[0];
@@ -570,9 +575,13 @@ public sealed partial class DocumentLayers
 	{
 		// Translators: this is the auto-generated name for a duplicated layer.
 		// {0} is the name of the source layer. Example: "Layer 3 copy".
-		UserLayer layer = source is GroupLayer
-                        ? CreateGroupLayer (Translations.GetString ("{0} copy", source.Name))
-                        : CreateLayer (Translations.GetString ("{0} copy", source.Name));
+		UserLayer layer = source switch {
+			SpriteSheetLayer sprite => DuplicateSpriteSheetLayer (sprite),
+			GroupLayer => CreateGroupLayer (Translations.GetString ("{0} copy", source.Name)),
+			_ => CreateLayer (Translations.GetString ("{0} copy", source.Name)),
+		};
+		if (source is SpriteSheetLayer)
+			return layer;
 
 		if (!source.IsReference) {
 			using Context g = new (layer.Surface);
@@ -599,6 +608,20 @@ public sealed partial class DocumentLayers
 			layer.InsertChild (layer.Children.Count, DuplicateLayerTree (child));
 
 		return layer;
+	}
+
+	private SpriteSheetLayer DuplicateSpriteSheetLayer (SpriteSheetLayer source)
+	{
+		SpriteSheetLayer copy = CreateSpriteSheetLayer (Translations.GetString ("{0} copy", source.Name), source.CanvasWidth, source.CanvasHeight);
+		copy.Hidden = source.Hidden;
+		copy.Opacity = source.Opacity;
+		copy.BlendMode = source.BlendMode;
+		copy.Expanded = source.Expanded;
+		foreach ((string key, string value) in source.Metadata)
+			copy.Metadata[key] = value;
+		copy.SpritesheetSplit = source.SpritesheetSplit;
+		copy.ReplaceSnapshot (source.CaptureSnapshot (), document.ImageSize);
+		return copy;
 	}
 
 	private IEnumerable<UserLayer> GetAllUserLayers ()
