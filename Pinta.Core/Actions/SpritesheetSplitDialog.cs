@@ -44,6 +44,8 @@ internal sealed partial class SpritesheetSplitDialog : IDisposable
 	private readonly Gtk.SpinButton frame_y;
 	private readonly Gtk.Button previous_frame;
 	private readonly Gtk.Button next_frame;
+	private readonly Gtk.Button undo_position;
+	private readonly Gtk.Button redo_position;
 	private readonly Gtk.Button add_horizontal_guide;
 	private readonly Gtk.Button add_vertical_guide;
 	private readonly Gtk.Label validation_label;
@@ -109,6 +111,8 @@ internal sealed partial class SpritesheetSplitDialog : IDisposable
 		frame_y = CreateSpinner (-16384, 16384, 0);
 		previous_frame = CreateNavigationButton (Resources.StandardIcons.GoPrevious, Translations.GetString ("Previous frame"));
 		next_frame = CreateNavigationButton (Resources.StandardIcons.GoNext, Translations.GetString ("Next frame"));
+		undo_position = CreateNavigationButton (Resources.StandardIcons.EditUndo, Translations.GetString ("Undo frame position"));
+		redo_position = CreateNavigationButton (Resources.StandardIcons.EditRedo, Translations.GetString ("Redo frame position"));
 		add_horizontal_guide = Gtk.Button.NewWithLabel (Translations.GetString ("Horizontal guide"));
 		add_vertical_guide = Gtk.Button.NewWithLabel (Translations.GetString ("Vertical guide"));
 		validation_label = Gtk.Label.New (string.Empty);
@@ -228,9 +232,16 @@ internal sealed partial class SpritesheetSplitDialog : IDisposable
 		frame_y.OnValueChanged += (_, _) => UpdateSelectedPosition ();
 		previous_frame.OnClicked += (_, _) => MoveFrameSelection (-1);
 		next_frame.OnClicked += (_, _) => MoveFrameSelection (1);
+		undo_position.OnClicked += (_, _) => UndoFramePosition ();
+		redo_position.OnClicked += (_, _) => RedoFramePosition ();
 		add_horizontal_guide.OnClicked += (_, _) => AddGuide (GuideOrientation.Horizontal);
 		add_vertical_guide.OnClicked += (_, _) => AddGuide (GuideOrientation.Vertical);
 		ConnectRulerAndGuidePointerEvents ();
+
+		Gtk.EventControllerKey keys = Gtk.EventControllerKey.New ();
+		keys.PropagationPhase = Gtk.PropagationPhase.Capture;
+		keys.OnKeyPressed += HandlePositionHistoryKeyPressed;
+		dialog.AddController (keys);
 		Adw.ViewStack.VisibleChildNamePropertyDefinition.Notify (
 			source_mode_stack,
 			(_, _) => ChangeSourceMode ());
@@ -248,6 +259,7 @@ internal sealed partial class SpritesheetSplitDialog : IDisposable
 
 	private void RebuildFrames (int count)
 	{
+		ClearPositionHistory ();
 		while (frames.Count < count)
 			frames.Add (new EditableFrame { Visible = frames.Count < ExpectedFrameCount });
 		if (frames.Count > count)
@@ -373,13 +385,14 @@ internal sealed partial class SpritesheetSplitDialog : IDisposable
 	{
 		if (syncing || frames.Count == 0)
 			return;
-		frames[selected_frame].X = (int) frame_x.Value;
-		frames[selected_frame].Y = (int) frame_y.Value;
-		if (frames[selected_frame].AnchorX is not null && frames[selected_frame].AnchorY is not null) {
-			frames[selected_frame].AnchorX = canvas_width.Value / 2.0 - frames[selected_frame].X;
-			frames[selected_frame].AnchorY = canvas_height.Value - frames[selected_frame].Y;
-		}
-		Refresh ();
+		EditableFrame frame = frames[selected_frame];
+		int x = (int) frame_x.Value;
+		int y = (int) frame_y.Value;
+		int oldX = frame.X;
+		int oldY = frame.Y;
+		ApplyFramePosition (selected_frame, x, y);
+		if (!frame_position_dragging)
+			RecordPositionChange (selected_frame, oldX, oldY, x, y);
 	}
 
 	private void RepositionFramesAroundAnchor ()
@@ -427,6 +440,7 @@ internal sealed partial class SpritesheetSplitDialog : IDisposable
 		bool canLoop = frames.Count (frame => frame.Visible) > 1;
 		previous_frame.Sensitive = canLoop;
 		next_frame.Sensitive = canLoop;
+		UpdatePositionHistoryButtons ();
 		validation_label.SetText (GetValidationMessage (valid));
 		validation_label.RemoveCssClass (AdwaitaStyles.Error);
 		if (!valid && !(IsAiSourceMode && source_rectangles is null))

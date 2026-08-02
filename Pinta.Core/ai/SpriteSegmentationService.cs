@@ -31,7 +31,8 @@ public sealed class SpriteSegmentationService
 		if (string.IsNullOrWhiteSpace (provider))
 			throw new ArgumentException ("Sprite analysis provider is required.", nameof (provider));
 		(byte[] requestPng, int requestWidth, int requestHeight) = PrepareRequestImage (png, imageWidth, imageHeight);
-		string prompt = $"{ReadPrompt ()}\n\n" +
+		string promptPath = Path.Combine (AppContext.BaseDirectory, "config", prompt_config_file);
+		string prompt = $"{PromptFileReader.ReadRequired (promptPath, "Sprite segmentation prompt")}\n\n" +
 			$"The uploaded input image dimensions are exactly {requestWidth}x{requestHeight} pixels. " +
 			$"Return image_width={requestWidth} and image_height={requestHeight}; do not estimate them.";
 		string debugDirectory = CreateDebugDirectory ();
@@ -172,15 +173,6 @@ public sealed class SpriteSegmentationService
 		}
 
 		return text;
-	}
-
-	private static string ReadPrompt ()
-	{
-		string path = Path.Combine (AppContext.BaseDirectory, "config", prompt_config_file);
-		string prompt = File.ReadAllText (path).Trim ();
-		if (string.IsNullOrWhiteSpace (prompt))
-			throw new InvalidOperationException ($"Sprite segmentation prompt is missing: {path}");
-		return prompt;
 	}
 
 	private static GdkPixbuf.Pixbuf LoadPixbuf (byte[] png)

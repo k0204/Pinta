@@ -140,6 +140,9 @@ internal sealed partial class SpritesheetSplitDialog
 		Gtk.Box toolbar = Gtk.Box.New (Gtk.Orientation.Horizontal, 6);
 		toolbar.Append (previous_frame);
 		toolbar.Append (next_frame);
+		toolbar.Append (Gtk.Separator.New (Gtk.Orientation.Vertical));
+		toolbar.Append (undo_position);
+		toolbar.Append (redo_position);
 		Gtk.Box spacer = Gtk.Box.New (Gtk.Orientation.Horizontal, 0);
 		spacer.Hexpand = true;
 		toolbar.Append (spacer);
@@ -172,9 +175,11 @@ internal sealed partial class SpritesheetSplitDialog
 		preview_drag_start_x = x;
 		preview_drag_start_y = y;
 		guide_drag_state = FindGuideAtPoint (x, y);
+		frame_position_dragging = false;
 		if (guide_drag_state is null && frames.Count > 0) {
 			drag_start_x = frames[selected_frame].X;
 			drag_start_y = frames[selected_frame].Y;
+			BeginFramePositionDrag ();
 		}
 	}
 
@@ -188,8 +193,10 @@ internal sealed partial class SpritesheetSplitDialog
 
 	private void EndPreviewDrag (double offsetX, double offsetY)
 	{
-		if (guide_drag_state is not GuideDragState state)
+		if (guide_drag_state is not GuideDragState state) {
+			EndFramePositionDrag (selected_frame);
 			return;
+		}
 
 		PointD point = new (preview_drag_start_x + offsetX, preview_drag_start_y + offsetY);
 		RectangleD bounds = GetPreviewBounds ();
