@@ -6,10 +6,6 @@ using System.Text.Json;
 
 namespace Pinta.Core.AI;
 
-public sealed record SpritesheetDirection (string Id, string Label, string Prompt);
-
-public sealed record SpritesheetBackground (string Id, string Label, string Prompt);
-
 public sealed record SpritesheetActionPreset (
 	string Id,
 	string Label,
@@ -36,34 +32,32 @@ public sealed record SpritesheetAttemptInfo (
 public sealed class SpritesheetPromptCatalog
 {
 	private const string config_directory = "spritesheet-prompts";
+	private const string generation_prompt_file = "direction-sheet.txt";
+	public const string FixedBackgroundId = "white";
+	private static readonly string[] direction_ids = [
+		"down", "down-right", "right", "up-right", "up", "up-left", "left", "down-left",
+	];
 	private static readonly JsonSerializerOptions json_options = new () {
 		PropertyNameCaseInsensitive = true,
 	};
 
-	private readonly CommonPromptConfig common;
-	private readonly string direction_prompt;
+	private readonly string generation_prompt;
 
 	private SpritesheetPromptCatalog (
-		CommonPromptConfig common,
-		string directionPrompt,
+		string generationPrompt,
 		IReadOnlyList<SpritesheetActionPreset> actions)
 	{
-		this.common = common;
-		direction_prompt = directionPrompt;
-		Directions = common.Directions;
-		Backgrounds = common.Backgrounds;
+		generation_prompt = generationPrompt;
 		Actions = actions;
 	}
 
-	public IReadOnlyList<SpritesheetDirection> Directions { get; }
-	public IReadOnlyList<SpritesheetBackground> Backgrounds { get; }
+	public IReadOnlyList<string> DirectionIds => direction_ids;
 	public IReadOnlyList<SpritesheetActionPreset> Actions { get; }
 
 	public static SpritesheetPromptCatalog Load ()
 	{
 		string root = Path.Combine (AppContext.BaseDirectory, "config", config_directory);
-		CommonPromptConfig common = ReadJson<CommonPromptConfig> (Path.Combine (root, "common.json"));
-		string directionPrompt = ReadPrompt (Path.Combine (root, "direction-sheet.txt"));
+		string generationPrompt = ReadPrompt (Path.Combine (root, generation_prompt_file));
 		string actionsDirectory = Path.Combine (root, "actions");
 		if (!Directory.Exists (actionsDirectory))
 			throw new InvalidOperationException ($"Spritesheet action prompt directory was not found: {actionsDirectory}");
@@ -81,70 +75,66 @@ public sealed class SpritesheetPromptCatalog
 			.OrderBy (action => action.Order)
 			.ToArray ();
 
-		Validate (common, directionPrompt, actions);
-		return new (common, directionPrompt, actions);
+		Validate (generationPrompt, actions);
+		return new (generationPrompt, actions);
 	}
 
 	public string BuildPrompt (
 		bool directionSheet,
 		string actionId,
 		string customAction,
-		IReadOnlyCollection<string> selectedDirectionIds,
 		int frameCount,
-		string backgroundId,
 		Size imageSize)
 	{
-		SpritesheetDirection[] selectedDirections = Directions
-			.Where (direction => selectedDirectionIds.Contains (direction.Id))
-			.ToArray ();
-		if (selectedDirections.Length == 0)
-			return string.Empty;
-
 		int framesPerDirection = directionSheet ? 1 : Math.Clamp (frameCount, 1, 16);
-		int totalFrames = selectedDirections.Length * framesPerDirection;
+		int totalFrames = direction_ids.Length * framesPerDirection;
 		(int columns, int rows) = CalculateGrid (totalFrames, imageSize);
-		SpritesheetBackground background = Backgrounds.FirstOrDefault (item => item.Id == backgroundId)
-			?? throw new InvalidOperationException ($"Unknown spritesheet background: {backgroundId}");
 
-		List<string> sections = [directionSheet
-			? direction_prompt
-			: BuildActionPrompt (actionId, customAction, framesPerDirection)];
+		List<string> sections = [generation_prompt];
+		if (!directionSheet)
+			sections.Add (BuildActionPrompt (actionId, customAction, framesPerDirection));
 
 		sections.Add (directionSheet
-			? $"生成 {selectedDirections.Length} 个标准方向视图。\n每个方向 1 帧。"
-			: $"每个选中方向严格使用 {framesPerDirection} 帧。\n动画总帧数：{totalFrames}。");
+			? $"生成 {direction_ids.Length} 个标准方向视图。\n每个方向 1 帧。"
+			: $"每个固定方向严格使用 {framesPerDirection} 帧。\n动画总帧数：{totalFrames}。");
 		if (!directionSheet)
 			sections.Add (
-				"同一帧序号下，所有选中方向必须表现相同的标准化动画阶段和语义关键姿势。\n"
+				"同一帧序号下，所有固定方向必须表现相同的标准化动画阶段和语义关键姿势。\n"
 				+ "只改变观察方向。\n"
 				+ "各方向的时序、接触状态、身体力学、手持物和动作强度必须一致。");
 
-		List<string> directionLines = [];
-		int firstCell = 1;
-		foreach (SpritesheetDirection direction in selectedDirections) {
-			int lastCell = firstCell + framesPerDirection - 1;
-			string cells = firstCell == lastCell ? $"单元格 {firstCell}" : $"单元格 {firstCell}-{lastCell}";
-			directionLines.Add ($"- {cells}：{direction.Label}\n  {direction.Prompt}");
-			firstCell = lastCell + 1;
-		}
-		sections.Add ($"方向与单元格分配（固定行优先顺序）：\n{string.Join (Environment.NewLine, directionLines)}");
-
+		sections.Add (BuildDirectionCellPlan (framesPerDirection));
 		int unusedCells = columns * rows - totalFrames;
 		sections.Add (
 			$"输出一张 {imageSize.Width}x{imageSize.Height} 的光栅精灵图，排列为 {columns} 列 x {rows} 行。\n"
 			+ "从左上角的 1 号单元格开始编号，先从左到右，再从上到下。\n"
 			+ "所有单元格尺寸必须完全相同。"
-			+ (unusedCells > 0 ? $"\n最后 {unusedCells} 个未使用的单元格除选定背景外必须完全留空。" : string.Empty));
-		sections.Add (common.SharedRules);
-		sections.Add (background.Prompt);
-		sections.Add (common.ForbiddenContent);
+			+ (unusedCells > 0 ? $"\n最后 {unusedCells} 个未使用的单元格除纯白背景外必须完全留空。" : string.Empty));
 		return string.Join ($"{Environment.NewLine}{Environment.NewLine}", sections.Where (section => !string.IsNullOrWhiteSpace (section)));
+	}
+
+	private static string BuildDirectionCellPlan (int framesPerDirection)
+	{
+		List<string> lines = [];
+		int firstCell = 1;
+		foreach (string directionId in direction_ids) {
+			int lastCell = firstCell + framesPerDirection - 1;
+			string cells = firstCell == lastCell ? $"单元格 {firstCell}" : $"单元格 {firstCell}-{lastCell}";
+			lines.Add ($"- {cells}：{directionId}");
+			firstCell = lastCell + 1;
+		}
+		string layout = framesPerDirection == 1
+			? "方向图固定使用 4 列 x 2 行：第一行是单元格 1-4，第二行是单元格 5-8。"
+			: "每个方向的帧必须保持连续，并按方向顺序分组。";
+		return $"方向与单元格分配（固定顺时针顺序，禁止重排）：\n{layout}\n{string.Join (Environment.NewLine, lines)}";
 	}
 
 	public static (int Columns, int Rows) CalculateGrid (int frameCount, Size imageSize)
 	{
 		if (frameCount < 1)
 			throw new ArgumentOutOfRangeException (nameof (frameCount));
+		if (frameCount == direction_ids.Length)
+			return (4, 2);
 
 		double targetRatio = imageSize.Width / (double) imageSize.Height;
 		int bestColumns = 1;
@@ -187,7 +177,7 @@ public sealed class SpritesheetPromptCatalog
 				: (int) Math.Round (phase * (action.KeyPoses.Count - 1));
 			frames.Add ($"- 第 {frame + 1} 帧：阶段 {phase:0.###}；{action.KeyPoses[pose]}");
 		}
-		return $"所有方向统一使用以下固定帧计划：\n{string.Join (Environment.NewLine, frames)}";
+		return $"所有固定方向统一使用以下固定帧计划：\n{string.Join (Environment.NewLine, frames)}";
 	}
 
 	private static T ReadJson<T> (string path)
@@ -213,34 +203,22 @@ public sealed class SpritesheetPromptCatalog
 	}
 
 	private static void Validate (
-		CommonPromptConfig common,
-		string directionPrompt,
+		string generationPrompt,
 		IReadOnlyList<SpritesheetActionPreset> actions)
 	{
-		if (string.IsNullOrWhiteSpace (common.SharedRules) || string.IsNullOrWhiteSpace (common.ForbiddenContent))
-			throw new InvalidOperationException ("Spritesheet common prompt rules cannot be empty.");
-		if (common.Directions.Count != 8 || common.Directions.Any (item => string.IsNullOrWhiteSpace (item.Id) || string.IsNullOrWhiteSpace (item.Prompt)))
-			throw new InvalidOperationException ("Spritesheet prompts must define exactly eight valid directions.");
-		if (common.Backgrounds.Count != 3 || common.Backgrounds.All (item => item.Id != "white"))
-			throw new InvalidOperationException ("Spritesheet prompts must define white, magenta, and green backgrounds.");
-		if (string.IsNullOrWhiteSpace (directionPrompt))
-			throw new InvalidOperationException ("Direction sheet prompt cannot be empty.");
+		if (direction_ids.Length != 8 || direction_ids.Distinct ().Count () != direction_ids.Length)
+			throw new InvalidOperationException ("Spritesheet prompts must define exactly eight unique directions.");
+		if (direction_ids.Any (direction => !generationPrompt.Contains (direction, StringComparison.OrdinalIgnoreCase)))
+			throw new InvalidOperationException ("Spritesheet prompt must define all eight fixed directions.");
+		if (!generationPrompt.Contains ("#FFFFFF", StringComparison.OrdinalIgnoreCase))
+			throw new InvalidOperationException ("Spritesheet prompt must define a white background.");
 		if (actions.Count != 8 || actions.Any (item => item.DefaultFrameCount is < 1 or > 16
 			|| string.IsNullOrWhiteSpace (item.Prompt)
 			|| item.KeyPoses.Count == 0
 			|| item.KeyPoses.Any (string.IsNullOrWhiteSpace)))
 			throw new InvalidOperationException ("Spritesheet prompts must define seven actions and one custom action.");
-		if (common.Directions.Select (item => item.Id).Distinct ().Count () != common.Directions.Count ||
-			actions.Select (item => item.Id).Distinct ().Count () != actions.Count)
+		if (actions.Select (item => item.Id).Distinct ().Count () != actions.Count)
 			throw new InvalidOperationException ("Spritesheet prompt IDs must be unique.");
-	}
-
-	private sealed class CommonPromptConfig
-	{
-		public string SharedRules { get; set; } = string.Empty;
-		public string ForbiddenContent { get; set; } = string.Empty;
-		public List<SpritesheetDirection> Directions { get; set; } = [];
-		public List<SpritesheetBackground> Backgrounds { get; set; } = [];
 	}
 
 	private sealed class ActionPromptConfig

@@ -69,7 +69,7 @@ public sealed partial class LayerActions
 		try {
 			List<(byte[] Png, string FileName)> references = [];
 			foreach (UserLayer layer in options.Layers.OrderByDescending (IsCharacterAnchor))
-			references.Add ((CreateLayerPng (referenceDocument, layer), GetAiReferenceFileName (layer, references.Count + 1)));
+				references.Add ((CreateLayerPng (layer), GetAiReferenceFileName (layer, references.Count + 1)));
 			foreach (Gio.File file in options.Files)
 				references.Add (LoadReferenceImage (file));
 
@@ -164,24 +164,26 @@ public sealed partial class LayerActions
 		bool clearStatus = true;
 
 		try {
-			byte[] sourcePng = CreateLayerPng (doc, sourceLayer);
+			Size operationSize = sourceLayer.Surface.GetSize ();
+			byte[] sourcePng = CreateLayerPng (sourceLayer);
 			string debugDir = CreateCutoutDebugDirectory ();
 			List<(byte[] Png, string FileName)> references = [];
 			foreach (UserLayer layer in options.Layers)
-				references.Add ((CreateLayerPng (doc, layer), $"layer-{references.Count + 1}.png"));
+				references.Add ((CreateLayerPng (layer), $"layer-{references.Count + 1}.png"));
 			foreach (Gio.File file in options.Files)
 				references.Add (LoadReferenceImage (file));
 
 			SaveCutoutDebugLog (
 				debugDir,
 				$"AI background cleanup client: document_size={doc.ImageSize.Width}x{doc.ImageSize.Height}, "
+				+ $"layer_size={operationSize.Width}x{operationSize.Height}, "
 				+ $"source_layer={sourceLayer.Name}, source_bytes={sourcePng.Length}, references={references.Count}");
 			SaveCutoutDebugPng (debugDir, "source.png", sourcePng);
 			byte[] whitePng = await GenerateBackgroundWithRetryAsync (
 				Translations.GetString ("清理背景"),
 				() => background_cutout.GenerateWhiteAsync (
 					sourcePng,
-					doc.ImageSize,
+					operationSize,
 					options.Prompt,
 					references,
 					SetProgress,
@@ -192,7 +194,7 @@ public sealed partial class LayerActions
 				cts.Token);
 
 			SetProgress (Translations.GetString ("Creating white background layer..."), 0.85);
-			UserLayer whiteLayer = doc.Layers.AddNewLayer (Translations.GetString ("White Background"));
+			UserLayer whiteLayer = AddAiResultLayer (doc, Translations.GetString ("White Background"), operationSize);
 			DrawPngOnLayer (whitePng, whiteLayer);
 			doc.History.PushNewItem (new AddLayerHistoryItem (
 				Resources.Icons.ColorModeColor,
@@ -257,14 +259,15 @@ public sealed partial class LayerActions
 		bool clearStatus = true;
 
 		try {
-			Size operationSize = doc.ImageSize;
-			byte[] sourcePng = CreateLayerPng (doc, sourceLayer);
+			Size operationSize = sourceLayer.Surface.GetSize ();
+			byte[] sourcePng = CreateLayerPng (sourceLayer);
 			string cutoutName = Translations.GetString ("Transparent Cutout");
 			string imageService = AI.AiRequestSettings.GetImageService (PintaCore.Settings);
 			string debugDir = CreateCutoutDebugDirectory ();
 			SaveCutoutDebugLog (
 				debugDir,
-				$"AI cutout: service={imageService}, document_size={operationSize.Width}x{operationSize.Height}, "
+				$"AI cutout: service={imageService}, document_size={doc.ImageSize.Width}x{doc.ImageSize.Height}, "
+				+ $"layer_size={operationSize.Width}x{operationSize.Height}, "
 				+ $"source_layer={sourceLayer.Name}, source_bytes={sourcePng.Length}");
 			SaveCutoutDebugPng (debugDir, "source.png", sourcePng);
 			if (imageService == AI.AiRequestSettings.BaiduService) {
@@ -586,22 +589,10 @@ public sealed partial class LayerActions
 			frameCountSpinner.Value = spritesheetCatalog.Actions[0].DefaultFrameCount;
 			Gtk.Label frameCountLabel = CreateSettingsLabel (Translations.GetString ("Frames per direction:"));
 
-			Gtk.ComboBoxText backgroundCombobox = Gtk.ComboBoxText.New ();
-			foreach (AI.SpritesheetBackground background in spritesheetCatalog.Backgrounds)
-				backgroundCombobox.AppendText (background.Label);
-			backgroundCombobox.Active = 0;
-
-			List<(Gtk.CheckButton Button, AI.SpritesheetDirection Direction)> directionChoices = [];
-			Gtk.Grid directionsGrid = Gtk.Grid.New ();
-			directionsGrid.RowSpacing = 4;
-			directionsGrid.ColumnSpacing = 12;
-			for (int index = 0; index < spritesheetCatalog.Directions.Count; index++) {
-				AI.SpritesheetDirection direction = spritesheetCatalog.Directions[index];
-				Gtk.CheckButton check = Gtk.CheckButton.NewWithLabel (direction.Label);
-				check.Active = true;
-				directionsGrid.Attach (check, index % 2, index / 2, 1, 1);
-				directionChoices.Add ((check, direction));
-			}
+			Gtk.Label backgroundSummaryLabel = Gtk.Label.New (Translations.GetString ("White (#FFFFFF)"));
+			backgroundSummaryLabel.Halign = Gtk.Align.Start;
+			Gtk.Label directionsSummaryLabel = Gtk.Label.New (Translations.GetString ("8 fixed directions"));
+			directionsSummaryLabel.Halign = Gtk.Align.Start;
 
 			Gtk.Label summaryLabel = Gtk.Label.New (string.Empty);
 			summaryLabel.Halign = Gtk.Align.Start;
@@ -623,20 +614,14 @@ public sealed partial class LayerActions
 			spritesheetGrid.Attach (frameCountLabel, 0, 3, 1, 1);
 			spritesheetGrid.Attach (frameCountSpinner, 1, 3, 1, 1);
 			spritesheetGrid.Attach (CreateSettingsLabel (Translations.GetString ("Background:")), 0, 4, 1, 1);
-			spritesheetGrid.Attach (backgroundCombobox, 1, 4, 1, 1);
+			spritesheetGrid.Attach (backgroundSummaryLabel, 1, 4, 1, 1);
 			spritesheetGrid.Attach (CreateSettingsLabel (Translations.GetString ("Directions:")), 0, 5, 1, 1);
-			spritesheetGrid.Attach (directionsGrid, 1, 5, 1, 1);
+			spritesheetGrid.Attach (directionsSummaryLabel, 1, 5, 1, 1);
 			spritesheetGrid.Attach (summaryLabel, 1, 6, 1, 1);
 			spritesheet_controls = spritesheetGrid;
 
 			bool IsCustomAction ()
 				=> spritesheetCatalog.Actions[actionCombobox.Active].Id == "custom";
-
-			void SelectDefaultDirections (bool directionSheet)
-			{
-				foreach ((Gtk.CheckButton check, AI.SpritesheetDirection direction) in directionChoices)
-					check.Active = directionSheet || direction.Id is "down" or "left" or "up" or "right";
-			}
 
 			void RebuildSpritesheetPrompt ()
 			{
@@ -649,55 +634,43 @@ public sealed partial class LayerActions
 				customActionLabel.Visible = customVisible;
 				customActionEntry.Visible = customVisible;
 
-				string[] selectedIds = directionChoices
-					.Where (choice => choice.Button.Active)
-					.Select (choice => choice.Direction.Id)
-					.ToArray ();
 				int framesPerDirection = directionSheet ? 1 : (int) frameCountSpinner.Value;
-				int totalFrames = selectedIds.Length * framesPerDirection;
-				if (selectedIds.Length == 0 || sizePicker.SelectedSize is not Size size) {
+				int totalFrames = spritesheetCatalog.DirectionIds.Count * framesPerDirection;
+				if (sizePicker.SelectedSize is not Size size) {
 					promptBuffer.SetText (string.Empty, -1);
-					summaryLabel.SetText (selectedIds.Length == 0
-						? Translations.GetString ("Select at least one direction.")
-						: Translations.GetString ("Select a valid image size."));
+					summaryLabel.SetText (Translations.GetString ("Select a valid image size."));
 					return;
 				}
 
 				(int columns, int rows) = AI.SpritesheetPromptCatalog.CalculateGrid (totalFrames, size);
 				summaryLabel.SetText (directionSheet
-					? $"{selectedIds.Length} directions / {columns} x {rows} grid"
-					: $"{selectedIds.Length} directions x {framesPerDirection} frames = {totalFrames} frames / {columns} x {rows} grid");
+					? $"{spritesheetCatalog.DirectionIds.Count} directions / {columns} x {rows} grid"
+					: $"{spritesheetCatalog.DirectionIds.Count} directions x {framesPerDirection} frames = {totalFrames} frames / {columns} x {rows} grid");
 				string actionId = spritesheetCatalog.Actions[actionCombobox.Active].Id;
-				string backgroundId = spritesheetCatalog.Backgrounds[backgroundCombobox.Active].Id;
 				promptBuffer.SetText (spritesheetCatalog.BuildPrompt (
 					directionSheet,
 					actionId,
 					customActionEntry.GetText (),
-					selectedIds,
 					framesPerDirection,
-					backgroundId,
 					size), -1);
 			}
 
-			spritesheet_valid = () => directionChoices.Any (choice => choice.Button.Active)
-				&& (directionModeButton.Active || !IsCustomAction () || !string.IsNullOrWhiteSpace (customActionEntry.GetText ()));
+			spritesheet_valid = () => directionModeButton.Active || !IsCustomAction () || !string.IsNullOrWhiteSpace (customActionEntry.GetText ());
 			spritesheet_result_layer_name = () => directionModeButton.Active
 				? Translations.GetString ("Direction Sheet")
 				: $"{spritesheetCatalog.Actions[actionCombobox.Active].Label} {Translations.GetString ("Spritesheet")}";
 			spritesheet_info = () => CreateSpritesheetAttemptInfo (
-				spritesheetCatalog, directionChoices, directionModeButton.Active, actionCombobox.Active,
-				frameCountSpinner.Value, backgroundCombobox.Active, sizePicker.SelectedSize!.Value, promptBuffer);
+				spritesheetCatalog, directionModeButton.Active, actionCombobox.Active,
+				frameCountSpinner.Value, sizePicker.SelectedSize!.Value, promptBuffer);
 
 			directionModeButton.OnToggled += (_, _) => {
 				if (!directionModeButton.Active)
 					return;
-				SelectDefaultDirections (directionSheet: true);
 				RebuildSpritesheetPrompt ();
 			};
 			actionModeButton.OnToggled += (_, _) => {
 				if (!actionModeButton.Active)
 					return;
-				SelectDefaultDirections (directionSheet: false);
 				RebuildSpritesheetPrompt ();
 			};
 			actionCombobox.OnChanged += (_, _) => {
@@ -706,10 +679,7 @@ public sealed partial class LayerActions
 			};
 			customActionEntry.OnChanged += (_, _) => RebuildSpritesheetPrompt ();
 			frameCountSpinner.OnValueChanged += (_, _) => RebuildSpritesheetPrompt ();
-			backgroundCombobox.OnChanged += (_, _) => RebuildSpritesheetPrompt ();
 			sizePicker.Changed += (_, _) => RebuildSpritesheetPrompt ();
-			foreach ((Gtk.CheckButton check, _) in directionChoices)
-				check.OnToggled += (_, _) => RebuildSpritesheetPrompt ();
 			RebuildSpritesheetPrompt ();
 		}
 
@@ -886,12 +856,12 @@ public sealed partial class LayerActions
 		return (pixbuf.SaveToBuffer ("png"), $"{name}.png");
 	}
 
-	private static byte[] CreateLayerPng (Document doc, UserLayer sourceLayer)
+	private static byte[] CreateLayerPng (UserLayer sourceLayer)
 	{
 		using Cairo.ImageSurface source = CairoExtensions.CreateImageSurface (
 			Cairo.Format.Argb32,
-			doc.ImageSize.Width,
-			doc.ImageSize.Height);
+			sourceLayer.Surface.Width,
+			sourceLayer.Surface.Height);
 		using (Cairo.Context context = new (source)) {
 			foreach (Layer layer in sourceLayer.GetLayersToPaint ())
 				layer.Draw (context);

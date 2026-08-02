@@ -43,7 +43,8 @@ public sealed partial class LayerActions
 			split => SaveSpritesheetAnalysis (document, source, split),
 			savedAnalysis ?? source.SpritesheetSplit,
 			frameSurfaces,
-			existingFrames);
+			existingFrames,
+			editingLayer is not null);
 		SpritesheetSplitData? split = await dialog.RunAsync ();
 		if (split is null)
 			return;
@@ -76,28 +77,46 @@ public sealed partial class LayerActions
 	{
 		SpriteSheetAnimationData animation = layer.Animations.FirstOrDefault ()
 			?? new SpriteSheetAnimationData ("sequence", layer.CanvasWidth, layer.CanvasHeight);
-		SpriteSheetDirectionData direction = animation.Directions.FirstOrDefault ()
-			?? new SpriteSheetDirectionData ("default");
-		List<SpriteSheetFrameData> frames = [.. direction.Frames.OrderBy (frame => frame.FrameIndex)];
-		int cellWidth = Math.Max (1, frames.Select (frame => frame.Surface.Width).DefaultIfEmpty (1).Max ());
-		int cellHeight = Math.Max (1, frames.Select (frame => frame.Surface.Height).DefaultIfEmpty (1).Max ());
-		int count = Math.Max (1, frames.Count);
-		UserLayer source = new (CairoExtensions.CreateImageSurface (Cairo.Format.Argb32, cellWidth * count, cellHeight)) {
+		List<SpriteSheetDirectionData> directions = animation.Directions.Count > 0
+			? animation.Directions
+			: [new SpriteSheetDirectionData ("default")];
+		List<List<SpriteSheetFrameData>> orderedFrames = [.. directions.Select (
+			direction => direction.Frames.OrderBy (frame => frame.FrameIndex).ToList ())];
+		int frameCount = Math.Max (1, orderedFrames.Select (frames => frames.Count).DefaultIfEmpty (0).Max ());
+		int cellWidth = Math.Max (1, orderedFrames.SelectMany (frames => frames).Select (frame => frame.Surface.Width).DefaultIfEmpty (1).Max ());
+		int cellHeight = Math.Max (1, orderedFrames.SelectMany (frames => frames).Select (frame => frame.Surface.Height).DefaultIfEmpty (1).Max ());
+		int count = Math.Max (1, directions.Count * frameCount);
+		UserLayer source = new (CairoExtensions.CreateImageSurface (Cairo.Format.Argb32, cellWidth * frameCount, cellHeight * directions.Count)) {
 			Name = layer.Name,
 		};
+		List<Cairo.ImageSurface> surfaces = [];
+		List<SpritesheetFrameSplit> placements = [];
+		List<RectangleI> rectangles = [];
 		using (Cairo.Context context = new (source.Surface)) {
-			for (int index = 0; index < frames.Count; index++) {
-				context.SetSourceSurface (frames[index].Surface, index * cellWidth, 0);
-				context.Paint ();
+			for (int index = 0; index < count; index++) {
+				int directionIndex = index / frameCount;
+				int frameIndex = index % frameCount;
+				SpriteSheetFrameData? frame = frameIndex < orderedFrames[directionIndex].Count
+					? orderedFrames[directionIndex][frameIndex]
+					: null;
+				Cairo.ImageSurface surface = frame?.Surface.Clone ()
+					?? CairoExtensions.CreateImageSurface (Cairo.Format.Argb32, cellWidth, cellHeight);
+				surfaces.Add (surface);
+				if (frame is not null) {
+					context.SetSourceSurface (frame.Surface, frameIndex * cellWidth, directionIndex * cellHeight);
+					context.Paint ();
+				}
+				placements.Add (new SpritesheetFrameSplit (frame?.X ?? 0, frame?.Y ?? 0, frame?.Visible ?? false));
+				rectangles.Add (new RectangleI (frameIndex * cellWidth, directionIndex * cellHeight, cellWidth, cellHeight));
 			}
 		}
 
 		AI.SpritesheetAttemptInfo info = new (
 			false,
 			animation.ActionId,
-			[direction.DirectionId],
-			count,
-			count,
+			[.. directions.Select (direction => direction.DirectionId)],
+			frameCount,
+			frameCount,
 			1,
 			string.Empty,
 			new Size (source.Surface.Width, source.Surface.Height),
@@ -105,17 +124,9 @@ public sealed partial class LayerActions
 			string.Empty,
 			string.Empty,
 			1);
-		IReadOnlyList<SpritesheetFrameSplit> placements = frames
-			.Select (frame => new SpritesheetFrameSplit (frame.X, frame.Y, frame.Visible))
-			.ToArray ();
-		RectangleI[] rectangles = Enumerable.Range (0, count)
-			.Select (index => new RectangleI (index * cellWidth, 0, cellWidth, cellHeight))
-			.ToArray ();
-		if (placements.Count == 0)
-			placements = [new SpritesheetFrameSplit (0, 0, true)];
 		SpritesheetSplitData savedAnalysis = new (
-			count,
-			1,
+			frameCount,
+			directions.Count,
 			cellWidth,
 			cellHeight,
 			0,
@@ -127,7 +138,7 @@ public sealed partial class LayerActions
 			false,
 			placements,
 			rectangles);
-		return (source, info, frames.Select (frame => frame.Surface).ToArray (), placements, savedAnalysis);
+		return (source, info, surfaces, placements, savedAnalysis);
 	}
 
 	private static IReadOnlyList<UserLayer> GetCompatibleSplitTargets (
@@ -186,7 +197,7 @@ public sealed partial class LayerActions
 				incoming.CanvasHeight,
 				old.PositionOffset,
 				incoming.Animations);
-			if (outputAttempt is null)
+			if (outputAttempt is null && editingLayer is null)
 				layer.ReplaceSnapshot (incoming, document.ImageSize);
 			else
 				layer.MergeSnapshot (incoming, document.ImageSize);

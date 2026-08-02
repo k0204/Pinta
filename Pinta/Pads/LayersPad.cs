@@ -90,6 +90,7 @@ internal sealed class LayersPad : IDockPad
 
 		hamburger_menu.AppendItem (layer_actions.ImportFromFile.CreateMenuItem ());
 		hamburger_menu.AppendItem (layer_actions.SplitSpritesheet.CreateMenuItem ());
+		hamburger_menu.AppendItem (layer_actions.EditSpritesheet.CreateMenuItem ());
 		hamburger_menu.AppendItem (layer_actions.SetSpritesheetAnchor.CreateMenuItem ());
 		hamburger_menu.AppendSection (null, flip_section);
 		hamburger_menu.AppendSection (null, prop_section);
@@ -106,6 +107,7 @@ internal sealed class LayersPad : IDockPad
 			layer_actions.GenerateImage.CreateDockToolBarItem (),
 			layer_actions.GenerateSpritesheet.CreateDockToolBarItem (),
 			layer_actions.SplitSpritesheet.CreateDockToolBarItem (),
+			layer_actions.EditSpritesheet.CreateDockToolBarItem (),
 			layer_actions.DeleteLayer.CreateDockToolBarItem (),
 			layer_actions.DuplicateLayer.CreateDockToolBarItem (),
 			layer_actions.UnlockReference.CreateDockToolBarItem (),

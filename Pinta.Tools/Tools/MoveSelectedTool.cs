@@ -203,7 +203,11 @@ public sealed class MoveSelectedTool : BaseTransformTool
 
 		if (!document.Layers.ShowSelectionLayer) {
 			// Copy the selection to the temp layer
-			document.Layers.CreateSelectionLayer ();
+			// AI layers can be larger than the document canvas.
+			UserLayer currentLayer = document.Layers.CurrentUserLayer;
+			document.Layers.CreateSelectionLayer (
+				Math.Max (document.ImageSize.Width, currentLayer.Surface.Width),
+				Math.Max (document.ImageSize.Height, currentLayer.Surface.Height));
 			document.Layers.ShowSelectionLayer = true;
 			// Use same BlendMode, Opacity and Visibility for SelectionLayer
 			document.Layers.SelectionLayer.BlendMode = document.Layers.CurrentUserLayer.BlendMode;

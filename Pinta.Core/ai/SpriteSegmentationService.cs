@@ -12,6 +12,7 @@ namespace Pinta.Core.AI;
 public sealed class SpriteSegmentationService
 {
 	private const string prompt_config_file = "sprite-segmentation-prompt.txt";
+	private const int max_upload_bytes = 5 * 1024 * 1024;
 
 	private readonly AiJobService jobs;
 
@@ -29,16 +30,17 @@ public sealed class SpriteSegmentationService
 	{
 		if (string.IsNullOrWhiteSpace (provider))
 			throw new ArgumentException ("Sprite analysis provider is required.", nameof (provider));
+		(byte[] requestPng, int requestWidth, int requestHeight) = PrepareRequestImage (png, imageWidth, imageHeight);
 		string prompt = $"{ReadPrompt ()}\n\n" +
-			$"The input image dimensions are exactly {imageWidth}x{imageHeight} pixels. " +
-			$"Return image_width={imageWidth} and image_height={imageHeight}; do not estimate them.";
+			$"The uploaded input image dimensions are exactly {requestWidth}x{requestHeight} pixels. " +
+			$"Return image_width={requestWidth} and image_height={requestHeight}; do not estimate them.";
 		string debugDirectory = CreateDebugDirectory ();
 		var request = new {
 			text = prompt,
-			image_base64 = new[] { Convert.ToBase64String (png) },
+			image_base64 = new[] { Convert.ToBase64String (requestPng) },
 			provider,
 		};
-		SaveDebugBytes (debugDirectory, "request.png", png);
+		SaveDebugBytes (debugDirectory, "request.png", requestPng);
 		SaveDebugText (debugDirectory, "request.json", JsonSerializer.Serialize (request));
 
 		using JsonDocument result = await jobs.RunChatAsync (
@@ -54,8 +56,89 @@ public sealed class SpriteSegmentationService
 			?? throw new InvalidOperationException ("Sprite analysis JSON was empty.");
 		if (analysis.Items is null)
 			throw new InvalidOperationException ("Sprite analysis did not include items.");
-		Validate (analysis, imageWidth, imageHeight);
-		return analysis with { Items = [.. analysis.Items.OrderBy (item => item.Index)] };
+		Validate (analysis, requestWidth, requestHeight);
+		SpriteSegmentationAnalysis restored = RestoreOriginalCoordinates (
+			analysis,
+			imageWidth,
+			imageHeight,
+			requestWidth,
+			requestHeight);
+		Validate (restored, imageWidth, imageHeight);
+		return restored with { Items = [.. restored.Items.OrderBy (item => item.Index)] };
+	}
+
+	private static (byte[] Png, int Width, int Height) PrepareRequestImage (
+		byte[] png,
+		int imageWidth,
+		int imageHeight)
+	{
+		if (png.Length <= max_upload_bytes)
+			return (png, imageWidth, imageHeight);
+
+		using GdkPixbuf.Pixbuf source = LoadPixbuf (png);
+		int width = source.Width;
+		int height = source.Height;
+		byte[] resized = png;
+		while (resized.Length > max_upload_bytes && width > 1 && height > 1) {
+			double ratio = Math.Sqrt ((double) max_upload_bytes / resized.Length) * 0.9;
+			int nextWidth = Math.Max (1, (int) Math.Floor (width * ratio));
+			int nextHeight = Math.Max (1, (int) Math.Floor (height * ratio));
+			if (nextWidth == width && nextHeight == height) {
+				nextWidth = Math.Max (1, width - 1);
+				nextHeight = Math.Max (1, height - 1);
+			}
+
+			using GdkPixbuf.Pixbuf scaled = source.ScaleSimple (
+				nextWidth,
+				nextHeight,
+				GdkPixbuf.InterpType.Hyper)
+				?? throw new InvalidOperationException ("Unable to resize sprite analysis image.");
+			resized = scaled.SaveToBuffer ("png");
+			width = nextWidth;
+			height = nextHeight;
+		}
+
+		if (resized.Length > max_upload_bytes)
+			throw new InvalidOperationException ("Sprite analysis image is too large to upload.");
+		return (resized, width, height);
+	}
+
+	private static SpriteSegmentationAnalysis RestoreOriginalCoordinates (
+		SpriteSegmentationAnalysis analysis,
+		int originalWidth,
+		int originalHeight,
+		int requestWidth,
+		int requestHeight)
+	{
+		if (requestWidth == originalWidth && requestHeight == originalHeight)
+			return analysis;
+
+		double scaleX = originalWidth / (double) requestWidth;
+		double scaleY = originalHeight / (double) requestHeight;
+		return analysis with {
+			ImageWidth = originalWidth,
+			ImageHeight = originalHeight,
+			Items = [.. analysis.Items.Select (item => item with {
+				Bbox = RestoreBox (item.Bbox, scaleX, scaleY, originalWidth, originalHeight),
+				FootAnchor = new SpriteSegmentationPoint (
+					item.FootAnchor.X * scaleX,
+					item.FootAnchor.Y * scaleY),
+			})],
+		};
+	}
+
+	private static SpriteSegmentationBox RestoreBox (
+		SpriteSegmentationBox box,
+		double scaleX,
+		double scaleY,
+		int imageWidth,
+		int imageHeight)
+	{
+		int left = Math.Clamp ((int) Math.Floor (box.X * scaleX), 0, imageWidth - 1);
+		int top = Math.Clamp ((int) Math.Floor (box.Y * scaleY), 0, imageHeight - 1);
+		int right = Math.Clamp ((int) Math.Ceiling ((box.X + box.Width) * scaleX), left + 1, imageWidth);
+		int bottom = Math.Clamp ((int) Math.Ceiling ((box.Y + box.Height) * scaleY), top + 1, imageHeight);
+		return new (left, top, right - left, bottom - top);
 	}
 
 	private static string ExtractJsonObject (string response)
@@ -98,6 +181,13 @@ public sealed class SpriteSegmentationService
 		if (string.IsNullOrWhiteSpace (prompt))
 			throw new InvalidOperationException ($"Sprite segmentation prompt is missing: {path}");
 		return prompt;
+	}
+
+	private static GdkPixbuf.Pixbuf LoadPixbuf (byte[] png)
+	{
+		using GLib.Bytes bytes = GLib.Bytes.New (png);
+		using Gio.MemoryInputStream stream = Gio.MemoryInputStream.NewFromBytes (bytes);
+		return GdkPixbuf.Pixbuf.NewFromStream (stream, cancellable: null)!;
 	}
 
 	private static string CreateDebugDirectory ()

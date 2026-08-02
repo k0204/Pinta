@@ -11,7 +11,10 @@ public sealed partial class LayerActions
 	private const string spritesheet_anchor_metadata = "pinta.spritesheet.character-anchor";
 
 	private static bool CanCreateSpritesheetAnimation (UserLayer layer)
-		=> layer is SpriteSheetLayer || layer is not GroupLayer && layer.IsEditable;
+		=> layer is not SpriteSheetLayer && layer is not GroupLayer && layer.IsEditable;
+
+	private static bool CanEditSpritesheetAnimation (UserLayer layer)
+		=> layer is SpriteSheetLayer;
 
 	private async void HandlePintaCoreActionsLayersGenerateSpritesheetActivated (object sender, EventArgs e)
 	{
@@ -58,6 +61,7 @@ public sealed partial class LayerActions
 		tools.Commit ();
 		CompoundHistoryItem history = new (Resources.Icons.LayerDuplicate, Translations.GetString ("Generate Spritesheet"));
 		GroupLayer root = FindOrCreateGroup (document, null, "spritesheet", history);
+		MoveSpritesheetRootToTop (document, root, history);
 		GroupLayer action = FindOrCreateGroup (document, root, info.ActionId, history);
 		GroupLayer attempt = document.Layers.CreateGroupLayer (GetNextAttemptName (action));
 		document.Layers.Insert (attempt, new LayerPosition (action, action.Children.Count));
@@ -73,6 +77,25 @@ public sealed partial class LayerActions
 		document.Layers.SetCurrentUserLayer (source);
 		document.History.PushNewItem (history);
 		document.Workspace.Invalidate ();
+	}
+
+	private static void MoveSpritesheetRootToTop (
+		Document document,
+		GroupLayer root,
+		CompoundHistoryItem history)
+	{
+		LayerPosition oldPosition = document.Layers.GetPosition (root);
+		if (oldPosition.Parent is not null || oldPosition.Index == document.Layers.RootLayers.Count - 1)
+			return;
+
+		LayerPosition newPosition = new (null, document.Layers.RootLayers.Count);
+		document.Layers.MoveLayer (root, newPosition);
+		history.Push (new MoveLayerHistoryItem (
+			Resources.StandardIcons.LayerMoveUp,
+			Translations.GetString ("Move Layer"),
+			root,
+			oldPosition,
+			newPosition));
 	}
 
 	private GroupLayer FindOrCreateGroup (
@@ -161,20 +184,18 @@ public sealed partial class LayerActions
 
 	private static AI.SpritesheetAttemptInfo CreateSpritesheetAttemptInfo (
 		AI.SpritesheetPromptCatalog catalog,
-		IReadOnlyList<(Gtk.CheckButton Button, AI.SpritesheetDirection Direction)> directionChoices,
 		bool directionSheet,
 		int actionIndex,
 		double frameCount,
-		int backgroundIndex,
 		Size size,
 		Gtk.TextBuffer promptBuffer)
 	{
-		string[] ids = directionChoices.Where (choice => choice.Button.Active).Select (choice => choice.Direction.Id).ToArray ();
+		string[] ids = [.. catalog.DirectionIds];
 		int frames = directionSheet ? 1 : (int) frameCount;
 		(int columns, int rows) = AI.SpritesheetPromptCatalog.CalculateGrid (ids.Length * frames, size);
 		promptBuffer.GetBounds (out Gtk.TextIter start, out Gtk.TextIter end);
 		return new (directionSheet, directionSheet ? "direction-sheet" : catalog.Actions[actionIndex].Id, ids, frames, columns, rows,
-			catalog.Backgrounds[backgroundIndex].Id, size, promptBuffer.GetText (start, end, true).Trim (),
+			AI.SpritesheetPromptCatalog.FixedBackgroundId, size, promptBuffer.GetText (start, end, true).Trim (),
 			AI.AiRequestSettings.GetImageService (PintaCore.Settings), AI.AiRequestSettings.GetGptProvider (PintaCore.Settings), 1);
 	}
 

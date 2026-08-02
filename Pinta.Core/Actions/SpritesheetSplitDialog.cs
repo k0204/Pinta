@@ -12,6 +12,10 @@ internal sealed partial class SpritesheetSplitDialog : IDisposable
 	private const long max_output_pixels = 64L * 1024 * 1024;
 	private const string ai_source_mode = "ai";
 	private const string grid_source_mode = "grid";
+	private static readonly string[] clockwise_direction_ids = [
+		"down", "down-right", "right", "up-right",
+		"up", "up-left", "left", "down-left",
+	];
 	private readonly UserLayer source;
 	private readonly AI.SpritesheetAttemptInfo info;
 	private readonly IReadOnlyList<ImageSurface>? frame_surfaces;
@@ -44,6 +48,7 @@ internal sealed partial class SpritesheetSplitDialog : IDisposable
 	private readonly Gtk.Button add_vertical_guide;
 	private readonly Gtk.Label validation_label;
 	private readonly List<EditableFrame> frames = [];
+	private int[] frame_display_order = [];
 	private int selected_frame;
 	private bool syncing;
 	private int drag_start_x;
@@ -58,7 +63,8 @@ internal sealed partial class SpritesheetSplitDialog : IDisposable
 		Action<SpritesheetSplitData> saveAnalysis,
 		SpritesheetSplitData? savedAnalysis,
 		IReadOnlyList<ImageSurface>? frameSurfaces = null,
-		IReadOnlyList<SpritesheetFrameSplit>? existingFrames = null)
+		IReadOnlyList<SpritesheetFrameSplit>? existingFrames = null,
+		bool editing = false)
 	{
 		this.source = source;
 		this.info = info;
@@ -68,13 +74,13 @@ internal sealed partial class SpritesheetSplitDialog : IDisposable
 		this.analyze = analyze;
 		save_analysis = saveAnalysis;
 		dialog = Gtk.Dialog.New ();
-		dialog.Title = Translations.GetString ("Create Animation Frames");
+		dialog.Title = Translations.GetString (editing ? "Edit Animation Frames" : "Create Animation Frames");
 		dialog.TransientFor = parent;
 		dialog.Modal = true;
 		dialog.DefaultWidth = 1180;
 		dialog.DefaultHeight = 780;
 		dialog.AddButton (Translations.GetString ("_Cancel"), (int) Gtk.ResponseType.Cancel);
-		submit = dialog.AddButton (Translations.GetString ("Create"), (int) Gtk.ResponseType.Ok);
+		submit = dialog.AddButton (Translations.GetString (editing ? "Save" : "Create"), (int) Gtk.ResponseType.Ok);
 		submit.AddCssClass (AdwaitaStyles.SuggestedAction);
 
 		columns = CreateSpinner (1, 32, info.Columns);
@@ -217,7 +223,7 @@ internal sealed partial class SpritesheetSplitDialog : IDisposable
 		output_attempt.OnChanged += (_, _) => Refresh ();
 		columns.OnValueChanged += (_, _) => ResetAnalysisAndRebuildFrames ();
 		rows.OnValueChanged += (_, _) => ResetAnalysisAndRebuildFrames ();
-		frame_list.OnRowSelected += (_, args) => SelectFrame (args.Row?.GetIndex () ?? 0);
+		frame_list.OnRowSelected += (_, args) => SelectFrame (GetFrameIndex (args.Row));
 		frame_x.OnValueChanged += (_, _) => UpdateSelectedPosition ();
 		frame_y.OnValueChanged += (_, _) => UpdateSelectedPosition ();
 		previous_frame.OnClicked += (_, _) => MoveFrameSelection (-1);
@@ -249,8 +255,11 @@ internal sealed partial class SpritesheetSplitDialog : IDisposable
 
 		while (frame_list.GetRowAtIndex (0) is Gtk.ListBoxRow row)
 			frame_list.Remove (row);
-		for (int index = 0; index < frames.Count; index++)
-			AppendFrameRow (index, frames[index]);
+		frame_display_order = CreateFrameNavigationOrder ();
+		for (int displayIndex = 0; displayIndex < frame_display_order.Length; displayIndex++) {
+			int frameIndex = frame_display_order[displayIndex];
+			AppendFrameRow (displayIndex, frameIndex, frames[frameIndex]);
+		}
 
 		if (frames.Count == 0) {
 			selected_frame = 0;
@@ -261,24 +270,38 @@ internal sealed partial class SpritesheetSplitDialog : IDisposable
 		selected_frame = Math.Clamp (selected_frame, 0, frames.Count - 1);
 		if (!IsAiSourceMode && !editing_existing_frames)
 			ApplyGridPlacement ();
-		frame_list.SelectRow (frame_list.GetRowAtIndex (selected_frame));
+		frame_list.SelectRow (frame_list.GetRowAtIndex (GetDisplayIndex (selected_frame)));
 		SelectFrame (selected_frame);
 		Refresh ();
 	}
 
-	private void AppendFrameRow (int index, EditableFrame frame)
+	private void AppendFrameRow (int displayIndex, int frameIndex, EditableFrame frame)
 	{
-		Gtk.CheckButton visible = Gtk.CheckButton.NewWithLabel (GetFrameLabel (index));
+		Gtk.CheckButton visible = Gtk.CheckButton.NewWithLabel (GetFrameLabel (displayIndex, frameIndex));
 		visible.Active = frame.Visible;
 		visible.Hexpand = true;
 		visible.Halign = Gtk.Align.Fill;
 		visible.OnToggled += (_, _) => {
 			frame.Visible = visible.Active;
 			if (visible.Active)
-				frame_list.SelectRow (frame_list.GetRowAtIndex (index));
+				frame_list.SelectRow (frame_list.GetRowAtIndex (displayIndex));
 			Refresh ();
 		};
 		frame_list.Append (visible);
+	}
+
+	private int GetFrameIndex (Gtk.ListBoxRow? row)
+	{
+		int displayIndex = row?.GetIndex () ?? 0;
+		return displayIndex >= 0 && displayIndex < frame_display_order.Length
+			? frame_display_order[displayIndex]
+			: 0;
+	}
+
+	private int GetDisplayIndex (int frameIndex)
+	{
+		int displayIndex = Array.IndexOf (frame_display_order, frameIndex);
+		return displayIndex >= 0 ? displayIndex : 0;
 	}
 
 	private void SelectFrame (int index)
@@ -298,14 +321,38 @@ internal sealed partial class SpritesheetSplitDialog : IDisposable
 		if (frames.Count == 0)
 			return -1;
 
-		int i = from;
-		for (int count = 0; count < frames.Count; count++) {
-			i = (i + direction + frames.Count) % frames.Count;
-			if (frames[i].Visible)
-				return i;
+		int[] order = CreateFrameNavigationOrder ();
+		int position = Array.IndexOf (order, from);
+		if (position < 0)
+			return -1;
+
+		for (int count = 0; count < order.Length; count++) {
+			position = (position + direction + order.Length) % order.Length;
+			int index = order[position];
+			if (frames[index].Visible)
+				return index;
 		}
 		return -1;
 	}
+
+	private int[] CreateFrameNavigationOrder ()
+		=> [.. Enumerable.Range (0, frames.Count)
+			.OrderBy (GetDirectionOrder)
+			.ThenBy (GetFrameOrder)
+			.ThenBy (index => index)];
+
+	private int GetDirectionOrder (int index)
+	{
+		if (index >= ExpectedFrameCount)
+			return clockwise_direction_ids.Length + info.DirectionIds.Count;
+
+		string directionId = info.DirectionIds[index / info.FrameCount];
+		int rank = Array.IndexOf (clockwise_direction_ids, directionId);
+		return rank >= 0 ? rank : clockwise_direction_ids.Length + index / info.FrameCount;
+	}
+
+	private int GetFrameOrder (int index)
+		=> index >= ExpectedFrameCount ? index - ExpectedFrameCount : index % info.FrameCount;
 
 	private void MoveFrameSelection (int offset)
 	{
@@ -314,7 +361,7 @@ internal sealed partial class SpritesheetSplitDialog : IDisposable
 		int target = FindVisibleFrame (selected_frame, offset);
 		if (target < 0 || target == selected_frame)
 			return;
-		Gtk.ListBoxRow? row = frame_list.GetRowAtIndex (target);
+		Gtk.ListBoxRow? row = frame_list.GetRowAtIndex (GetDisplayIndex (target));
 		if (row is null)
 			return;
 
@@ -509,13 +556,13 @@ internal sealed partial class SpritesheetSplitDialog : IDisposable
 			cell_height.Value);
 	}
 
-	private string GetFrameLabel (int index)
+	private string GetFrameLabel (int displayIndex, int index)
 	{
 		if (index >= ExpectedFrameCount)
-			return Translations.GetString ("Cell {0} (extra)", index + 1);
+			return Translations.GetString ("Cell {0} (extra)", displayIndex + 1);
 		int direction = index / info.FrameCount;
 		int frame = index % info.FrameCount;
-		return $"{index + 1}: {info.DirectionIds[direction]} / {Translations.GetString ("Frame {0}", frame + 1)}";
+		return $"{displayIndex + 1}: {info.DirectionIds[direction]} / {Translations.GetString ("Frame {0}", frame + 1)}";
 	}
 
 	private int ExpectedFrameCount => info.DirectionIds.Count * info.FrameCount;

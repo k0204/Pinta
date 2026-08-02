@@ -37,6 +37,7 @@ public sealed partial class LayerActions
 	public Command GenerateImage { get; }
 	public Command GenerateSpritesheet { get; }
 	public Command SplitSpritesheet { get; }
+	public Command EditSpritesheet { get; }
 	public Command SetSpritesheetAnchor { get; }
 	public Command DeleteLayer { get; }
 	public Command DuplicateLayer { get; }
@@ -107,7 +108,13 @@ public sealed partial class LayerActions
 		SplitSpritesheet = new Command (
 			"splitspritesheet",
 			Translations.GetString ("Create Animation Frames"),
-			Translations.GetString ("Create or edit animation frames from the selected layer"),
+			Translations.GetString ("Create animation frames from the selected layer"),
+			Resources.Icons.ImageCrop);
+
+		EditSpritesheet = new Command (
+			"editspritesheet",
+			Translations.GetString ("Edit Animation Frames"),
+			Translations.GetString ("Edit the selected animation layer"),
 			Resources.Icons.ImageCrop);
 
 		SetSpritesheetAnchor = new Command (
@@ -231,6 +238,7 @@ public sealed partial class LayerActions
 			GenerateImage,
 			GenerateSpritesheet,
 			SplitSpritesheet,
+			EditSpritesheet,
 			SetSpritesheetAnchor,
 			DeleteLayer,
 			DuplicateLayer,
@@ -259,6 +267,7 @@ public sealed partial class LayerActions
 		GenerateImage.Activated += HandlePintaCoreActionsLayersGenerateImageActivated;
 		GenerateSpritesheet.Activated += HandlePintaCoreActionsLayersGenerateSpritesheetActivated;
 		SplitSpritesheet.Activated += HandlePintaCoreActionsLayersSplitSpritesheetActivated;
+		EditSpritesheet.Activated += HandlePintaCoreActionsLayersSplitSpritesheetActivated;
 		SetSpritesheetAnchor.Activated += HandleSetSpritesheetAnchorActivated;
 		DuplicateLayer.Activated += HandlePintaCoreActionsLayersDuplicateLayerActivated;
 		MergeLayerDown.Activated += HandlePintaCoreActionsLayersMergeLayerDownActivated;
@@ -292,6 +301,9 @@ public sealed partial class LayerActions
 		GenerateSpritesheet.Sensitive = activeDoc is not null && !cutout_running;
 		SplitSpritesheet.Sensitive = hasSelectedLayer
 			&& CanCreateSpritesheetAnimation (activeDoc!.Layers.CurrentUserLayer)
+			&& !cutout_running;
+		EditSpritesheet.Sensitive = hasSelectedLayer
+			&& CanEditSpritesheetAnimation (activeDoc!.Layers.CurrentUserLayer)
 			&& !cutout_running;
 		SetSpritesheetAnchor.Sensitive = hasSelectedLayer && IsDirectionSheetSource (activeDoc!.Layers.CurrentUserLayer);
 
