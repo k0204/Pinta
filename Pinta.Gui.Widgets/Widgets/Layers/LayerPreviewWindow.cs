@@ -21,10 +21,11 @@ public sealed partial class LayerPreviewWindow
 
 	private Document document = null!;
 	private UserLayer layer = null!;
-	private Gtk.DrawingArea preview_area = null!;
+	private Gtk.Overlay preview_area = null!;
+	private Gtk.Picture image_picture = null!;
 	private Gtk.ScrolledWindow scrolled_window = null!;
 	private Gtk.Label info_label = null!;
-	private Cairo.ImageSurface? preview_surface;
+	private Gdk.Texture? preview_texture;
 	private double scale = 1.0;
 	private bool closing;
 	private double pan_start_h;
@@ -45,14 +46,28 @@ public sealed partial class LayerPreviewWindow
 	}
 
 	[System.Diagnostics.CodeAnalysis.MemberNotNull (nameof (preview_area))]
+	[System.Diagnostics.CodeAnalysis.MemberNotNull (nameof (image_picture))]
 	[System.Diagnostics.CodeAnalysis.MemberNotNull (nameof (scrolled_window))]
 	[System.Diagnostics.CodeAnalysis.MemberNotNull (nameof (info_label))]
 	partial void Initialize ()
 	{
-		Gtk.DrawingArea previewArea = Gtk.DrawingArea.New ();
+		Gtk.DrawingArea checkerboardArea = Gtk.DrawingArea.New ();
+		checkerboardArea.CanTarget = false;
+		checkerboardArea.SetDrawFunc ((_, context, width, height) => DrawCheckerboard (context, width, height));
+
+		Gtk.Picture imagePicture = Gtk.Picture.New ();
+		imagePicture.CanTarget = false;
+		imagePicture.Hexpand = true;
+		imagePicture.Vexpand = true;
+		imagePicture.Halign = Gtk.Align.Fill;
+		imagePicture.Valign = Gtk.Align.Fill;
+		imagePicture.ContentFit = Gtk.ContentFit.Fill;
+
+		Gtk.Overlay previewArea = Gtk.Overlay.New ();
 		previewArea.Focusable = true;
 		previewArea.Cursor = grab_cursor;
-		previewArea.SetDrawFunc ((_, context, width, height) => DrawPreview (context, width, height));
+		previewArea.SetChild (checkerboardArea);
+		previewArea.AddOverlay (imagePicture);
 
 		Gtk.EventControllerScroll scrollController = Gtk.EventControllerScroll.New (Gtk.EventControllerScrollFlags.BothAxes);
 		scrollController.OnScroll += HandleScroll;
@@ -98,6 +113,7 @@ public sealed partial class LayerPreviewWindow
 		SetChild (content);
 
 		preview_area = previewArea;
+		image_picture = imagePicture;
 		scrolled_window = scrolledWindow;
 		info_label = infoLabel;
 
@@ -130,52 +146,46 @@ public sealed partial class LayerPreviewWindow
 		if (closing)
 			return;
 
-		Cairo.ImageSurface surface = LayerActions.RenderLayer (document, layer);
+		using Cairo.ImageSurface surface = LayerActions.RenderLayer (document, layer);
+		Gdk.Texture texture = surface.ToTexture ();
 
-		preview_surface?.Dispose ();
-		preview_surface = surface;
+		preview_texture?.Dispose ();
+		preview_texture = texture;
+		image_picture.Paintable = texture;
 		Title = layer.Name;
 		UpdateInfoLabel ();
 		UpdatePreviewSize ();
-		preview_area.QueueDraw ();
 	}
 
 	private void UpdateInfoLabel ()
 	{
-		if (preview_surface is null)
+		if (preview_texture is null)
 			return;
 
-		info_label.SetText ($"{layer.Name}  {preview_surface.Width} x {preview_surface.Height}  ({scale:P0})");
+		info_label.SetText ($"{layer.Name}  {preview_texture.Width} x {preview_texture.Height}  ({scale:P0})");
 	}
 
 	private void UpdatePreviewSize ()
 	{
-		if (preview_surface is null)
+		if (preview_texture is null)
 			return;
 
-		int width = GetScaledSize (preview_surface.Width);
-		int height = GetScaledSize (preview_surface.Height);
+		int width = GetScaledSize (preview_texture.Width);
+		int height = GetScaledSize (preview_texture.Height);
 		preview_area.SetSizeRequest (width, height);
 	}
 
 	private int GetScaledSize (int size)
 		=> Math.Clamp ((int) Math.Round (size * scale), 1, 100000);
 
-	private void DrawPreview (Context context, int width, int height)
+	private static void DrawCheckerboard (Context context, int width, int height)
 	{
-		if (preview_surface is null || width <= 0 || height <= 0)
+		if (width <= 0 || height <= 0)
 			return;
 
-		context.Save ();
-		context.Scale (scale, scale);
 		context.SetSource (transparent_pattern);
-		context.Rectangle (0, 0, preview_surface.Width, preview_surface.Height);
+		context.Rectangle (0, 0, width, height);
 		context.Paint ();
-		context.SetSourceSurface (
-			preview_surface,
-			scale >= 1.0 ? ResamplingMode.NearestNeighbor : ResamplingMode.Bilinear);
-		context.Paint ();
-		context.Restore ();
 	}
 
 	private bool HandleScroll (
@@ -254,7 +264,7 @@ public sealed partial class LayerPreviewWindow
 
 	private void SetScale (double requestedScale)
 	{
-		if (preview_surface is null)
+		if (preview_texture is null)
 			return;
 
 		double newScale = Math.Clamp (requestedScale, MIN_SCALE, MAX_SCALE);
@@ -271,7 +281,6 @@ public sealed partial class LayerPreviewWindow
 		scale = newScale;
 		UpdateInfoLabel ();
 		UpdatePreviewSize ();
-		preview_area.QueueDraw ();
 
 		GLib.Functions.IdleAdd (GLib.Constants.PRIORITY_DEFAULT, () => {
 			SetAdjustmentValue (horizontal, imageX * scale - centerX);
@@ -314,8 +323,8 @@ public sealed partial class LayerPreviewWindow
 		document.Workspace.CanvasInvalidated -= HandleCanvasInvalidated;
 		document.Layers.LayerPropertyChanged -= HandleLayerPropertyChanged;
 		document.Layers.LayerTreeChanged -= HandleLayerTreeChanged;
-		preview_surface?.Dispose ();
-		preview_surface = null;
+		preview_texture?.Dispose ();
+		preview_texture = null;
 		Closed?.Invoke (this, EventArgs.Empty);
 		return false;
 	}
