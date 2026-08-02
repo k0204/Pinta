@@ -190,7 +190,7 @@ internal sealed class PasteAction : IActionHandler
 		doc.Layers.SelectionLayer.Transform.InitIdentity ();
 		doc.Layers.SelectionLayer.Transform.Translate (pastePosition.X, pastePosition.Y);
 
-		tools.SetCurrentTool ("MoveSelectedTool");
+		tools.SetCurrentTool ("MoveLayerTool");
 
 		var old_selection = doc.Selection.Clone ();
 

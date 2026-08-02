@@ -50,7 +50,7 @@ public sealed class CoreToolsExtension : IExtension
 		PintaCore.PaintBrushes.AddPaintBrush (new Brushes.SlashBrush (services.GetService<ISettingsService> (), services.GetService<IWorkspaceService> ()));
 		PintaCore.PaintBrushes.AddPaintBrush (new Brushes.SquaresBrush ());
 
-		PintaCore.Tools.AddTool (new MoveSelectedTool (services));
+		PintaCore.Tools.AddTool (new MoveLayerTool (services));
 		PintaCore.Tools.AddTool (new DetectBorderTool (services));
 		PintaCore.Tools.AddTool (new ZoomTool (services));
 		PintaCore.Tools.AddTool (new PanTool (services));
@@ -82,7 +82,7 @@ public sealed class CoreToolsExtension : IExtension
 		PintaCore.PaintBrushes.RemoveInstanceOfPaintBrush (typeof (Brushes.SplatterBrush));
 		PintaCore.PaintBrushes.RemoveInstanceOfPaintBrush (typeof (Brushes.SquaresBrush));
 
-		PintaCore.Tools.RemoveInstanceOfTool<MoveSelectedTool> ();
+		PintaCore.Tools.RemoveInstanceOfTool<MoveLayerTool> ();
 		PintaCore.Tools.RemoveInstanceOfTool<DetectBorderTool> ();
 		PintaCore.Tools.RemoveInstanceOfTool<ZoomTool> ();
 		PintaCore.Tools.RemoveInstanceOfTool<PanTool> ();

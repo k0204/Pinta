@@ -49,6 +49,7 @@ public sealed partial class LayersListView
 	private LayersListViewItemWidget? drop_hint_widget;
 	private LayersListViewItemWidget? drag_preview_source;
 	private readonly List<LayersListViewItemWidget> row_widgets = [];
+	private readonly List<LayerPreviewWindow> layer_preview_windows = [];
 
 	public static new LayersListView New ()
 		=> NewWithProperties ([]);
@@ -128,6 +129,7 @@ public sealed partial class LayersListView
 		// --- Other initialization (TODO: remove references to PintaCore)
 
 		PintaCore.Workspace.ActiveDocumentChanged += HandleActiveDocumentChanged;
+		PintaCore.Workspace.DocumentClosed += HandleDocumentClosed;
 		PintaCore.Actions.Layers.DeleteLayer.Activated += (_, _) =>
 			HandleDeleteSelectedLayersRequested (this, EventArgs.Empty);
 		PintaCore.Actions.Layers.MergeSelectedLayers.Activated += (_, _) =>
@@ -145,6 +147,7 @@ public sealed partial class LayersListView
 		widget.LayerDragUpdated += HandleLayerDragUpdated;
 		widget.LayerDragCanceled += HandleLayerDragCanceled;
 		widget.LayerSelectionRequested += HandleLayerSelectionRequested;
+		widget.LayerPreviewRequested += HandleLayerPreviewRequested;
 		row_widgets.Add (widget);
 		item.SetChild (widget);
 	}
@@ -238,6 +241,29 @@ public sealed partial class LayersListView
 			PintaCore.Actions.Layers.CanMergeLayers (selected);
 	}
 
+	private void HandleLayerPreviewRequested (object? sender, LayerPreviewRequestedEventArgs e)
+	{
+		if (active_document is null)
+			return;
+
+		LayerPreviewWindow preview = LayerPreviewWindow.New (
+			PintaCore.Chrome.MainWindow,
+			active_document,
+			e.Layer);
+		preview.Closed += HandleLayerPreviewClosed;
+		layer_preview_windows.Add (preview);
+		preview.Present ();
+	}
+
+	private void HandleLayerPreviewClosed (object? sender, EventArgs e)
+	{
+		if (sender is LayerPreviewWindow preview)
+		{
+			preview.Closed -= HandleLayerPreviewClosed;
+			layer_preview_windows.Remove (preview);
+		}
+	}
+
 	private void HandleActiveDocumentChanged (object? sender, EventArgs e)
 	{
 		Document? doc =
@@ -290,6 +316,12 @@ public sealed partial class LayersListView
 		doc.Layers.LayerTreeChanged += HandleLayerTreeChanged;
 		doc.Layers.SelectedLayerChanged += HandleSelectedLayerChanged;
 		doc.Layers.LayerPropertyChanged += HandleLayerPropertyChanged;
+	}
+
+	private void HandleDocumentClosed (object? sender, DocumentEventArgs e)
+	{
+		foreach (LayerPreviewWindow preview in layer_preview_windows.Where (window => window.Document == e.Document).ToList ())
+			preview.Close ();
 	}
 
 	private void HandleHistoryChanged (object? sender, EventArgs e)

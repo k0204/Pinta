@@ -57,7 +57,7 @@ public sealed class PasteHistoryItem : BaseHistoryItem
 		Swap ();
 
 		PintaCore.Workspace.Invalidate ();
-		PintaCore.Tools.SetCurrentTool ("MoveSelectedTool");
+		PintaCore.Tools.SetCurrentTool ("MoveLayerTool");
 	}
 
 	public override void Undo ()

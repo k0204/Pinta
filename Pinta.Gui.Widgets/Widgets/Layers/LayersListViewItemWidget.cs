@@ -158,6 +158,7 @@ public sealed partial class LayersListViewItemWidget
 	public event EventHandler<LayerDragEventArgs>? LayerDragUpdated;
 	public event EventHandler? LayerDragCanceled;
 	public event EventHandler<LayerSelectionEventArgs>? LayerSelectionRequested;
+	public event EventHandler<LayerPreviewRequestedEventArgs>? LayerPreviewRequested;
 	public int Depth => item?.Depth ?? 0;
 	public UserLayer? UserLayer => item?.UserLayer;
 
@@ -370,8 +371,14 @@ public sealed partial class LayersListViewItemWidget
 		click.SetButton (GtkExtensions.MOUSE_LEFT_BUTTON);
 		click.SetPropagationPhase (Gtk.PropagationPhase.Capture);
 		click.OnPressed += (_, _) => {
-			if (item?.UserLayer is UserLayer layer)
-				LayerSelectionRequested?.Invoke (this, new LayerSelectionEventArgs (layer, click.GetCurrentEventState ()));
+			if (item?.UserLayer is not UserLayer layer)
+				return;
+
+			Gdk.ModifierType modifiers = click.GetCurrentEventState ();
+			if (modifiers.IsControlPressed ())
+				LayerPreviewRequested?.Invoke (this, new LayerPreviewRequestedEventArgs (layer));
+
+			LayerSelectionRequested?.Invoke (this, new LayerSelectionEventArgs (layer, modifiers));
 		};
 		widget.AddController (click);
 	}
@@ -446,6 +453,7 @@ public sealed partial class LayersListViewItemWidget
 		operationsSection.AppendItem ((item.UserLayer is SpriteSheetLayer
 			? actions.EditSpritesheet
 			: actions.SplitSpritesheet).CreateMenuItem ());
+		operationsSection.AppendItem (actions.SaveLayerImage.CreateMenuItem ());
 		operationsSection.AppendItem (actions.DeleteLayer.CreateMenuItem ());
 		operationsSection.AppendItem (actions.DuplicateLayer.CreateMenuItem ());
 		operationsSection.AppendItem (actions.MergeLayerDown.CreateMenuItem ());
@@ -602,4 +610,9 @@ public sealed class LayerSelectionEventArgs (UserLayer layer, Gdk.ModifierType m
 {
 	public UserLayer Layer { get; } = layer;
 	public Gdk.ModifierType Modifiers { get; } = modifiers;
+}
+
+public sealed class LayerPreviewRequestedEventArgs (UserLayer layer) : EventArgs
+{
+	public UserLayer Layer { get; } = layer;
 }

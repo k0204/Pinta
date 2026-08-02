@@ -61,7 +61,7 @@ public sealed class FinishPixelsHistoryItem : BaseHistoryItem
 		old_selection_layer = swap_sel;
 
 		PintaCore.Workspace.Invalidate ();
-		PintaCore.Tools.SetCurrentTool ("MoveSelectedTool");
+		PintaCore.Tools.SetCurrentTool ("MoveLayerTool");
 	}
 
 	public override void Redo ()

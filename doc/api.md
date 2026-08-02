@@ -75,6 +75,7 @@ All requests in this section include `Authorization: Bearer <token>`.
 - Method: `GET`
 - Path: `/api/me/plan`
 - Response JSON includes job usage, upload limits, and allowed operations. The daily, monthly, and concurrent job limit fields are `null` because job counts are unlimited.
+- The free plan accepts uploads up to `104857600` bytes (100 MiB); the previous 5 MiB limit has been removed.
 - Client behavior: not used by the current Pinta account display.
 
 ## Character Border Recognition

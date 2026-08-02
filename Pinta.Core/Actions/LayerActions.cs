@@ -44,6 +44,7 @@ public sealed partial class LayerActions
 	public Command MergeLayerDown { get; }
 	public Command MergeSelectedLayers { get; }
 	public Command ImportFromFile { get; }
+	public Command SaveLayerImage { get; }
 	public Command DetectBorder { get; }
 	public Command Cutout { get; }
 	public Command FlipHorizontal { get; }
@@ -156,6 +157,12 @@ public sealed partial class LayerActions
 			null,
 			Resources.Icons.LayerImport);
 
+		SaveLayerImage = new Command (
+			"savelayerimage",
+			Translations.GetString ("Save Layer Image..."),
+			Translations.GetString ("Save the selected layer and its visible child layers as an image"),
+			Resources.StandardIcons.DocumentSaveAs);
+
 		DetectBorder = new Command (
 			"detectborder",
 			Translations.GetString ("Detect Border"),
@@ -245,6 +252,7 @@ public sealed partial class LayerActions
 			MergeLayerDown,
 			MergeSelectedLayers,
 			ImportFromFile,
+			SaveLayerImage,
 			DetectBorder,
 			Cutout,
 
@@ -276,6 +284,7 @@ public sealed partial class LayerActions
 		FlipHorizontal.Activated += HandlePintaCoreActionsLayersFlipHorizontalActivated;
 		FlipVertical.Activated += HandlePintaCoreActionsLayersFlipVerticalActivated;
 		ImportFromFile.Activated += HandlePintaCoreActionsLayersImportFromFileActivated;
+		SaveLayerImage.Activated += HandleSaveLayerImageActivated;
 		DetectBorder.Activated += HandlePintaCoreActionsLayersDetectBorderActivated;
 		Cutout.Activated += HandlePintaCoreActionsLayersCutoutActivated;
 		UnlockReference.Activated += HandleUnlockReferenceActivated;
@@ -314,6 +323,7 @@ public sealed partial class LayerActions
 
 		MoveLayerUp.Sensitive = activeDoc?.Layers.CanMoveCurrentLayerUp () ?? false;
 		Properties.Sensitive = hasSelectedLayer;
+		SaveLayerImage.Sensitive = hasSelectedLayer;
 		FlipHorizontal.Sensitive = currentEditable;
 		FlipVertical.Sensitive = currentEditable;
 		ResizeLayer.Sensitive = currentEditable;
