@@ -10,56 +10,6 @@ internal sealed partial class SpritesheetSplitDialog
 	private readonly Func<string, Task<AI.SpriteSegmentationAnalysis>> analyze;
 	private IReadOnlyList<RectangleI>? source_rectangles;
 
-	private Gtk.Widget BuildSourceModeTabs ()
-	{
-		Gtk.Box gridControls = Gtk.Box.New (Gtk.Orientation.Vertical, 6);
-		gridControls.Append (CreateGrid ([
-			(Translations.GetString ("Columns:"), columns),
-			(Translations.GetString ("Rows:"), rows),
-			(Translations.GetString ("Cell width:"), cell_width),
-			(Translations.GetString ("Cell height:"), cell_height),
-			(Translations.GetString ("Left offset:"), offset_x),
-			(Translations.GetString ("Top offset:"), offset_y),
-			(Translations.GetString ("Horizontal gap:"), gap_x),
-			(Translations.GetString ("Vertical gap:"), gap_y),
-		]));
-		gridControls.Append (align_character);
-
-		source_mode_stack.AddTitled (BuildSmartAnalyzeControls (), ai_source_mode, Translations.GetString ("AI analysis"));
-		source_mode_stack.AddTitled (gridControls, grid_source_mode, Translations.GetString ("Grid"));
-		source_mode_stack.VisibleChildName = grid_source_mode;
-
-		Adw.ViewSwitcher switcher = Adw.ViewSwitcher.New ();
-		switcher.Stack = source_mode_stack;
-		Gtk.Box result = Gtk.Box.New (Gtk.Orientation.Vertical, 8);
-		result.Append (switcher);
-		result.Append (source_mode_stack);
-		return result;
-	}
-
-	private Gtk.Widget BuildSmartAnalyzeControls ()
-	{
-		IReadOnlyList<AI.AiProviderInfo> providers = PintaCore.AiProviders.ChatProviders;
-		Gtk.Box controls = Gtk.Box.New (Gtk.Orientation.Vertical, 6);
-		Gtk.Label label = Gtk.Label.New (Translations.GetString ("Analysis provider:"));
-		label.Halign = Gtk.Align.Start;
-		Gtk.ComboBoxText provider = Gtk.ComboBoxText.New ();
-		foreach (AI.AiProviderInfo item in providers)
-			provider.AppendText (item.Name);
-		provider.Active = GetProviderIndex (
-			providers,
-			AI.AiRequestSettings.GetSpriteSegmentationProvider (PintaCore.Settings));
-		provider.OnChanged += (_, _) => SaveProvider (provider, providers);
-		Gtk.Button button = Gtk.Button.NewWithLabel ("自动分析");
-		button.TooltipText = "使用 AI 分析精灵边界和脚底锚点";
-		button.Sensitive = providers.Count > 0;
-		button.OnClicked += async (_, _) => await AnalyzeAsync (button, provider, providers);
-		controls.Append (label);
-		controls.Append (provider);
-		controls.Append (button);
-		return controls;
-	}
-
 	private async Task AnalyzeAsync (
 		Gtk.Button button,
 		Gtk.ComboBoxText provider,

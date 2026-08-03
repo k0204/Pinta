@@ -123,4 +123,38 @@ internal sealed partial class SpritesheetSplitDialog
 			UndoFramePosition ();
 		return true;
 	}
+
+	private bool HandlePreviewArrowKeyPressed (
+		Gtk.EventControllerKey controller,
+		Gtk.EventControllerKey.KeyPressedSignalArgs args)
+	{
+		if (frames.Count == 0)
+			return false;
+
+		(int deltaX, int deltaY) = args.GetKey ().Name () switch {
+			"Left" => (-1, 0),
+			"Right" => (1, 0),
+			"Up" => (0, -1),
+			"Down" => (0, 1),
+			_ => (0, 0),
+		};
+		if (deltaX == 0 && deltaY == 0)
+			return false;
+
+		int step = args.State.IsShiftPressed () ? 10 : 1;
+		MoveSelectedFrame (deltaX * step, deltaY * step);
+		return true;
+	}
+
+	private void MoveSelectedFrame (int deltaX, int deltaY)
+	{
+		if (selected_frame < 0 || selected_frame >= frames.Count)
+			return;
+
+		EditableFrame frame = frames[selected_frame];
+		int oldX = frame.X;
+		int oldY = frame.Y;
+		ApplyFramePosition (selected_frame, oldX + deltaX, oldY + deltaY);
+		RecordPositionChange (selected_frame, oldX, oldY, frame.X, frame.Y);
+	}
 }

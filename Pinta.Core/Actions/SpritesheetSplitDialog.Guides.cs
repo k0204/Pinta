@@ -7,6 +7,7 @@ namespace Pinta.Core;
 internal sealed partial class SpritesheetSplitDialog
 {
 	private const double guide_hit_tolerance = 6;
+	private const double anchor_hit_tolerance = 10;
 	private readonly List<DocumentGuide> guides = [];
 	private readonly Gtk.DrawingArea horizontal_ruler = Gtk.DrawingArea.New ();
 	private readonly Gtk.DrawingArea vertical_ruler = Gtk.DrawingArea.New ();
@@ -16,28 +17,22 @@ internal sealed partial class SpritesheetSplitDialog
 	private PointD? ruler_position;
 	private double preview_drag_start_x;
 	private double preview_drag_start_y;
+	private const double preview_zoom_min = 0.25;
+	private const double preview_zoom_max = 8.0;
+	private const double preview_zoom_step = 1.25;
+	private double preview_zoom = 1.0;
+	private double preview_pan_x;
+	private double preview_pan_y;
+	private double preview_pan_start_x;
+	private double preview_pan_start_y;
+	private bool preview_panning;
+	private bool root_dragging;
+	private int drag_start_root_dx;
+	private int drag_start_root_dy;
 
 	private readonly record struct GuideDragState (int Index);
-
-	private Gtk.Widget BuildRulerPreview ()
-	{
-		horizontal_ruler.HeightRequest = 24;
-		horizontal_ruler.Hexpand = true;
-		horizontal_ruler.SetDrawFunc ((area, context, width, height) =>
-			DrawRuler (area, context, width, height, Gtk.Orientation.Horizontal));
-		vertical_ruler.WidthRequest = 32;
-		vertical_ruler.Vexpand = true;
-		vertical_ruler.SetDrawFunc ((area, context, width, height) =>
-			DrawRuler (area, context, width, height, Gtk.Orientation.Vertical));
-
-		Gtk.Grid grid = Gtk.Grid.New ();
-		grid.Hexpand = true;
-		grid.Vexpand = true;
-		grid.Attach (horizontal_ruler, 1, 0, 1, 1);
-		grid.Attach (vertical_ruler, 0, 1, 1, 1);
-		grid.Attach (frame_preview, 1, 1, 1, 1);
-		return grid;
-	}
+	private readonly record struct RulerGuideDragState (Gtk.Orientation Orientation, int Index);
+	private RulerGuideDragState? ruler_guide_drag_state;
 
 	private void ConnectRulerAndGuidePointerEvents ()
 	{
@@ -45,63 +40,66 @@ internal sealed partial class SpritesheetSplitDialog
 		motion.OnMotion += (_, args) => HandlePreviewMotion (args.X, args.Y);
 		motion.OnLeave += (_, _) => HandlePreviewLeave ();
 		frame_preview.AddController (motion);
-
-		Gtk.GestureClick ruler_click = Gtk.GestureClick.New ();
-		ruler_click.SetButton (GtkExtensions.MOUSE_LEFT_BUTTON);
-		ruler_click.OnPressed += (_, args) => HandleRulerClick ();
-		horizontal_ruler.AddController (ruler_click);
+		AddRulerGuideDrag (horizontal_ruler, Gtk.Orientation.Horizontal);
+		AddRulerGuideDrag (vertical_ruler, Gtk.Orientation.Vertical);
 	}
 
-	private void HandleRulerClick ()
+	private void AddRulerGuideDrag (Gtk.DrawingArea ruler, Gtk.Orientation orientation)
 	{
-		if (source_rectangles is not null)
+		Gtk.GestureDrag drag = Gtk.GestureDrag.New ();
+		drag.SetButton (GtkExtensions.MOUSE_LEFT_BUTTON);
+		drag.OnDragBegin += (_, _) => BeginRulerGuideDrag (orientation);
+		drag.OnDragUpdate += (controller, args) => UpdateRulerGuideDrag (ruler, controller, args.OffsetX, args.OffsetY);
+		drag.OnDragEnd += (controller, args) => EndRulerGuideDrag (ruler, controller, args.OffsetX, args.OffsetY);
+		ruler.AddController (drag);
+	}
+
+	private void BeginRulerGuideDrag (Gtk.Orientation orientation)
+	{
+		int index = guides.Count;
+		GuideOrientation guideOrientation = orientation == Gtk.Orientation.Horizontal
+			? GuideOrientation.Horizontal
+			: GuideOrientation.Vertical;
+		guides.Add (new DocumentGuide (guideOrientation, 0));
+		ruler_guide_drag_state = new RulerGuideDragState (orientation, index);
+	}
+
+	private void UpdateRulerGuideDrag (
+		Gtk.DrawingArea ruler,
+		Gtk.GestureDrag drag,
+		double offsetX,
+		double offsetY)
+	{
+		if (ruler_guide_drag_state is not RulerGuideDragState state)
 			return;
-		ShowAnalysisModal ();
+		drag.GetStartPoint (out double startX, out double startY);
+		PointD point = new (startX + offsetX, startY + offsetY);
+		if (ruler.TranslateCoordinates (frame_preview, point, out PointD previewPoint))
+			UpdateGuide (state.Index, previewPoint.X, previewPoint.Y);
 	}
 
-	private void ShowAnalysisModal ()
+	private void EndRulerGuideDrag (
+		Gtk.DrawingArea ruler,
+		Gtk.GestureDrag drag,
+		double offsetX,
+		double offsetY)
 	{
-		Gtk.Dialog modal = Gtk.Dialog.New ();
-		modal.Title = Translations.GetString ("Analyzing");
-		modal.TransientFor = dialog;
-		modal.Modal = true;
-		modal.Resizable = false;
-		modal.DefaultWidth = 360;
+		if (ruler_guide_drag_state is not RulerGuideDragState state)
+			return;
+		UpdateRulerGuideDrag (ruler, drag, offsetX, offsetY);
 
-		Gtk.Box content = modal.GetContentAreaBox ();
-		content.Spacing = 16;
-		content.SetAllMargins (24);
-		content.Halign = Gtk.Align.Center;
-		content.Valign = Gtk.Align.Center;
-
-		Gtk.Spinner spinner = Gtk.Spinner.New ();
-		spinner.Spinning = true;
-		spinner.Halign = Gtk.Align.Center;
-		spinner.Valign = Gtk.Align.Center;
-
-		Gtk.Label label = Gtk.Label.New (Translations.GetString ("Analyzing sprite bounds..."));
-		label.Halign = Gtk.Align.Center;
-		label.AddCssClass (AdwaitaStyles.Title4);
-
-		Gtk.Label hint = Gtk.Label.New (Translations.GetString ("Please wait while AI detects sprite boundaries."));
-		hint.Wrap = true;
-		hint.Halign = Gtk.Align.Center;
-		hint.MaxWidthChars = 30;
-		hint.AddCssClass (AdwaitaStyles.DimLabel);
-
-		content.Append (spinner);
-		content.Append (label);
-		content.Append (hint);
-
-		modal.OnResponse += (_, _) => modal.Destroy ();
-
-		modal.Present ();
-
-		// Auto-dismiss after a delay to simulate analysis completion
-		GLib.Functions.TimeoutAdd (GLib.Constants.PRIORITY_DEFAULT, 3000, () => {
-			modal.Destroy ();
-			return false;
-		});
+		drag.GetStartPoint (out double startX, out double startY);
+		PointD point = new (startX + offsetX, startY + offsetY);
+		RectangleD bounds = GetPreviewBounds ();
+		bool insidePreview = ruler.TranslateCoordinates (frame_preview, point, out PointD previewPoint)
+			&& previewPoint.X >= bounds.Left && previewPoint.X <= bounds.Right
+			&& previewPoint.Y >= bounds.Top && previewPoint.Y <= bounds.Bottom;
+		if (!insidePreview)
+			guides.RemoveAt (state.Index);
+		ruler_guide_drag_state = null;
+		frame_preview.QueueDraw ();
+		horizontal_ruler.QueueDraw ();
+		vertical_ruler.QueueDraw ();
 	}
 
 	private void HandlePreviewMotion (double x, double y)
@@ -116,9 +114,84 @@ internal sealed partial class SpritesheetSplitDialog
 		}
 
 		GuideDragState? state = guide_drag_state ?? FindGuideAtPoint (x, y);
-		frame_preview.Cursor = state is GuideDragState guide
+		frame_preview.Cursor = preview_panning
+			? GetPanCursor ()
+			: state is GuideDragState guide
 			? GetGuideCursor (guides[guide.Index].Orientation)
 			: null;
+	}
+
+	private Gdk.Cursor? pan_cursor;
+
+	private Gdk.Cursor? GetPanCursor ()
+		=> pan_cursor ??= Gdk.Cursor.NewFromName ("move", null);
+
+	private void BeginPreviewPan ()
+	{
+		preview_pan_start_x = preview_pan_x;
+		preview_pan_start_y = preview_pan_y;
+		preview_panning = true;
+		frame_preview.Cursor = GetPanCursor ();
+	}
+
+	private void UpdatePreviewPan (double offsetX, double offsetY)
+	{
+		if (!preview_panning)
+			return;
+		preview_pan_x = preview_pan_start_x + offsetX;
+		preview_pan_y = preview_pan_start_y + offsetY;
+		ClampPreviewPan ();
+		QueuePreviewTransformDraw ();
+	}
+
+	private void EndPreviewPan ()
+	{
+		preview_panning = false;
+		frame_preview.Cursor = null;
+	}
+
+	private void ChangePreviewZoom (double factor)
+	{
+		preview_zoom = Math.Clamp (preview_zoom * factor, preview_zoom_min, preview_zoom_max);
+		ClampPreviewPan ();
+		QueuePreviewTransformDraw ();
+		Refresh ();
+	}
+
+	private void ResetPreviewZoom ()
+	{
+		preview_zoom = 1.0;
+		preview_pan_x = 0;
+		preview_pan_y = 0;
+		QueuePreviewTransformDraw ();
+		Refresh ();
+	}
+
+	private void QueuePreviewTransformDraw ()
+	{
+		frame_preview.QueueDraw ();
+		horizontal_ruler.QueueDraw ();
+		vertical_ruler.QueueDraw ();
+	}
+
+	private void ClampPreviewPan ()
+	{
+		int width = (int) canvas_width.Value;
+		int height = (int) canvas_height.Value;
+		(double fitScale, _, _) = GetFramePreviewTransform (ignorePan: true);
+		if (fitScale <= 0)
+			return;
+
+		preview_pan_x = ClampPan (preview_pan_x, fitScale * width, frame_preview.GetWidth ());
+		preview_pan_y = ClampPan (preview_pan_y, fitScale * height, frame_preview.GetHeight ());
+	}
+
+	private static double ClampPan (double pan, double contentSize, int viewportSize)
+	{
+		if (contentSize <= viewportSize)
+			return 0;
+		double centeredOffset = (viewportSize - contentSize) / 2;
+		return Math.Clamp (pan, -centeredOffset - contentSize + viewportSize, -centeredOffset);
 	}
 
 	private Gdk.Cursor? GetGuideCursor (GuideOrientation orientation)
@@ -129,26 +202,10 @@ internal sealed partial class SpritesheetSplitDialog
 	private void HandlePreviewLeave ()
 	{
 		ruler_position = null;
-		if (guide_drag_state is null)
+		if (guide_drag_state is null && !preview_panning)
 			frame_preview.Cursor = null;
 		horizontal_ruler.QueueDraw ();
 		vertical_ruler.QueueDraw ();
-	}
-
-	private Gtk.Widget BuildPreviewToolbar ()
-	{
-		Gtk.Box toolbar = Gtk.Box.New (Gtk.Orientation.Horizontal, 6);
-		toolbar.Append (previous_frame);
-		toolbar.Append (next_frame);
-		toolbar.Append (Gtk.Separator.New (Gtk.Orientation.Vertical));
-		toolbar.Append (undo_position);
-		toolbar.Append (redo_position);
-		Gtk.Box spacer = Gtk.Box.New (Gtk.Orientation.Horizontal, 0);
-		spacer.Hexpand = true;
-		toolbar.Append (spacer);
-		toolbar.Append (add_horizontal_guide);
-		toolbar.Append (add_vertical_guide);
-		return toolbar;
 	}
 
 	private void AddGuide (GuideOrientation orientation)
@@ -176,6 +233,12 @@ internal sealed partial class SpritesheetSplitDialog
 		preview_drag_start_y = y;
 		guide_drag_state = FindGuideAtPoint (x, y);
 		frame_position_dragging = false;
+		if (guide_drag_state is null && move_root.Active && IsRootAnchorHit (x, y)) {
+			root_dragging = true;
+			drag_start_root_dx = root_dx;
+			drag_start_root_dy = root_dy;
+			return;
+		}
 		if (guide_drag_state is null && frames.Count > 0) {
 			drag_start_x = frames[selected_frame].X;
 			drag_start_y = frames[selected_frame].Y;
@@ -183,9 +246,33 @@ internal sealed partial class SpritesheetSplitDialog
 		}
 	}
 
+	private bool IsRootAnchorHit (double x, double y)
+	{
+		(double scale, double left, double top) = GetFramePreviewTransform ();
+		if (scale <= 0)
+			return false;
+		double anchorX = left + (canvas_width.Value / 2.0 + root_dx) * scale;
+		double anchorY = top + (canvas_height.Value + root_dy) * scale;
+		return Math.Abs (x - anchorX) <= anchor_hit_tolerance
+			&& Math.Abs (y - anchorY) <= anchor_hit_tolerance;
+	}
+
+	private void DragRoot (double offsetX, double offsetY)
+	{
+		double scale = GetFramePreviewTransform ().Scale;
+		if (scale <= 0)
+			return;
+		root_dx = Math.Clamp (drag_start_root_dx + (int) Math.Round (offsetX / scale), (int) (-canvas_width.Value / 2), (int) (canvas_width.Value / 2));
+		root_dy = Math.Clamp (drag_start_root_dy + (int) Math.Round (offsetY / scale), (int) -canvas_height.Value, 0);
+		RepositionFramesAroundAnchor ();
+		Refresh ();
+	}
+
 	private void UpdatePreviewDrag (double offsetX, double offsetY)
 	{
-		if (guide_drag_state is GuideDragState state)
+		if (root_dragging)
+			DragRoot (offsetX, offsetY);
+		else if (guide_drag_state is GuideDragState state)
 			UpdateGuide (state.Index, preview_drag_start_x + offsetX, preview_drag_start_y + offsetY);
 		else
 			DragSelectedFrame (offsetX, offsetY);
@@ -193,6 +280,10 @@ internal sealed partial class SpritesheetSplitDialog
 
 	private void EndPreviewDrag (double offsetX, double offsetY)
 	{
+		if (root_dragging) {
+			root_dragging = false;
+			return;
+		}
 		if (guide_drag_state is not GuideDragState state) {
 			EndFramePositionDrag (selected_frame);
 			return;
@@ -268,26 +359,56 @@ internal sealed partial class SpritesheetSplitDialog
 		if (scale <= 0)
 			return;
 
-		area.GetStyleContext ().GetColor (out Gdk.RGBA foreground);
-		context.SetSourceColor (foreground.ToCairoColor ());
+		// ── Background ──
+		context.SetSourceRgb (0.95, 0.94, 0.93); // adwaita light gray
+		context.Rectangle (0, 0, width, height);
+		context.Fill ();
+
+		// ── Bottom/right border ──
+		context.SetSourceRgb (0.85, 0.84, 0.83);
+		context.LineWidth = 1;
+		if (orientation == Gtk.Orientation.Horizontal) {
+			context.MoveTo (0, height - 0.5);
+			context.LineTo (width, height - 0.5);
+		} else {
+			context.MoveTo (width - 0.5, 0);
+			context.LineTo (width - 0.5, height);
+		}
+		context.Stroke ();
+
+		// ── Ticks & labels ──
+		area.GetStyleContext ().GetColor (out Gdk.RGBA fg);
+		Color labelColor = new Color (fg.Red * 0.55, fg.Green * 0.55, fg.Blue * 0.55, 1.0);
+		Color tickColor = new Color (fg.Red * 0.7, fg.Green * 0.7, fg.Blue * 0.7, 1.0);
 		double length = orientation == Gtk.Orientation.Horizontal ? canvas_width.Value : canvas_height.Value;
 		double origin = orientation == Gtk.Orientation.Horizontal ? left : top;
 		double majorStep = GetRulerStep (scale);
 		double minorStep = majorStep / 5;
 		int tick = 0;
-		for (double value = 0; value <= length; value += minorStep, tick++) {
+		for (double value = 0; value <= length + minorStep * 0.5; value += minorStep, tick++) {
 			double position = origin + value * scale;
-			bool major = tick % 5 == 0;
-			DrawRulerTick (context, orientation, position, width, height, major);
+			if (position < -1 || position > (orientation == Gtk.Orientation.Horizontal ? width : height) + 1)
+				continue;
+			int tier = tick % 5;
+			bool major = tier == 0;
+			DrawRulerTick (context, orientation, position, width, height, major ? 2 : (tier == 3 ? 1 : 0));
 			if (major)
-				DrawRulerLabel (area, context, orientation, position, value, width);
+				DrawRulerLabel (area, context, orientation, position, value, width, labelColor);
 		}
-		context.Stroke ();
 
+		// ── Pointer indicator (subtle accent) ──
 		if (ruler_position is PointD pointer) {
 			double value = orientation == Gtk.Orientation.Horizontal ? pointer.X : pointer.Y;
-			context.SetSourceColor (new Color (0.1, 0.6, 1.0, 0.95));
-			DrawRulerTick (context, orientation, origin + value * scale, width, height, true);
+			double pos = origin + value * scale;
+			context.SetSourceRgba (0.15, 0.45, 0.8, 0.6); // subtle blue
+			context.LineWidth = orientation == Gtk.Orientation.Horizontal ? height * 0.15 : width * 0.12;
+			if (orientation == Gtk.Orientation.Horizontal) {
+				context.MoveTo (pos, 2);
+				context.LineTo (pos, height - 2);
+			} else {
+				context.MoveTo (2, pos);
+				context.LineTo (width - 2, pos);
+			}
 			context.Stroke ();
 		}
 	}
@@ -298,15 +419,25 @@ internal sealed partial class SpritesheetSplitDialog
 		double position,
 		int width,
 		int height,
-		bool major)
+		int tier) // 0 = minor (1/3), 1 = medium (2/3), 2 = major (full)
 	{
+		double endRatio = tier switch {
+			0 => 0.33,
+			1 => 0.67,
+			2 => 1.0,
+			_ => 1.0,
+		};
+		context.LineWidth = tier == 2 ? 1.0 : 0.6;
 		if (orientation == Gtk.Orientation.Horizontal) {
-			context.MoveTo (position, major ? 0 : height / 2d);
+			double start = height * (1 - endRatio);
+			context.MoveTo (position, start);
 			context.LineTo (position, height);
 		} else {
-			context.MoveTo (major ? 0 : width / 2d, position);
+			double start = width * (1 - endRatio);
+			context.MoveTo (start, position);
 			context.LineTo (width, position);
 		}
+		context.Stroke ();
 	}
 
 	private static void DrawRulerLabel (
@@ -315,17 +446,21 @@ internal sealed partial class SpritesheetSplitDialog
 		Gtk.Orientation orientation,
 		double position,
 		double value,
-		int width)
+		int width,
+		Color labelColor)
 	{
 		using Pango.Layout layout = area.CreatePangoLayout (((int) value).ToString ());
+		Pango.FontDescription font = Pango.FontDescription.FromString ("8");
+		layout.SetFontDescription (font);
+		context.SetSourceColor (labelColor);
 		if (orientation == Gtk.Orientation.Horizontal) {
-			context.MoveTo (position + 2, 1);
+			context.MoveTo (position + 3, 2);
 			PangoCairo.Functions.ShowLayout (context, layout);
 			return;
 		}
 
 		context.Save ();
-		context.MoveTo (width - 4, position + 2);
+		context.MoveTo (width - 3, position + 3);
 		context.Rotate (Math.PI / 2);
 		PangoCairo.Functions.ShowLayout (context, layout);
 		context.Restore ();
@@ -340,12 +475,21 @@ internal sealed partial class SpritesheetSplitDialog
 		return multiplier * magnitude;
 	}
 
-	private (double Scale, double Left, double Top) GetFramePreviewTransform ()
+	private (double Scale, double Left, double Top) GetFramePreviewTransform (int? previewWidth = null, int? previewHeight = null, bool ignorePan = false)
 	{
 		int width = (int) canvas_width.Value;
 		int height = (int) canvas_height.Value;
-		double scale = GetPreviewScale (frame_preview.GetWidth (), frame_preview.GetHeight (), width, height);
-		return (scale, (frame_preview.GetWidth () - width * scale) / 2, (frame_preview.GetHeight () - height * scale) / 2);
+		int viewportWidth = previewWidth ?? frame_preview.GetWidth ();
+		int viewportHeight = previewHeight ?? frame_preview.GetHeight ();
+		double fitScale = GetPreviewScale (viewportWidth, viewportHeight, width, height);
+		double scale = fitScale * preview_zoom;
+		double left = (viewportWidth - width * scale) / 2;
+		double top = (viewportHeight - height * scale) / 2;
+		if (!ignorePan) {
+			left += preview_pan_x;
+			top += preview_pan_y;
+		}
+		return (scale, left, top);
 	}
 
 	private RectangleD GetPreviewBounds ()
