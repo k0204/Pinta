@@ -19,6 +19,8 @@ public sealed partial class LayerPreviewWindow
 	private static readonly Gdk.Cursor grab_cursor = Gdk.Cursor.NewFromName (Resources.StandardCursors.Grab, null)!;
 	private static readonly Gdk.Cursor grabbing_cursor = Gdk.Cursor.NewFromName (Resources.StandardCursors.Grabbing, null)!;
 
+	private bool initial_center_pending;
+	private bool initial_center_complete;
 	private Document document = null!;
 	private UserLayer layer = null!;
 	private Gtk.Overlay preview_area = null!;
@@ -66,6 +68,8 @@ public sealed partial class LayerPreviewWindow
 		Gtk.Overlay previewArea = Gtk.Overlay.New ();
 		previewArea.Focusable = true;
 		previewArea.Cursor = grab_cursor;
+		previewArea.Halign = Gtk.Align.Center;
+		previewArea.Valign = Gtk.Align.Center;
 		previewArea.SetChild (checkerboardArea);
 		previewArea.AddOverlay (imagePicture);
 
@@ -105,7 +109,13 @@ public sealed partial class LayerPreviewWindow
 		scrolledWindow.Hexpand = true;
 		scrolledWindow.Vexpand = true;
 		scrolledWindow.SetPolicy (Gtk.PolicyType.Automatic, Gtk.PolicyType.Automatic);
-		scrolledWindow.SetChild (previewArea);
+
+		// The scrolled window stretches its child to at least the viewport size, which would
+		// distort the picture (ContentFit.Fill). Wrap the preview in a box so the overlay keeps
+		// its requested, aspect-correct size and stays centered when smaller than the viewport.
+		Gtk.Box viewRoot = Gtk.Box.New (Gtk.Orientation.Vertical, 0);
+		viewRoot.Append (previewArea);
+		scrolledWindow.SetChild (viewRoot);
 
 		Gtk.Box content = Gtk.Box.New (Gtk.Orientation.Vertical, 0);
 		content.Append (infoLabel);
@@ -135,6 +145,7 @@ public sealed partial class LayerPreviewWindow
 		document.Workspace.CanvasInvalidated += HandleCanvasInvalidated;
 		document.Layers.LayerPropertyChanged += HandleLayerPropertyChanged;
 		document.Layers.LayerTreeChanged += HandleLayerTreeChanged;
+		CenterViewWhenReady ();
 		GLib.Functions.IdleAdd (GLib.Constants.PRIORITY_DEFAULT, () => {
 			preview_area.GrabFocus ();
 			return false;
@@ -204,8 +215,8 @@ public sealed partial class LayerPreviewWindow
 		Gtk.GestureDrag gesture,
 		Gtk.GestureDrag.DragBeginSignalArgs args)
 	{
-		pan_start_h = scrolled_window.Hadjustment!.Value;
-		pan_start_v = scrolled_window.Vadjustment!.Value;
+		pan_start_h = RealHorizontal.Value;
+		pan_start_v = RealVertical.Value;
 		preview_area.Cursor = grabbing_cursor;
 		gesture.SetState (Gtk.EventSequenceState.Claimed);
 	}
@@ -214,8 +225,8 @@ public sealed partial class LayerPreviewWindow
 		Gtk.GestureDrag gesture,
 		Gtk.GestureDrag.DragUpdateSignalArgs args)
 	{
-		SetAdjustmentValue (scrolled_window.Hadjustment!, pan_start_h - args.OffsetX);
-		SetAdjustmentValue (scrolled_window.Vadjustment!, pan_start_v - args.OffsetY);
+		SetAdjustmentValue (RealHorizontal, pan_start_h - args.OffsetX);
+		SetAdjustmentValue (RealVertical, pan_start_v - args.OffsetY);
 	}
 
 	private void HandlePanEnd (
@@ -227,6 +238,59 @@ public sealed partial class LayerPreviewWindow
 	{
 		double maximum = Math.Max (adjustment.Lower, adjustment.Upper - adjustment.PageSize);
 		adjustment.Value = Math.Clamp (value, adjustment.Lower, maximum);
+	}
+
+	// Center the view on the content when the window first opens. The content size is the
+	// scaled texture size (known immediately); we only wait for the scrolled window to
+	// have a viewport size. Multiple triggers race to do it once, whichever observes the
+	// laid-out viewport first wins.
+	// Gtk.ScrolledWindow auto-wraps non-scrollable children in a Gtk.Viewport that uses
+	// its own Gtk.Adjustment objects. scrolled_window.Hadjustment may return a separate,
+	// unconnected adjustment (lazy-created by the getter), so always resolve the live
+	// adjustments from the auto-viewport. Matches the pattern in CanvasWindow.cs and
+	// DocumentWorkspace.cs.
+	private Gtk.Adjustment RealHorizontal
+		=> ((Gtk.Viewport) scrolled_window.Child!).GetHadjustment ()!;
+	private Gtk.Adjustment RealVertical
+		=> ((Gtk.Viewport) scrolled_window.Child!).GetVadjustment ()!;
+
+	private void CenterViewWhenReady ()
+	{
+		RealHorizontal.OnChanged += (_, _) => QueueInitialCenter ();
+		RealVertical.OnChanged += (_, _) => QueueInitialCenter ();
+		OnMap += (_, _) => QueueInitialCenter ();
+		QueueInitialCenter ();
+	}
+
+	private void QueueInitialCenter ()
+	{
+		if (initial_center_complete || initial_center_pending)
+			return;
+
+		initial_center_pending = true;
+		GLib.Functions.IdleAdd (GLib.Constants.PRIORITY_DEFAULT_IDLE, () => {
+			initial_center_pending = false;
+			initial_center_complete = TryCenterView ();
+			return false;
+		});
+	}
+
+	private bool TryCenterView ()
+	{
+		if (preview_texture is null)
+			return false;
+
+		Gtk.Adjustment horizontal = RealHorizontal;
+		Gtk.Adjustment vertical = RealVertical;
+		int contentWidth = GetScaledSize (preview_texture.Width);
+		int contentHeight = GetScaledSize (preview_texture.Height);
+		if (horizontal.PageSize <= 0 || vertical.PageSize <= 0
+			|| horizontal.Upper < contentWidth || vertical.Upper < contentHeight)
+			return false;
+
+		SetAdjustmentValue (horizontal, (horizontal.Lower + horizontal.Upper - horizontal.PageSize) / 2);
+		SetAdjustmentValue (vertical, (vertical.Lower + vertical.Upper - vertical.PageSize) / 2);
+		return true;
 	}
 
 	private bool HandleKeyPressed (
@@ -271,8 +335,8 @@ public sealed partial class LayerPreviewWindow
 		if (Math.Abs (newScale - scale) < 0.0001)
 			return;
 
-		Gtk.Adjustment horizontal = scrolled_window.Hadjustment!;
-		Gtk.Adjustment vertical = scrolled_window.Vadjustment!;
+		Gtk.Adjustment horizontal = RealHorizontal;
+		Gtk.Adjustment vertical = RealVertical;
 		double centerX = horizontal.PageSize / 2;
 		double centerY = vertical.PageSize / 2;
 		double imageX = (horizontal.Value + centerX) / scale;

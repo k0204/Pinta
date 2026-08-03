@@ -36,6 +36,20 @@ if (-not $SelfContained -and [string]::IsNullOrEmpty($mingwFolder)) {
     Write-Host ''
 }
 
+# Stop only Pinta processes from a previous run before build outputs are replaced.
+$pintaProcesses = Get-CimInstance Win32_Process |
+    Where-Object {
+        $_.Name -eq 'Pinta.exe' -or
+        ($_.Name -eq 'dotnet.exe' -and $_.CommandLine -match '(?i)Pinta\.dll(?:\s|"|$)')
+    }
+
+if ($pintaProcesses) {
+    Write-Host '>>> Stopping previous Pinta process...' -ForegroundColor Cyan
+    $pintaProcesses | ForEach-Object {
+        Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue
+    }
+}
+
 if ($Clean) {
     Write-Host '>>> Cleaning...' -ForegroundColor Cyan
     dotnet clean Pinta.sln -c $Configuration -v quiet
