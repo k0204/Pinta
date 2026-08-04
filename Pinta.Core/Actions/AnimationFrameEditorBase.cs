@@ -6,18 +6,14 @@ using Cairo;
 
 namespace Pinta.Core;
 
-internal sealed partial class AnimationFrameEditor
+internal abstract partial class AnimationFrameEditorBase
 {
 	private const int max_frames = 256;
 	private const long max_output_pixels = 64L * 1024 * 1024;
 	private const string ai_source_mode = "ai";
 	private const string grid_source_mode = "grid";
-	private static readonly string[] clockwise_direction_ids = [
-		"down", "down-right", "right", "up-right",
-		"up", "up-left", "left", "down-left",
-	];
 	private readonly UserLayer source;
-	private readonly AI.SpritesheetAttemptInfo info;
+	protected readonly AI.SpritesheetAttemptInfo info;
 	private readonly IReadOnlyList<ImageSurface>? frame_surfaces;
 	private readonly bool editing_existing_frames;
 	private readonly IReadOnlyList<UserLayer> output_attempts;
@@ -61,7 +57,7 @@ internal sealed partial class AnimationFrameEditor
 	private int drag_start_x;
 	private int drag_start_y;
 
-	public AnimationFrameEditor (
+	protected AnimationFrameEditorBase (
 		Gtk.Window hostWindow,
 		Action<bool> setSubmitSensitive,
 		UserLayer source,
@@ -258,7 +254,7 @@ internal sealed partial class AnimationFrameEditor
 
 		while (frame_list.GetRowAtIndex (0) is Gtk.ListBoxRow row)
 			frame_list.Remove (row);
-		frame_display_order = CreateFrameNavigationOrder ();
+		frame_display_order = CreateFrameNavigationOrder (frames.Count);
 		for (int displayIndex = 0; displayIndex < frame_display_order.Length; displayIndex++) {
 			int frameIndex = frame_display_order[displayIndex];
 			AppendFrameRow (displayIndex, frameIndex, frames[frameIndex]);
@@ -354,7 +350,7 @@ internal sealed partial class AnimationFrameEditor
 		if (frames.Count == 0)
 			return -1;
 
-		int[] order = CreateFrameNavigationOrder ();
+		int[] order = CreateFrameNavigationOrder (frames.Count);
 		int position = Array.IndexOf (order, from);
 		if (position < 0)
 			return -1;
@@ -367,25 +363,6 @@ internal sealed partial class AnimationFrameEditor
 		}
 		return -1;
 	}
-
-	private int[] CreateFrameNavigationOrder ()
-		=> [.. Enumerable.Range (0, frames.Count)
-			.OrderBy (GetDirectionOrder)
-			.ThenBy (GetFrameOrder)
-			.ThenBy (index => index)];
-
-	private int GetDirectionOrder (int index)
-	{
-		if (index >= ExpectedFrameCount)
-			return clockwise_direction_ids.Length + info.DirectionIds.Count;
-
-		string directionId = info.DirectionIds[index / info.FrameCount];
-		int rank = Array.IndexOf (clockwise_direction_ids, directionId);
-		return rank >= 0 ? rank : clockwise_direction_ids.Length + index / info.FrameCount;
-	}
-
-	private int GetFrameOrder (int index)
-		=> index >= ExpectedFrameCount ? index - ExpectedFrameCount : index % info.FrameCount;
 
 	private void MoveFrameSelection (int offset)
 	{
@@ -605,16 +582,11 @@ internal sealed partial class AnimationFrameEditor
 			cell_height.Value);
 	}
 
-	private string GetFrameLabel (int displayIndex, int index)
-	{
-		if (index >= ExpectedFrameCount)
-			return Translations.GetString ("Cell {0} (extra)", displayIndex + 1);
-		int direction = index / info.FrameCount;
-		int frame = index % info.FrameCount;
-		return $"{displayIndex + 1}: {info.DirectionIds[direction]} / {Translations.GetString ("Frame {0}", frame + 1)}";
-	}
+	protected abstract int ExpectedFrameCount { get; }
 
-	private int ExpectedFrameCount => info.DirectionIds.Count * info.FrameCount;
+	protected abstract int[] CreateFrameNavigationOrder (int frameCount);
+
+	protected abstract string GetFrameLabel (int displayIndex, int index);
 
 	private void UpdateSpriteNameLabel ()
 	{

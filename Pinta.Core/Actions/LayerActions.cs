@@ -40,7 +40,6 @@ public sealed partial class LayerActions
 	public Command SplitSpritesheet { get; }
 	public Command CreateSingleDirectionAnimation { get; }
 	public Command EditSpritesheet { get; }
-	public Command EditSingleDirectionAnimation { get; }
 	public Command SetSpritesheetAnchor { get; }
 	public Command DeleteLayer { get; }
 	public Command DuplicateLayer { get; }
@@ -132,12 +131,6 @@ public sealed partial class LayerActions
 			"editspritesheet",
 			Translations.GetString ("Edit Animation Frames"),
 			Translations.GetString ("Edit the selected animation layer"),
-			Resources.Icons.ImageCrop);
-
-		EditSingleDirectionAnimation = new Command (
-			"editsingledirectionanimation",
-			Translations.GetString ("Edit Single-Direction Animation"),
-			Translations.GetString ("Edit the selected single-direction animation layer"),
 			Resources.Icons.ImageCrop);
 
 		SetSpritesheetAnchor = new Command (
@@ -270,7 +263,6 @@ public sealed partial class LayerActions
 			SplitSpritesheet,
 			CreateSingleDirectionAnimation,
 			EditSpritesheet,
-			EditSingleDirectionAnimation,
 			SetSpritesheetAnchor,
 			DeleteLayer,
 			DuplicateLayer,
@@ -303,7 +295,6 @@ public sealed partial class LayerActions
 		SplitSpritesheet.Activated += HandlePintaCoreActionsLayersSplitSpritesheetActivated;
 		CreateSingleDirectionAnimation.Activated += HandleCreateSingleDirectionAnimationActivated;
 		EditSpritesheet.Activated += HandlePintaCoreActionsLayersSplitSpritesheetActivated;
-		EditSingleDirectionAnimation.Activated += HandleSingleDirectionAnimationActivated;
 		SetSpritesheetAnchor.Activated += HandleSetSpritesheetAnchorActivated;
 		DuplicateLayer.Activated += HandlePintaCoreActionsLayersDuplicateLayerActivated;
 		MergeLayerDown.Activated += HandlePintaCoreActionsLayersMergeLayerDownActivated;
@@ -343,13 +334,11 @@ public sealed partial class LayerActions
 			&& CanCreateSpritesheetAnimation (activeDoc!.Layers.CurrentUserLayer)
 			&& !cutout_running;
 		CreateSingleDirectionAnimation.Sensitive = hasSelectedLayer
-			&& CanCreateSpritesheetAnimation (activeDoc!.Layers.CurrentUserLayer)
+			&& (CanCreateSpritesheetAnimation (activeDoc!.Layers.CurrentUserLayer)
+				|| CanEditSingleDirectionAnimation (activeDoc.Layers.CurrentUserLayer))
 			&& !cutout_running;
 		EditSpritesheet.Sensitive = hasSelectedLayer
 			&& CanEditSpritesheetAnimation (activeDoc!.Layers.CurrentUserLayer)
-			&& !cutout_running;
-		EditSingleDirectionAnimation.Sensitive = hasSelectedLayer
-			&& CanEditSingleDirectionAnimation (activeDoc!.Layers.CurrentUserLayer)
 			&& !cutout_running;
 		SetSpritesheetAnchor.Sensitive = hasSelectedLayer && IsDirectionSheetSource (activeDoc!.Layers.CurrentUserLayer);
 

@@ -5,7 +5,7 @@ using Cairo;
 
 namespace Pinta.Core;
 
-internal sealed partial class AnimationFrameEditor
+internal abstract partial class AnimationFrameEditorBase
 {
 	private const double guide_hit_tolerance = 6;
 	private const double guide_snap_tolerance = 8;

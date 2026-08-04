@@ -11,8 +11,13 @@ public sealed partial class LayerActions
 	private async void HandleCreateSingleDirectionAnimationActivated (object sender, EventArgs e)
 	{
 		if (workspace.ActiveDocumentOrDefault is not Document document
-			|| !document.Layers.HasSelectedLayer
-			|| !CanCreateSpritesheetAnimation (document.Layers.CurrentUserLayer))
+			|| !document.Layers.HasSelectedLayer)
+			return;
+		if (document.Layers.CurrentUserLayer is SingleDirectionAnimationLayer existingLayer) {
+			await OpenSingleDirectionAnimationEditorAsync (document, existingLayer);
+			return;
+		}
+		if (!CanCreateSpritesheetAnimation (document.Layers.CurrentUserLayer))
 			return;
 
 		UserLayer source = document.Layers.CurrentUserLayer;
@@ -111,7 +116,7 @@ public sealed partial class LayerActions
 			[animation]);
 	}
 
-	private void InsertSingleDirectionAnimationAttempt (
+	private UserLayer InsertSingleDirectionAnimationAttempt (
 		Document document,
 		byte[] png,
 		AI.SpritesheetAttemptInfo info)
@@ -136,51 +141,94 @@ public sealed partial class LayerActions
 		source.Metadata["pinta.single-direction-animation.attempt"] = json;
 		document.Layers.Insert (source, new LayerPosition (attempt, 0));
 		history.Push (CreateAddHistory (document, source));
-
-		SingleDirectionAnimationLayer layer = document.Layers.CreateSingleDirectionAnimationLayer (
-			"SingleDirectionAnimationLayer",
-			Math.Max (1, source.Surface.Width / info.Columns),
-			Math.Max (1, source.Surface.Height / info.Rows));
-		layer.ReplaceSnapshot (CreateGeneratedSnapshot (source, info), document.ImageSize);
-		document.Layers.Insert (layer, new LayerPosition (attempt, attempt.Children.Count));
-		history.Push (CreateAddHistory (document, layer));
-		document.Layers.SetCurrentUserLayer (layer);
+		document.Layers.SetCurrentUserLayer (source);
 		document.History.PushNewItem (history);
 		document.Workspace.Invalidate ();
+		return source;
 	}
 
-	private static SingleDirectionAnimationLayerSnapshot CreateGeneratedSnapshot (
+	private async Task OpenGeneratedSingleDirectionEditorAsync (
+		Document document,
 		UserLayer source,
 		AI.SpritesheetAttemptInfo info)
 	{
-		int cellWidth = Math.Max (1, source.Surface.Width / info.Columns);
-		int cellHeight = Math.Max (1, source.Surface.Height / info.Rows);
-		SingleDirectionAnimationData animation = new (info.ActionId, cellWidth, cellHeight);
-		for (int index = 0; index < info.FrameCount; index++) {
-			int column = index % info.Columns;
-			int row = index / info.Columns;
-			ImageSurface surface = CairoExtensions.CreateImageSurface (Format.Argb32, cellWidth, cellHeight);
-			using (Context context = new (surface)) {
-				context.SetSourceSurface (source.Surface, -column * cellWidth, -row * cellHeight);
-				context.Paint ();
-			}
-			animation.Frames.Add (new AnimationFrameData (index, 0, 0, true, surface));
-		}
+		using SingleDirectionAnimationDialog dialog = new (
+			chrome.MainWindow,
+			source,
+			info,
+			[],
+			provider => sprite_segmentation.AnalyzeAsync (
+				CreateSurfacePng (source.Surface),
+				source.Surface.Width,
+				source.Surface.Height,
+				provider),
+			split => SaveSpritesheetAnalysis (document, source, split),
+			source.SpritesheetSplit);
 
-		return new SingleDirectionAnimationLayerSnapshot (
-			SingleDirectionAnimationLayer.DefaultDirectionId,
-			cellWidth,
-			cellHeight,
-			PointD.Zero,
-			[animation]);
-	}
-
-	private async void HandleSingleDirectionAnimationActivated (object sender, EventArgs e)
-	{
-		if (workspace.ActiveDocumentOrDefault is not Document document
-			|| document.Layers.CurrentUserLayer is not SingleDirectionAnimationLayer layer)
+		SpritesheetSplitData? split = await dialog.RunAsync ();
+		if (split is null)
 			return;
 
+		tools.Commit ();
+		ApplySingleDirectionSplit (document, source, info, split);
+	}
+
+	private async Task<bool> ConfirmGeneratedSingleDirectionAsync (
+		UserLayer source,
+		AI.SpritesheetAttemptInfo info)
+	{
+		using Gtk.Dialog dialog = Gtk.Dialog.New ();
+		dialog.Title = Translations.GetString ("Confirm Generated Sequence");
+		dialog.TransientFor = chrome.MainWindow;
+		dialog.Modal = true;
+		dialog.DefaultWidth = 900;
+		dialog.DefaultHeight = 700;
+		dialog.AddButton (Translations.GetString ("_Cancel"), (int) Gtk.ResponseType.Cancel);
+		Gtk.Widget continueButton = dialog.AddButton (
+			Translations.GetString ("Continue to Frame Extraction"),
+			(int) Gtk.ResponseType.Ok);
+		continueButton.AddCssClass (AdwaitaStyles.SuggestedAction);
+		dialog.SetDefaultResponse (Gtk.ResponseType.Ok);
+
+		Gtk.Box content = dialog.GetContentAreaBox ();
+		content.SetAllMargins (12);
+		content.Spacing = 8;
+		Gtk.Label message = Gtk.Label.New (
+			Translations.GetString ("Review the generated sequence image. Continue only if it is ready for frame analysis and cropping."));
+		message.Wrap = true;
+		message.Halign = Gtk.Align.Start;
+		content.Append (message);
+		Gtk.Label action = Gtk.Label.New ($"{Translations.GetString ("Action")}: {info.ActionId}");
+		action.Halign = Gtk.Align.Start;
+		content.Append (action);
+
+		Gtk.Expander promptExpander = Gtk.Expander.New (
+			Translations.GetString ("Action generation prompt"));
+		Gtk.TextView promptView = Gtk.TextView.New ();
+		promptView.Editable = false;
+		promptView.WrapMode = Gtk.WrapMode.WordChar;
+		promptView.SetSizeRequest (-1, 120);
+		promptView.Buffer!.SetText (info.Prompt, -1);
+		promptExpander.Child = promptView;
+		content.Append (promptExpander);
+
+		Gtk.Picture preview = Gtk.Picture.New ();
+		preview.ContentFit = Gtk.ContentFit.ScaleDown;
+		preview.Hexpand = true;
+		preview.Vexpand = true;
+		preview.SetSizeRequest (640, 520);
+		preview.Paintable = source.Surface.ToTexture ();
+		content.Append (preview);
+
+		Gtk.ResponseType response = await dialog.RunAsync ();
+		dialog.Close ();
+		return response == Gtk.ResponseType.Ok;
+	}
+
+	private async Task OpenSingleDirectionAnimationEditorAsync (
+		Document document,
+		SingleDirectionAnimationLayer layer)
+	{
 		SingleDirectionEditorSource editorSource = CreateEditorSource (layer);
 		using SingleDirectionAnimationDialog dialog = new (
 			chrome.MainWindow,

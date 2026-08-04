@@ -451,10 +451,11 @@ public sealed partial class LayersListViewItemWidget
 		Gio.Menu operationsSection = Gio.Menu.New ();
                 operationsSection.AppendItem (actions.AddNewGroup.CreateMenuItem ());
 		if (item.UserLayer is SingleDirectionAnimationLayer)
-			operationsSection.AppendItem (actions.EditSingleDirectionAnimation.CreateMenuItem ());
+			operationsSection.AppendItem (actions.CreateSingleDirectionAnimation.CreateMenuItem ());
 		else if (item.UserLayer is SpriteSheetLayer)
 			operationsSection.AppendItem (actions.EditSpritesheet.CreateMenuItem ());
 		else {
+			operationsSection.AppendItem (actions.GenerateSingleDirectionAnimation.CreateMenuItem ());
 			operationsSection.AppendItem (actions.SplitSpritesheet.CreateMenuItem ());
 			operationsSection.AppendItem (actions.CreateSingleDirectionAnimation.CreateMenuItem ());
 		}

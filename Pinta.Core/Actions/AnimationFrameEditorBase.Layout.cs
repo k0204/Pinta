@@ -4,7 +4,7 @@ using Cairo;
 
 namespace Pinta.Core;
 
-internal sealed partial class AnimationFrameEditor
+internal abstract partial class AnimationFrameEditorBase
 {
 	private const int default_left_panel_width = 220;
 	private const int default_right_panel_width = 224;

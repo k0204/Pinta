@@ -335,20 +335,35 @@ public sealed partial class CanvasWindow
 
 	public void UpdateRulerRange (object? sender, EventArgs e)
 	{
-		if (scrolled_window.Hadjustment == null || scrolled_window.Vadjustment == null)
-			return;
-
 		DocumentWorkspace workspace = document.Workspace;
 		workspace.PositionCanvas ();
-		PointD offset = GetCanvasOriginInViewport ();
-		PointD lower = new (-offset.X / workspace.Scale, -offset.Y / workspace.Scale);
-		PointD upper = new (
-			lower.X + scrolled_window.Hadjustment.PageSize / workspace.Scale,
-			lower.Y + scrolled_window.Vadjustment.PageSize / workspace.Scale);
-
-		horizontal_ruler.RulerRange = new (lower.X, upper.X);
-		vertical_ruler.RulerRange = new (lower.Y, upper.Y);
+		if (TryGetRulerRange (horizontal_ruler, Gtk.Orientation.Horizontal, workspace.Scale, out NumberRange<double> horizontalRange))
+			horizontal_ruler.RulerRange = horizontalRange;
+		if (TryGetRulerRange (vertical_ruler, Gtk.Orientation.Vertical, workspace.Scale, out NumberRange<double> verticalRange))
+			vertical_ruler.RulerRange = verticalRange;
                 guide_overlay.QueueDraw ();
+	}
+
+	private bool TryGetRulerRange (
+		Ruler ruler,
+		Gtk.Orientation orientation,
+		double scale,
+		out NumberRange<double> range)
+	{
+		range = default;
+		if (scale <= 0 || !canvas.TranslateCoordinates (ruler, PointD.Zero, out PointD canvasOrigin))
+			return false;
+
+		double origin = orientation == Gtk.Orientation.Horizontal ? canvasOrigin.X : canvasOrigin.Y;
+		double length = orientation == Gtk.Orientation.Horizontal
+			? ruler.GetAllocatedWidth ()
+			: ruler.GetAllocatedHeight ();
+		if (length <= 0)
+			return false;
+
+		double lower = -origin / scale;
+		range = new (lower, lower + length / scale);
+		return true;
 	}
 
 	private bool HandleScrollEvent (

@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace Pinta.Core;
 
-internal sealed partial class AnimationFrameEditor
+internal abstract partial class AnimationFrameEditorBase
 {
 	private readonly List<FramePositionChange> position_history = [];
 	private int position_history_pointer = -1;

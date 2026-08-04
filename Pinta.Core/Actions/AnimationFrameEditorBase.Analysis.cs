@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 
 namespace Pinta.Core;
 
-internal sealed partial class AnimationFrameEditor
+internal abstract partial class AnimationFrameEditorBase
 {
 	private readonly Func<string, Task<AI.SpriteSegmentationAnalysis>> analyze;
 	private IReadOnlyList<RectangleI>? source_rectangles;

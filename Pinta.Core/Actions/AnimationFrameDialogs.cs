@@ -8,7 +8,7 @@ namespace Pinta.Core;
 internal abstract class AnimationFrameDialogWindow : IDisposable
 {
 	private readonly Gtk.Dialog dialog;
-	private readonly AnimationFrameEditor editor;
+	private readonly AnimationFrameEditorBase editor;
 
 	protected AnimationFrameDialogWindow (
 		Gtk.Window parent,
@@ -22,7 +22,19 @@ internal abstract class AnimationFrameDialogWindow : IDisposable
 		IReadOnlyList<SpritesheetFrameSplit>? existingFrames,
 		bool editing,
 		string createTitle,
-		string editTitle)
+		string editTitle,
+		Func<
+			Gtk.Window,
+			Action<bool>,
+			UserLayer,
+			AI.SpritesheetAttemptInfo,
+			IReadOnlyList<UserLayer>,
+			Func<string, Task<AI.SpriteSegmentationAnalysis>>,
+			Action<SpritesheetSplitData>,
+			SpritesheetSplitData?,
+			IReadOnlyList<ImageSurface>?,
+			IReadOnlyList<SpritesheetFrameSplit>?,
+			AnimationFrameEditorBase> createEditor)
 	{
 		dialog = Gtk.Dialog.New ();
 		dialog.Title = Translations.GetString (editing ? editTitle : createTitle);
@@ -64,7 +76,7 @@ internal abstract class AnimationFrameDialogWindow : IDisposable
 		};
 		dialog.AddController (keys);
 
-		editor = new AnimationFrameEditor (
+		editor = createEditor (
 			dialog,
 			value => submit.Sensitive = value,
 			source,
@@ -115,9 +127,23 @@ internal sealed class MultiDirectionAnimationDialog : AnimationFrameDialogWindow
 			existingFrames,
 			editing,
 			"Create Multi-Direction Animation",
-			"Edit Multi-Direction Animation")
+			"Edit Multi-Direction Animation",
+			CreateEditor)
 	{
 	}
+
+	private static AnimationFrameEditorBase CreateEditor (
+		Gtk.Window dialog,
+		Action<bool> submit,
+		UserLayer source,
+		AI.SpritesheetAttemptInfo info,
+		IReadOnlyList<UserLayer> attempts,
+		Func<string, Task<AI.SpriteSegmentationAnalysis>> analyze,
+		Action<SpritesheetSplitData> save,
+		SpritesheetSplitData? saved,
+		IReadOnlyList<ImageSurface>? surfaces,
+		IReadOnlyList<SpritesheetFrameSplit>? frames)
+		=> new MultiDirectionAnimationEditor (dialog, submit, source, info, attempts, analyze, save, saved, surfaces, frames);
 }
 
 internal sealed class SingleDirectionAnimationDialog : AnimationFrameDialogWindow
@@ -145,7 +171,21 @@ internal sealed class SingleDirectionAnimationDialog : AnimationFrameDialogWindo
 			existingFrames,
 			editing,
 			"Create Single-Direction Animation",
-			"Edit Single-Direction Animation")
+			"Edit Single-Direction Animation",
+			CreateEditor)
 	{
 	}
+
+	private static AnimationFrameEditorBase CreateEditor (
+		Gtk.Window dialog,
+		Action<bool> submit,
+		UserLayer source,
+		AI.SpritesheetAttemptInfo info,
+		IReadOnlyList<UserLayer> attempts,
+		Func<string, Task<AI.SpriteSegmentationAnalysis>> analyze,
+		Action<SpritesheetSplitData> save,
+		SpritesheetSplitData? saved,
+		IReadOnlyList<ImageSurface>? surfaces,
+		IReadOnlyList<SpritesheetFrameSplit>? frames)
+		=> new SingleDirectionAnimationEditor (dialog, submit, source, info, attempts, analyze, save, saved, surfaces, frames);
 }

@@ -67,6 +67,15 @@ internal sealed class LayersPad : IDockPad
 		opacityRow.Append (Gtk.Label.New ("%"));
 
 		Gtk.Box content = Gtk.Box.New (Gtk.Orientation.Vertical, 0);
+		Gtk.Button actionGenerationButton = layer_actions.GenerateSingleDirectionAnimation.CreateDockToolBarItem ();
+		actionGenerationButton.Label = Translations.GetString ("Generate Action Animation");
+		actionGenerationButton.Halign = Gtk.Align.Fill;
+		actionGenerationButton.MarginStart = 6;
+		actionGenerationButton.MarginEnd = 6;
+		actionGenerationButton.MarginTop = 6;
+		actionGenerationButton.SetTooltipText (Translations.GetString ("Generate a single-direction animation with action prompts"));
+		actionGenerationButton.AddCssClass (AdwaitaStyles.SuggestedAction);
+		content.Append (actionGenerationButton);
 		content.Append (opacityRow);
 		content.Append (layers);
 
@@ -93,7 +102,6 @@ internal sealed class LayersPad : IDockPad
 		hamburger_menu.AppendItem (layer_actions.SplitSpritesheet.CreateMenuItem ());
 		hamburger_menu.AppendItem (layer_actions.CreateSingleDirectionAnimation.CreateMenuItem ());
 		hamburger_menu.AppendItem (layer_actions.EditSpritesheet.CreateMenuItem ());
-		hamburger_menu.AppendItem (layer_actions.EditSingleDirectionAnimation.CreateMenuItem ());
 		hamburger_menu.AppendItem (layer_actions.SetSpritesheetAnchor.CreateMenuItem ());
 		hamburger_menu.AppendSection (null, flip_section);
 		hamburger_menu.AppendSection (null, prop_section);
