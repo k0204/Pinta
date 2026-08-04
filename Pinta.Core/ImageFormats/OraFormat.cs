@@ -280,7 +280,7 @@ public sealed class OraFormat : IImageImporter, IImageExporter
 
 	private static ImageSurface CreateExportSurface (Document document, UserLayer layer)
 	{
-		if (layer is not SpriteSheetLayer)
+		if (layer is not AnimationOutputLayer)
 			return layer.Surface.Clone ();
 
 		ImageSurface surface = CairoExtensions.CreateImageSurface (Format.Argb32, document.ImageSize.Width, document.ImageSize.Height);

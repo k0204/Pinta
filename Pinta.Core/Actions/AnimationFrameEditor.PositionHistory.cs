@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace Pinta.Core;
 
-internal sealed partial class SpritesheetSplitDialog
+internal sealed partial class AnimationFrameEditor
 {
 	private readonly List<FramePositionChange> position_history = [];
 	private int position_history_pointer = -1;

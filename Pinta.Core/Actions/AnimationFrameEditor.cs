@@ -6,7 +6,7 @@ using Cairo;
 
 namespace Pinta.Core;
 
-internal sealed partial class SpritesheetSplitDialog : IDisposable
+internal sealed partial class AnimationFrameEditor
 {
 	private const int max_frames = 256;
 	private const long max_output_pixels = 64L * 1024 * 1024;
@@ -22,8 +22,9 @@ internal sealed partial class SpritesheetSplitDialog : IDisposable
 	private readonly bool editing_existing_frames;
 	private readonly IReadOnlyList<UserLayer> output_attempts;
 	private readonly Action<SpritesheetSplitData> save_analysis;
-	private readonly Gtk.Dialog dialog;
-	private readonly Gtk.Widget submit;
+	private readonly Gtk.Window host_window;
+	private readonly Gtk.Box content = Gtk.Box.New (Gtk.Orientation.Vertical, 0);
+	private readonly Action<bool> set_submit_sensitive;
 	private readonly Gtk.SpinButton columns;
 	private readonly Gtk.SpinButton rows;
 	private readonly Gtk.SpinButton cell_width;
@@ -49,21 +50,20 @@ internal sealed partial class SpritesheetSplitDialog : IDisposable
 	private readonly Gtk.CheckButton move_root;
 	private readonly Gtk.CheckButton previous_frame_reference;
 	private readonly Gtk.Scale previous_frame_opacity;
-	private readonly Gtk.Button fullscreen_button;
 	private readonly Gtk.Label validation_label;
 	private readonly Gtk.Label sprite_name_label;
 	private readonly List<EditableFrame> frames = [];
 	private int[] frame_display_order = [];
 	private int selected_frame;
 	private bool syncing;
-	private bool fullscreened;
 	private int root_dx;
 	private int root_dy;
 	private int drag_start_x;
 	private int drag_start_y;
 
-	public SpritesheetSplitDialog (
-		Gtk.Window parent,
+	public AnimationFrameEditor (
+		Gtk.Window hostWindow,
+		Action<bool> setSubmitSensitive,
 		UserLayer source,
 		AI.SpritesheetAttemptInfo info,
 		IReadOnlyList<UserLayer> outputAttempts,
@@ -71,9 +71,12 @@ internal sealed partial class SpritesheetSplitDialog : IDisposable
 		Action<SpritesheetSplitData> saveAnalysis,
 		SpritesheetSplitData? savedAnalysis,
 		IReadOnlyList<ImageSurface>? frameSurfaces = null,
-		IReadOnlyList<SpritesheetFrameSplit>? existingFrames = null,
-		bool editing = false)
+		IReadOnlyList<SpritesheetFrameSplit>? existingFrames = null)
 	{
+		host_window = hostWindow;
+		set_submit_sensitive = setSubmitSensitive;
+		content.Hexpand = true;
+		content.Vexpand = true;
 		this.source = source;
 		this.info = info;
 		frame_surfaces = frameSurfaces;
@@ -81,24 +84,6 @@ internal sealed partial class SpritesheetSplitDialog : IDisposable
 		output_attempts = outputAttempts;
 		this.analyze = analyze;
 		save_analysis = saveAnalysis;
-		dialog = Gtk.Dialog.New ();
-		dialog.Title = Translations.GetString (editing ? "Edit Animation Frames" : "Create Animation Frames");
-		dialog.TransientFor = parent;
-		dialog.Modal = true;
-		dialog.DefaultWidth = 1440;
-		dialog.DefaultHeight = 820;
-		dialog.AddButton (Translations.GetString ("_Cancel"), (int) Gtk.ResponseType.Cancel);
-		submit = dialog.AddButton (Translations.GetString (editing ? "Save" : "Create"), (int) Gtk.ResponseType.Ok);
-		submit.AddCssClass (AdwaitaStyles.SuggestedAction);
-		fullscreen_button = Gtk.Button.NewFromIconName (Resources.StandardIcons.WindowMaximize);
-		fullscreen_button.SetTooltipText (Translations.GetString ("Maximize dialog"));
-		fullscreen_button.AddCssClass (AdwaitaStyles.Flat);
-		fullscreen_button.OnClicked += (_, _) => ToggleFullscreen ();
-		Gtk.HeaderBar header_bar = Gtk.HeaderBar.New ();
-		header_bar.TitleWidget = Gtk.Label.New (dialog.Title);
-		header_bar.PackEnd (fullscreen_button);
-		dialog.SetTitlebar (header_bar);
-
 		columns = CreateSpinner (1, 32, info.Columns);
 		rows = CreateSpinner (1, 32, info.Rows);
 		cell_width = CreateSpinner (1, source.Surface.Width, source.Surface.Width / info.Columns);
@@ -165,35 +150,6 @@ internal sealed partial class SpritesheetSplitDialog : IDisposable
 		Refresh ();
 	}
 
-	public void Dispose () => dialog.Dispose ();
-
-	public async Task<SpritesheetSplitData?> RunAsync ()
-	{
-		Gtk.ResponseType response = await dialog.RunAsync ();
-		dialog.Close ();
-		return response == Gtk.ResponseType.Ok ? ReadOptions () : null;
-	}
-
-	private void ToggleFullscreen ()
-	{
-		fullscreened = !fullscreened;
-		if (fullscreened)
-			dialog.Fullscreen ();
-		else
-			dialog.Unfullscreen ();
-	}
-
-	private bool HandleFullscreenKeyPressed (
-		Gtk.EventControllerKey controller,
-		Gtk.EventControllerKey.KeyPressedSignalArgs args)
-	{
-		if (!fullscreened || args.GetKey ().Value != Gdk.Constants.KEY_Escape)
-			return false;
-
-		ToggleFullscreen ();
-		return true;
-	}
-
 	private void ConnectEvents ()
 	{
 		foreach (Gtk.SpinButton spinner in new[] { cell_width, cell_height, offset_x, offset_y, gap_x, gap_y })
@@ -228,11 +184,10 @@ internal sealed partial class SpritesheetSplitDialog : IDisposable
 
 		Gtk.EventControllerKey keys = Gtk.EventControllerKey.New ();
 		keys.PropagationPhase = Gtk.PropagationPhase.Capture;
-		keys.OnKeyPressed += HandleFullscreenKeyPressed;
 		keys.OnKeyPressed += HandlePositionHistoryKeyPressed;
 		keys.OnKeyPressed += HandlePreviewSpaceKeyPressed;
 		keys.OnKeyReleased += HandlePreviewSpaceKeyReleased;
-		dialog.AddController (keys);
+		content.AddController (keys);
 		Adw.ViewStack.VisibleChildNamePropertyDefinition.Notify (
 			source_mode_stack,
 			(_, _) => ChangeSourceMode ());
@@ -364,6 +319,8 @@ internal sealed partial class SpritesheetSplitDialog : IDisposable
 		UpdateSpriteNameLabel ();
 		Refresh ();
 	}
+
+	public Gtk.Widget Content => content;
 
 	private void SelectSourceFrame (double x, double y)
 	{
@@ -502,7 +459,7 @@ internal sealed partial class SpritesheetSplitDialog : IDisposable
 	private void Refresh ()
 	{
 		bool valid = IsValid ();
-		submit.Sensitive = valid;
+		set_submit_sensitive (valid);
 		bool canLoop = frames.Count (frame => frame.Visible) > 1;
 		previous_frame.Sensitive = canLoop;
 		next_frame.Sensitive = canLoop;
@@ -547,7 +504,7 @@ internal sealed partial class SpritesheetSplitDialog : IDisposable
 
 	private bool IsAiSourceMode => source_mode_stack.VisibleChildName == ai_source_mode;
 
-	private SpritesheetSplitData ReadOptions ()
+	public SpritesheetSplitData ReadOptions ()
 		=> new (
 			(int) columns.Value, (int) rows.Value, (int) cell_width.Value, (int) cell_height.Value,
 			(int) offset_x.Value, (int) offset_y.Value, (int) gap_x.Value, (int) gap_y.Value,

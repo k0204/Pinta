@@ -2,7 +2,7 @@ using System.Linq;
 
 namespace Pinta.Core;
 
-internal sealed partial class SpritesheetSplitDialog
+internal sealed partial class AnimationFrameEditor
 {
 	public UserLayer? OutputAttempt
 		=> output_attempt.Active > 0 ? output_attempts[output_attempt.Active - 1] : null;

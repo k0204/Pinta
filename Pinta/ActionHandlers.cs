@@ -130,7 +130,7 @@ public sealed class ActionHandlers
 		bool hasSelectedLayer = document?.Layers.HasSelectedLayer == true;
 		bool editableLayer = hasSelectedLayer && document!.Layers.CurrentUserLayer.IsEditable;
 		bool editableCanvas = document is not null && !document.Layers.HasLockedReferences;
-		bool editableImage = editableCanvas && !document!.Layers.AllLayers.Any (layer => layer is SpriteSheetLayer);
+		bool editableImage = editableCanvas && !document!.Layers.AllLayers.Any (layer => layer is AnimationOutputLayer);
 		bool selectionVisible = document?.Selection.Visible == true;
 
 		PintaCore.Actions.File.Close.Sensitive = enable;

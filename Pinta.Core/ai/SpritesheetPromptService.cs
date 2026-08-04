@@ -93,26 +93,39 @@ public sealed class SpritesheetPromptCatalog
 		(int columns, int rows) = CalculateGrid (totalFrames, imageSize);
 
 		List<string> sections = [generation_prompt];
-		// if (!directionSheet)
-		// 	sections.Add (BuildActionPrompt (actionId, customAction, framesPerDirection));
+		if (!directionSheet)
+			sections.Add (BuildActionPrompt (actionId, customAction, framesPerDirection));
 
-		// sections.Add (directionSheet
-		// 	? $"生成 {direction_ids.Length} 个标准方向视图。\n每个方向 1 帧。"
-		// 	: $"每个固定方向严格使用 {framesPerDirection} 帧。\n动画总帧数：{totalFrames}。");
-		// if (!directionSheet)
-		// 	sections.Add (
-		// 		"同一帧序号下，所有固定方向必须表现相同的标准化动画阶段和语义关键姿势。\n"
-		// 		+ "只改变观察方向。\n"
-		// 		+ "各方向的时序、接触状态、身体力学、手持物和动作强度必须一致。");
+		sections.Add (directionSheet
+			? $"生成 {direction_ids.Length} 个标准方向视图。\n每个方向 1 帧。"
+			: $"每个固定方向严格使用 {framesPerDirection} 帧。\n动画总帧数：{totalFrames}。"
+			+ "\n同一帧序号下，所有固定方向必须表现相同的动画阶段，只改变观察方向。\n"
+			+ "各方向的时序、接触状态、身体力学、手持物和动作强度必须一致。");
 
-		// sections.Add (BuildDirectionCellPlan (framesPerDirection));
-		// int unusedCells = columns * rows - totalFrames;
-		// sections.Add (
-		// 	$"输出一张 {imageSize.Width}x{imageSize.Height} 的光栅精灵图，排列为 {columns} 列 x {rows} 行。\n"
-		// 	+ "从左上角的 1 号单元格开始编号，先从左到右，再从上到下。\n"
-		// 	+ "所有单元格尺寸必须完全相同。"
-		// 	+ (unusedCells > 0 ? $"\n最后 {unusedCells} 个未使用的单元格除纯白背景外必须完全留空。" : string.Empty));
+		sections.Add (BuildDirectionCellPlan (framesPerDirection));
+		int unusedCells = columns * rows - totalFrames;
+		sections.Add (
+			$"输出一张 {imageSize.Width}x{imageSize.Height} 的光栅精灵图，排列为 {columns} 列 x {rows} 行。\n"
+			+ "从左上角的 1 号单元格开始编号，先从左到右，再从上到下。\n"
+			+ "所有单元格尺寸必须完全相同。"
+			+ (unusedCells > 0 ? $"\n最后 {unusedCells} 个未使用的单元格除纯白背景外必须完全留空。" : string.Empty));
 		return string.Join ($"{Environment.NewLine}{Environment.NewLine}", sections.Where (section => !string.IsNullOrWhiteSpace (section)));
+	}
+
+	public string BuildSingleDirectionPrompt (
+		string actionId,
+		string customAction,
+		int frameCount,
+		Size imageSize)
+	{
+		int frames = Math.Clamp (frameCount, 1, 16);
+		(int columns, int rows) = CalculateGrid (frames, imageSize);
+		return string.Join ($"{Environment.NewLine}{Environment.NewLine}", [
+			"Generate a single-direction character animation spritesheet.",
+			BuildActionPrompt (actionId, customAction, frames),
+			$"Use exactly {frames} sequential frames in a {columns} x {rows} row-major grid. "
+			+ $"The output size is {imageSize.Width}x{imageSize.Height} pixels with identical cell sizes and a white #FFFFFF background.",
+		]);
 	}
 
 	private static string BuildDirectionCellPlan (int framesPerDirection)

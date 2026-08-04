@@ -30,7 +30,7 @@ public sealed partial class LayerActions
 			info = existingInfo;
 		}
 
-		using SpritesheetSplitDialog dialog = new (
+		using MultiDirectionAnimationDialog dialog = new (
 			chrome.MainWindow,
 			source,
 			info,
@@ -80,7 +80,7 @@ public sealed partial class LayerActions
 		List<SpriteSheetDirectionData> directions = animation.Directions.Count > 0
 			? animation.Directions
 			: [new SpriteSheetDirectionData ("default")];
-		List<List<SpriteSheetFrameData>> orderedFrames = [.. directions.Select (
+		List<List<AnimationFrameData>> orderedFrames = [.. directions.Select (
 			direction => direction.Frames.OrderBy (frame => frame.FrameIndex).ToList ())];
 		int frameCount = Math.Max (1, orderedFrames.Select (frames => frames.Count).DefaultIfEmpty (0).Max ());
 		int cellWidth = Math.Max (1, orderedFrames.SelectMany (frames => frames).Select (frame => frame.Surface.Width).DefaultIfEmpty (1).Max ());
@@ -96,7 +96,7 @@ public sealed partial class LayerActions
 			for (int index = 0; index < count; index++) {
 				int directionIndex = index / frameCount;
 				int frameIndex = index % frameCount;
-				SpriteSheetFrameData? frame = frameIndex < orderedFrames[directionIndex].Count
+				AnimationFrameData? frame = frameIndex < orderedFrames[directionIndex].Count
 					? orderedFrames[directionIndex][frameIndex]
 					: null;
 				Cairo.ImageSurface surface = frame?.Surface.Clone ()
@@ -233,7 +233,7 @@ public sealed partial class LayerActions
 				? frameSurfaces[cell].Clone ()
 				: CreateSplitFrameSurface (source, info, split, cell);
 			SpritesheetFrameSplit placement = split.Frames[cell];
-			direction.Frames.Add (new SpriteSheetFrameData (frameIndex, placement.X, placement.Y, placement.Visible, crop.Clone ()));
+			direction.Frames.Add (new AnimationFrameData (frameIndex, placement.X, placement.Y, placement.Visible, crop.Clone ()));
 		}
 
 		return result;

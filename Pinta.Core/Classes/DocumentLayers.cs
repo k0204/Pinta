@@ -175,6 +175,13 @@ public sealed partial class DocumentLayers
 	public SpriteSheetLayer CreateSpriteSheetLayer (string name, int canvasWidth, int canvasHeight)
 		=> new (name, canvasWidth, canvasHeight);
 
+	public SingleDirectionAnimationLayer CreateSingleDirectionAnimationLayer (
+		string name,
+		int canvasWidth,
+		int canvasHeight,
+		string directionId = SingleDirectionAnimationLayer.DefaultDirectionId)
+		=> new (name, canvasWidth, canvasHeight, directionId);
+
         /// <summary>
         /// Creates a new group and adds it to the Layer collection after the
         /// currently selected layer, making it the new selected layer.
@@ -276,8 +283,8 @@ public sealed partial class DocumentLayers
 	{
 		if (Count () < 2)
 			throw new InvalidOperationException ("Cannot flatten image because there is only one layer.");
-		if (AllLayers.Any (layer => layer is SpriteSheetLayer))
-			throw new InvalidOperationException ("Cannot flatten an image containing a SpriteSheetLayer.");
+		if (AllLayers.Any (layer => layer is AnimationOutputLayer))
+			throw new InvalidOperationException ("Cannot flatten an image containing an animation output layer.");
 
 		// Find the "bottom" layer
 		UserLayer bottom_layer = AllLayers[0];
@@ -577,10 +584,11 @@ public sealed partial class DocumentLayers
 		// {0} is the name of the source layer. Example: "Layer 3 copy".
 		UserLayer layer = source switch {
 			SpriteSheetLayer sprite => DuplicateSpriteSheetLayer (sprite),
+			SingleDirectionAnimationLayer single => DuplicateSingleDirectionAnimationLayer (single),
 			GroupLayer => CreateGroupLayer (Translations.GetString ("{0} copy", source.Name)),
 			_ => CreateLayer (Translations.GetString ("{0} copy", source.Name)),
 		};
-		if (source is SpriteSheetLayer)
+		if (source is AnimationOutputLayer)
 			return layer;
 
 		if (!source.IsReference) {
@@ -613,6 +621,24 @@ public sealed partial class DocumentLayers
 	private SpriteSheetLayer DuplicateSpriteSheetLayer (SpriteSheetLayer source)
 	{
 		SpriteSheetLayer copy = CreateSpriteSheetLayer (Translations.GetString ("{0} copy", source.Name), source.CanvasWidth, source.CanvasHeight);
+		copy.Hidden = source.Hidden;
+		copy.Opacity = source.Opacity;
+		copy.BlendMode = source.BlendMode;
+		copy.Expanded = source.Expanded;
+		foreach ((string key, string value) in source.Metadata)
+			copy.Metadata[key] = value;
+		copy.SpritesheetSplit = source.SpritesheetSplit;
+		copy.ReplaceSnapshot (source.CaptureSnapshot (), document.ImageSize);
+		return copy;
+	}
+
+	private SingleDirectionAnimationLayer DuplicateSingleDirectionAnimationLayer (SingleDirectionAnimationLayer source)
+	{
+		SingleDirectionAnimationLayer copy = CreateSingleDirectionAnimationLayer (
+			Translations.GetString ("{0} copy", source.Name),
+			source.CanvasWidth,
+			source.CanvasHeight,
+			source.DirectionId);
 		copy.Hidden = source.Hidden;
 		copy.Opacity = source.Opacity;
 		copy.BlendMode = source.BlendMode;

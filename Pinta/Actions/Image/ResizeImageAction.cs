@@ -62,7 +62,7 @@ internal sealed class ResizeImageAction : IActionHandler
 	private async void Activated (object sender, EventArgs e)
 	{
 		if (workspace.ActiveDocument.Layers.HasLockedReferences
-			|| workspace.ActiveDocument.Layers.AllLayers.Any (layer => layer is SpriteSheetLayer))
+			|| workspace.ActiveDocument.Layers.AllLayers.Any (layer => layer is AnimationOutputLayer))
 			return;
 
 		ResizeImageOptions? response = await PromptResize ();

@@ -45,6 +45,7 @@ public sealed class Document
 	private int reference_reload_scheduled;
 	private int resource_watcher_retry_scheduled;
 	private bool is_closed;
+	private readonly SemaphoreSlim save_gate = new (1, 1);
 
 	private bool is_dirty;
 
@@ -162,7 +163,7 @@ public sealed class Document
 		get => image_size;
 		set {
 			image_size = value;
-			Layers.UpdateSpritesheetOutputTransforms ();
+			Layers.UpdateAnimationOutputTransforms ();
 		}
 	}
 
@@ -528,7 +529,7 @@ public sealed class Document
                 Guides.ClampAllToImageBounds ();
 
 		foreach (var layer in Layers.AllLayers)
-			if (!Layers.IsSpritesheetOutputLayer (layer))
+			if (!Layers.IsAnimationOutputLayer (layer))
 				layer.ResizeCanvas (newSize, anchor);
 
 		hist.FinishSnapshotOfImage ();
@@ -562,7 +563,7 @@ public sealed class Document
                 Guides.ClampAllToImageBounds ();
 
 		foreach (var layer in Layers.AllLayers)
-			if (!Layers.IsSpritesheetOutputLayer (layer))
+			if (!Layers.IsAnimationOutputLayer (layer))
 				layer.Resize (newSize, resamplingMode);
 
 		hist.FinishSnapshotOfImage ();
@@ -611,9 +612,14 @@ public sealed class Document
 	}
 
 	// Returns true if successful, false if canceled
-	public Task<bool> Save (bool saveAs)
+	public async Task<bool> Save (bool saveAs)
 	{
-		return actions.File.RaiseSaveDocument (this, saveAs);
+		await save_gate.WaitAsync ();
+		try {
+			return await actions.File.RaiseSaveDocument (this, saveAs);
+		} finally {
+			save_gate.Release ();
+		}
 	}
 
 	/// <summary>

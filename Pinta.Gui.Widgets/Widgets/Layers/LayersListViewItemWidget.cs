@@ -64,8 +64,8 @@ public sealed partial class LayersListViewItem
 			throw new InvalidOperationException ($"{nameof (LayersListViewItem)} is not initialized");
 
 		ImageSurface surface = CairoExtensions.CreateImageSurface (Format.Argb32, widthRequest, heightRequest);
-		if (UserLayer is SpriteSheetLayer spriteSheet)
-			return spriteSheet.CreateThumbnailSurface () ?? surface;
+		if (UserLayer is AnimationOutputLayer animationOutput)
+			return animationOutput.CreateThumbnailSurface () ?? surface;
 		if (UserLayer is GroupLayer)
 			return surface;
 
@@ -450,9 +450,14 @@ public sealed partial class LayersListViewItemWidget
 
 		Gio.Menu operationsSection = Gio.Menu.New ();
                 operationsSection.AppendItem (actions.AddNewGroup.CreateMenuItem ());
-		operationsSection.AppendItem ((item.UserLayer is SpriteSheetLayer
-			? actions.EditSpritesheet
-			: actions.SplitSpritesheet).CreateMenuItem ());
+		if (item.UserLayer is SingleDirectionAnimationLayer)
+			operationsSection.AppendItem (actions.EditSingleDirectionAnimation.CreateMenuItem ());
+		else if (item.UserLayer is SpriteSheetLayer)
+			operationsSection.AppendItem (actions.EditSpritesheet.CreateMenuItem ());
+		else {
+			operationsSection.AppendItem (actions.SplitSpritesheet.CreateMenuItem ());
+			operationsSection.AppendItem (actions.CreateSingleDirectionAnimation.CreateMenuItem ());
+		}
 		operationsSection.AppendItem (actions.SaveLayerImage.CreateMenuItem ());
 		operationsSection.AppendItem (actions.DeleteLayer.CreateMenuItem ());
 		operationsSection.AppendItem (actions.DuplicateLayer.CreateMenuItem ());
@@ -518,7 +523,7 @@ public sealed partial class LayersListViewItemWidget
                 disclosure_button.Opacity = item.CanExpand ? 1 : 0;
                 disclosure_button.Sensitive = item.CanExpand;
                 disclosure_button.IconName = item.CanExpand ? (item.Expanded ? "pan-down-symbolic" : "pan-end-symbolic") : string.Empty;
-			bool isGroup = item.UserLayer is GroupLayer && item.UserLayer is not SpriteSheetLayer;
+			bool isGroup = item.UserLayer is GroupLayer && item.UserLayer is not AnimationOutputLayer;
 			bool isReference = item.UserLayer?.IsReference == true;
 			item_thumbnail.Visible = !isGroup;
 			layer_icon.IconName = isGroup ? Resources.StandardIcons.Folder : isReference ? "object-locked-symbolic" : string.Empty;

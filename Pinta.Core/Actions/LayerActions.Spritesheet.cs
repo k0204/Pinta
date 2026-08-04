@@ -11,10 +11,13 @@ public sealed partial class LayerActions
 	private const string spritesheet_anchor_metadata = "pinta.spritesheet.character-anchor";
 
 	private static bool CanCreateSpritesheetAnimation (UserLayer layer)
-		=> layer is not SpriteSheetLayer && layer is not GroupLayer && layer.IsEditable;
+		=> layer is not AnimationOutputLayer && layer is not GroupLayer && layer.IsEditable;
 
 	private static bool CanEditSpritesheetAnimation (UserLayer layer)
 		=> layer is SpriteSheetLayer;
+
+	private static bool CanEditSingleDirectionAnimation (UserLayer layer)
+		=> layer is SingleDirectionAnimationLayer;
 
 	private async void HandlePintaCoreActionsLayersGenerateSpritesheetActivated (object sender, EventArgs e)
 	{
@@ -60,9 +63,16 @@ public sealed partial class LayerActions
 	{
 		tools.Commit ();
 		CompoundHistoryItem history = new (Resources.Icons.LayerDuplicate, Translations.GetString ("Generate Spritesheet"));
-		GroupLayer root = FindOrCreateGroup (document, null, "spritesheet", history);
+		GroupLayer root = FindOrCreateGroup (document, null, "multi-direction-animation", history);
 		MoveSpritesheetRootToTop (document, root, history);
-		GroupLayer action = FindOrCreateGroup (document, root, info.ActionId, history);
+		GroupLayer branch = FindOrCreateGroup (
+			document,
+			root,
+			info.DirectionSheet ? "direction-set" : "actions",
+			history);
+		GroupLayer action = info.DirectionSheet
+			? branch
+			: FindOrCreateGroup (document, branch, info.ActionId, history);
 		GroupLayer attempt = document.Layers.CreateGroupLayer (GetNextAttemptName (action));
 		document.Layers.Insert (attempt, new LayerPosition (action, action.Children.Count));
 		history.Push (CreateAddHistory (document, attempt));
@@ -105,7 +115,7 @@ public sealed partial class LayerActions
 		CompoundHistoryItem history)
 	{
 		IReadOnlyList<UserLayer> children = parent?.Children ?? document.Layers.RootLayers;
-		if (children.FirstOrDefault (layer => layer is GroupLayer && layer is not SpriteSheetLayer && layer.Name == name) is GroupLayer existing)
+		if (children.FirstOrDefault (layer => layer is GroupLayer && layer is not AnimationOutputLayer && layer.Name == name) is GroupLayer existing)
 			return existing;
 
 		GroupLayer group = document.Layers.CreateGroupLayer (name);
@@ -127,8 +137,8 @@ public sealed partial class LayerActions
 
 	private static bool IsDirectionSheetSource (UserLayer layer)
 		=> layer is not GroupLayer
-		&& layer.Parent?.Parent?.Name == "direction-sheet"
-		&& TryGetSpritesheetAttempt (layer, out _, out _);
+		&& TryGetSpritesheetAttempt (layer, out _, out AI.SpritesheetAttemptInfo? info)
+		&& info?.DirectionSheet == true;
 
 	private static bool TryGetSpritesheetAttempt (
 		UserLayer source,
@@ -199,6 +209,22 @@ public sealed partial class LayerActions
 			AI.AiRequestSettings.GetImageService (PintaCore.Settings), AI.AiRequestSettings.GetGptProvider (PintaCore.Settings), 1);
 	}
 
+	private static AI.SpritesheetAttemptInfo CreateSingleDirectionAttemptInfo (
+		AI.SpritesheetPromptCatalog catalog,
+		int actionIndex,
+		double frameCount,
+		Size size,
+		Gtk.TextBuffer promptBuffer)
+	{
+		int frames = (int) frameCount;
+		(int columns, int rows) = AI.SpritesheetPromptCatalog.CalculateGrid (frames, size);
+		promptBuffer.GetBounds (out Gtk.TextIter start, out Gtk.TextIter end);
+		return new (false, catalog.Actions[actionIndex].Id, [SingleDirectionAnimationLayer.DefaultDirectionId], frames,
+			columns, rows, AI.SpritesheetPromptCatalog.FixedBackgroundId, size,
+			promptBuffer.GetText (start, end, true).Trim (),
+			AI.AiRequestSettings.GetImageService (PintaCore.Settings), AI.AiRequestSettings.GetGptProvider (PintaCore.Settings), 1);
+	}
+
 	private static byte[] CreateSurfacePng (Cairo.ImageSurface surface)
 	{
 		using GdkPixbuf.Pixbuf pixbuf = surface.ToPixbuf ();
@@ -210,10 +236,13 @@ public sealed partial class LayerActions
 		if (size == document.ImageSize)
 			return document.Layers.AddNewLayer (name);
 
-		UserLayer current = document.Layers.CurrentUserLayer;
-		LayerPosition position = document.Layers.GetPosition (current);
+		LayerPosition position = document.Layers.HasSelectedLayer
+			? document.Layers.GetPosition (document.Layers.CurrentUserLayer)
+			: new LayerPosition (null, document.Layers.RootLayers.Count);
 		UserLayer layer = document.Layers.CreateLayer (name, size.Width, size.Height);
-		document.Layers.Insert (layer, new LayerPosition (position.Parent, position.Index + 1));
+		if (document.Layers.HasSelectedLayer)
+			position = position with { Index = position.Index + 1 };
+		document.Layers.Insert (layer, position);
 		document.Layers.SetCurrentUserLayer (layer);
 		return layer;
 	}

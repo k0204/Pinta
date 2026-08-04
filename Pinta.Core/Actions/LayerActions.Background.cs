@@ -21,6 +21,22 @@ public sealed partial class LayerActions
 		await RunImageGenerationAsync ();
 	}
 
+	private async void HandleGenerateSingleDirectionAnimationActivated (object sender, EventArgs e)
+	{
+		if (cutout_running || !EnsureAiLoggedIn () || workspace.ActiveDocumentOrDefault is not Document document
+			|| !document.Layers.HasSelectedLayer || !CanCreateSpritesheetAnimation (document.Layers.CurrentUserLayer))
+			return;
+
+		AiImageRequestOptions? options = await PromptAiImageRequestAsync (
+			AiImageRequestMode.SingleDirectionAnimationGeneration,
+			document,
+			document.Layers.CurrentUserLayer);
+		if (options is not null)
+			await GenerateImageAsync (document, options with {
+				Layers = [document.Layers.CurrentUserLayer, .. options.Layers],
+			});
+	}
+
 	private async void HandlePintaCoreActionsLayersCutoutActivated (object sender, EventArgs e)
 	{
 		if (cutout_running)
@@ -88,7 +104,7 @@ public sealed partial class LayerActions
 				cts.Token);
 
 			SetProgress (Translations.GetString ("Creating generated image layer..."), 0.85);
-			if (options.Spritesheet is null) {
+			if (options.Spritesheet is null && options.SingleDirection is null) {
 				UserLayer result = AddAiResultLayer (referenceDocument, options.ResultLayerName, options.ImageSize);
 				DrawPngOnLayer (generatedPng, result);
 				referenceDocument.History.PushNewItem (new AddLayerHistoryItem (
@@ -97,8 +113,10 @@ public sealed partial class LayerActions
 					result,
 					referenceDocument.Layers.GetPosition (result)));
 				referenceDocument.Workspace.Invalidate ();
-			} else {
-				InsertSpritesheetAttempt (referenceDocument, generatedPng, options.Spritesheet);
+			} else if (options.SingleDirection is not null) {
+				InsertSingleDirectionAnimationAttempt (referenceDocument, generatedPng, options.SingleDirection);
+			} else if (options.Spritesheet is AI.SpritesheetAttemptInfo spritesheet) {
+				InsertSpritesheetAttempt (referenceDocument, generatedPng, spritesheet);
 			}
 			SetProgress (Translations.GetString ("Refreshing balance..."), 0.95);
 			await PintaCore.AiAuth.RefreshAccountSummaryAsync (cts.Token);
@@ -495,7 +513,8 @@ public sealed partial class LayerActions
 	{
 		if (mode == AiImageRequestMode.BackgroundCleanup && (doc is null || sourceLayer is null))
 			throw new ArgumentException ("Background cleanup requires a document and source layer.");
-		bool spritesheetMode = mode == AiImageRequestMode.SpritesheetGeneration;
+		bool singleDirectionMode = mode == AiImageRequestMode.SingleDirectionAnimationGeneration;
+		bool spritesheetMode = mode == AiImageRequestMode.SpritesheetGeneration || singleDirectionMode;
 		AI.SpritesheetPromptCatalog? spritesheetCatalog = spritesheetMode
 			? AI.SpritesheetPromptCatalog.Load ()
 			: null;
@@ -504,6 +523,7 @@ public sealed partial class LayerActions
 		dialog.Title = mode switch {
 			AiImageRequestMode.BackgroundCleanup => Translations.GetString ("清理背景"),
 			AiImageRequestMode.SpritesheetGeneration => Translations.GetString ("Generate Spritesheet"),
+			AiImageRequestMode.SingleDirectionAnimationGeneration => Translations.GetString ("Single-Direction Animation"),
 			_ => Translations.GetString ("AI 生成"),
 		};
 		dialog.TransientFor = chrome.MainWindow;
@@ -568,12 +588,14 @@ public sealed partial class LayerActions
 		Gtk.Widget? spritesheet_controls = null;
 		Func<string>? spritesheet_result_layer_name = null;
 		Func<AI.SpritesheetAttemptInfo?> spritesheet_info = () => null;
+		Func<AI.SpritesheetAttemptInfo?> single_direction_info = () => null;
 		Func<bool> spritesheet_valid = () => true;
 		if (spritesheetCatalog is not null) {
 			Gtk.CheckButton directionModeButton = Gtk.CheckButton.NewWithLabel (Translations.GetString ("Direction Sheet"));
 			Gtk.CheckButton actionModeButton = Gtk.CheckButton.NewWithLabel (Translations.GetString ("Action Sequence"));
 			actionModeButton.SetGroup (directionModeButton);
-			directionModeButton.Active = true;
+			directionModeButton.Active = !singleDirectionMode;
+			actionModeButton.Active = singleDirectionMode;
 
 			Gtk.ComboBoxText actionCombobox = Gtk.ComboBoxText.New ();
 			foreach (AI.SpritesheetActionPreset action in spritesheetCatalog.Actions)
@@ -593,6 +615,8 @@ public sealed partial class LayerActions
 			backgroundSummaryLabel.Halign = Gtk.Align.Start;
 			Gtk.Label directionsSummaryLabel = Gtk.Label.New (Translations.GetString ("8 fixed directions"));
 			directionsSummaryLabel.Halign = Gtk.Align.Start;
+			if (singleDirectionMode)
+				directionsSummaryLabel.SetText (Translations.GetString ("1 direction"));
 
 			Gtk.Label summaryLabel = Gtk.Label.New (string.Empty);
 			summaryLabel.Halign = Gtk.Align.Start;
@@ -619,13 +643,16 @@ public sealed partial class LayerActions
 			spritesheetGrid.Attach (directionsSummaryLabel, 1, 5, 1, 1);
 			spritesheetGrid.Attach (summaryLabel, 1, 6, 1, 1);
 			spritesheet_controls = spritesheetGrid;
+			modeBox.Visible = !singleDirectionMode;
+			if (singleDirectionMode)
+				spritesheetGrid.GetChildAt (0, 0)!.Visible = false;
 
 			bool IsCustomAction ()
 				=> spritesheetCatalog.Actions[actionCombobox.Active].Id == "custom";
 
 			void RebuildSpritesheetPrompt ()
 			{
-				bool directionSheet = directionModeButton.Active;
+				bool directionSheet = !singleDirectionMode && directionModeButton.Active;
 				actionLabel.Visible = !directionSheet;
 				actionCombobox.Visible = !directionSheet;
 				frameCountLabel.Visible = !directionSheet;
@@ -635,7 +662,8 @@ public sealed partial class LayerActions
 				customActionEntry.Visible = customVisible;
 
 				int framesPerDirection = directionSheet ? 1 : (int) frameCountSpinner.Value;
-				int totalFrames = spritesheetCatalog.DirectionIds.Count * framesPerDirection;
+				int directionCount = singleDirectionMode ? 1 : spritesheetCatalog.DirectionIds.Count;
+				int totalFrames = directionCount * framesPerDirection;
 				if (sizePicker.SelectedSize is not Size size) {
 					promptBuffer.SetText (string.Empty, -1);
 					summaryLabel.SetText (Translations.GetString ("Select a valid image size."));
@@ -645,23 +673,28 @@ public sealed partial class LayerActions
 				(int columns, int rows) = AI.SpritesheetPromptCatalog.CalculateGrid (totalFrames, size);
 				summaryLabel.SetText (directionSheet
 					? $"{spritesheetCatalog.DirectionIds.Count} directions / {columns} x {rows} grid"
-					: $"{spritesheetCatalog.DirectionIds.Count} directions x {framesPerDirection} frames = {totalFrames} frames / {columns} x {rows} grid");
+					: $"{directionCount} direction(s) x {framesPerDirection} frames = {totalFrames} frames / {columns} x {rows} grid");
 				string actionId = spritesheetCatalog.Actions[actionCombobox.Active].Id;
-				promptBuffer.SetText (spritesheetCatalog.BuildPrompt (
-					directionSheet,
-					actionId,
-					customActionEntry.GetText (),
-					framesPerDirection,
-					size), -1);
+				promptBuffer.SetText (singleDirectionMode
+					? spritesheetCatalog.BuildSingleDirectionPrompt (actionId, customActionEntry.GetText (), framesPerDirection, size)
+					: spritesheetCatalog.BuildPrompt (directionSheet, actionId, customActionEntry.GetText (), framesPerDirection, size), -1);
 			}
 
 			spritesheet_valid = () => directionModeButton.Active || !IsCustomAction () || !string.IsNullOrWhiteSpace (customActionEntry.GetText ());
-			spritesheet_result_layer_name = () => directionModeButton.Active
-				? Translations.GetString ("Direction Sheet")
-				: $"{spritesheetCatalog.Actions[actionCombobox.Active].Label} {Translations.GetString ("Spritesheet")}";
-			spritesheet_info = () => CreateSpritesheetAttemptInfo (
-				spritesheetCatalog, directionModeButton.Active, actionCombobox.Active,
-				frameCountSpinner.Value, sizePicker.SelectedSize!.Value, promptBuffer);
+			spritesheet_result_layer_name = () => singleDirectionMode
+				? $"{spritesheetCatalog.Actions[actionCombobox.Active].Label} {Translations.GetString ("Single-Direction Animation")}"
+				: directionModeButton.Active
+					? Translations.GetString ("Direction Sheet")
+					: $"{spritesheetCatalog.Actions[actionCombobox.Active].Label} {Translations.GetString ("Spritesheet")}";
+			spritesheet_info = () => singleDirectionMode
+				? null
+				: CreateSpritesheetAttemptInfo (
+					spritesheetCatalog, directionModeButton.Active, actionCombobox.Active,
+					frameCountSpinner.Value, sizePicker.SelectedSize!.Value, promptBuffer);
+			single_direction_info = () => singleDirectionMode
+			? CreateSingleDirectionAttemptInfo (spritesheetCatalog, actionCombobox.Active, frameCountSpinner.Value,
+				sizePicker.SelectedSize!.Value, promptBuffer)
+			: null;
 
 			directionModeButton.OnToggled += (_, _) => {
 				if (!directionModeButton.Active)
@@ -825,9 +858,11 @@ public sealed partial class LayerActions
 				? Translations.GetString ("White Background")
 				: Translations.GetString ("AI Generated Image");
 		string progressTitle = spritesheetMode
-			? Translations.GetString ("Generate Spritesheet")
+			? singleDirectionMode
+				? Translations.GetString ("Single-Direction Animation")
+				: Translations.GetString ("Generate Spritesheet")
 			: Translations.GetString ("AI 生成");
-		return new (prompt, imageSize, layers, files, resultLayerName, progressTitle, spritesheet_info ());
+		return new (prompt, imageSize, layers, files, resultLayerName, progressTitle, spritesheet_info (), single_direction_info ());
 	}
 
 	private static Gtk.Label CreateDialogLabel (string text)
@@ -962,13 +997,15 @@ public sealed partial class LayerActions
 		IReadOnlyList<Gio.File> Files,
 		string ResultLayerName,
 		string ProgressTitle,
-		AI.SpritesheetAttemptInfo? Spritesheet);
+		AI.SpritesheetAttemptInfo? Spritesheet,
+		AI.SpritesheetAttemptInfo? SingleDirection);
 
 	private enum AiImageRequestMode
 	{
 		BackgroundCleanup,
 		ImageGeneration,
 		SpritesheetGeneration,
+		SingleDirectionAnimationGeneration,
 	}
 
 	private enum AiImageOperation

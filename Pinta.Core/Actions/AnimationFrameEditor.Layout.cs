@@ -4,7 +4,7 @@ using Cairo;
 
 namespace Pinta.Core;
 
-internal sealed partial class SpritesheetSplitDialog
+internal sealed partial class AnimationFrameEditor
 {
 	private const int default_left_panel_width = 220;
 	private const int default_right_panel_width = 224;
@@ -25,8 +25,6 @@ internal sealed partial class SpritesheetSplitDialog
 
 	private void BuildContent ()
 	{
-		Gtk.Box content = dialog.GetContentAreaBox ();
-
 		// Main two-column area
 		Gtk.Box main_row = Gtk.Box.New (Gtk.Orientation.Horizontal, 4);
 		main_row.Hexpand = true;
@@ -152,6 +150,7 @@ internal sealed partial class SpritesheetSplitDialog
 	{
 		Gtk.Box sidebar = Gtk.Box.New (Gtk.Orientation.Vertical, 4);
 		sidebar.SetSizeRequest (right_panel_width, -1);
+		sidebar.Hexpand = false;
 		sidebar.Vexpand = true;
 
 		// Output canvas card
@@ -429,14 +428,18 @@ internal sealed partial class SpritesheetSplitDialog
 		divider.SetChild (resize_area);
 
 		int dragStartWidth = 0;
-		Gtk.GestureDrag drag = Gtk.GestureDrag.New ();
-		drag.SetButton (GtkExtensions.MOUSE_LEFT_BUTTON);
-		drag.OnDragBegin += (_, _) => dragStartWidth = getWidth ();
-		drag.OnDragUpdate += (_, args) => {
-			int direction = left ? 1 : -1;
-			setWidth (dragStartWidth + direction * (int) Math.Round (args.OffsetX));
-		};
-		resize_area.AddController (drag);
+		void AddResizeGesture (Gtk.Widget widget)
+		{
+			Gtk.GestureDrag drag = Gtk.GestureDrag.New ();
+			drag.SetButton (GtkExtensions.MOUSE_LEFT_BUTTON);
+			drag.OnDragBegin += (_, _) => dragStartWidth = getWidth ();
+			drag.OnDragUpdate += (_, args) => {
+				int direction = left ? 1 : -1;
+				setWidth (dragStartWidth + direction * (int) Math.Round (args.OffsetX));
+			};
+			widget.AddController (drag);
+		}
+		AddResizeGesture (resize_area);
 
 		Gtk.Button collapse = Gtk.Button.NewFromIconName (
 			GetPanelToggleIcon (left, panel.Visible));
@@ -450,6 +453,7 @@ internal sealed partial class SpritesheetSplitDialog
 				? left ? "Collapse left panel" : "Collapse right panel"
 				: left ? "Expand left panel" : "Expand right panel"));
 		collapse.OnClicked += (_, _) => TogglePanel (panel, collapse, left);
+		AddResizeGesture (collapse);
 		divider.AddOverlay (collapse);
 		return divider;
 	}

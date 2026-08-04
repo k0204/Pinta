@@ -31,6 +31,8 @@
 /////////////////////////////////////////////////////////////////////////////////
 
 using System;
+using System.IO;
+using System.Runtime.InteropServices;
 using Cairo;
 
 namespace Pinta.Core;
@@ -56,6 +58,24 @@ partial class CairoExtensions
 
 		return newsurf;
 	}
+
+	public static void SaveToPng (this ImageSurface surface, string filename)
+	{
+		if (surface.Status != Status.Success)
+			throw new InvalidOperationException ($"Image surface is invalid: {surface.Status}");
+
+		surface.Flush ();
+		Status status = SaveToPngNative (surface.Handle.DangerousGetHandle (), filename);
+		if (status == Status.NoMemory)
+			throw new OutOfMemoryException ("Unable to allocate memory for PNG encoding.");
+		if (status != Status.Success)
+			throw new IOException ($"Unable to write PNG: {status}.");
+	}
+
+	[DllImport (CairoExtensions.CAIRO_LIBRARY_NAME, EntryPoint = "cairo_surface_write_to_png", CallingConvention = CallingConvention.Cdecl)]
+	private static extern Status SaveToPngNative (
+		IntPtr surface,
+		[MarshalAs (UnmanagedType.LPUTF8Str)] string filename);
 
 	/// <summary>
 	/// Placeholder surface used for <see cref="CreatePathContext"/>

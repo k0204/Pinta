@@ -36,8 +36,11 @@ public sealed partial class LayerActions
         public Command AddNewGroup { get; }
 	public Command GenerateImage { get; }
 	public Command GenerateSpritesheet { get; }
+	public Command GenerateSingleDirectionAnimation { get; }
 	public Command SplitSpritesheet { get; }
+	public Command CreateSingleDirectionAnimation { get; }
 	public Command EditSpritesheet { get; }
+	public Command EditSingleDirectionAnimation { get; }
 	public Command SetSpritesheetAnchor { get; }
 	public Command DeleteLayer { get; }
 	public Command DuplicateLayer { get; }
@@ -69,6 +72,7 @@ public sealed partial class LayerActions
 	private readonly AI.SpriteSegmentationService sprite_segmentation;
 	private bool detect_border_running;
 	private bool cutout_running;
+	private bool save_layer_running;
 
 	public LayerActions (
 		ChromeManager chrome,
@@ -106,16 +110,34 @@ public sealed partial class LayerActions
 			Translations.GetString ("Generate a direction sheet or action spritesheet with AI"),
 			Resources.Icons.LayerDuplicate);
 
+		GenerateSingleDirectionAnimation = new Command (
+			"generatesingledirectionanimation",
+			Translations.GetString ("Generate Single-Direction Animation"),
+			Translations.GetString ("Generate a single-direction animation with AI"),
+			Resources.Icons.LayerDuplicate);
+
 		SplitSpritesheet = new Command (
 			"splitspritesheet",
-			Translations.GetString ("Create Animation Frames"),
-			Translations.GetString ("Create animation frames from the selected layer"),
+			Translations.GetString ("Create Multi-Direction Animation"),
+			Translations.GetString ("Create a multi-direction animation from the selected layer"),
+			Resources.Icons.ImageCrop);
+
+		CreateSingleDirectionAnimation = new Command (
+			"createsingledirectionanimation",
+			Translations.GetString ("Create Single-Direction Animation"),
+			Translations.GetString ("Create a single-direction animation from the selected layer"),
 			Resources.Icons.ImageCrop);
 
 		EditSpritesheet = new Command (
 			"editspritesheet",
 			Translations.GetString ("Edit Animation Frames"),
 			Translations.GetString ("Edit the selected animation layer"),
+			Resources.Icons.ImageCrop);
+
+		EditSingleDirectionAnimation = new Command (
+			"editsingledirectionanimation",
+			Translations.GetString ("Edit Single-Direction Animation"),
+			Translations.GetString ("Edit the selected single-direction animation layer"),
 			Resources.Icons.ImageCrop);
 
 		SetSpritesheetAnchor = new Command (
@@ -244,8 +266,11 @@ public sealed partial class LayerActions
                         AddNewGroup,
 			GenerateImage,
 			GenerateSpritesheet,
+			GenerateSingleDirectionAnimation,
 			SplitSpritesheet,
+			CreateSingleDirectionAnimation,
 			EditSpritesheet,
+			EditSingleDirectionAnimation,
 			SetSpritesheetAnchor,
 			DeleteLayer,
 			DuplicateLayer,
@@ -274,8 +299,11 @@ public sealed partial class LayerActions
                 AddNewGroup.Activated += HandlePintaCoreActionsLayersAddNewGroupActivated;
 		GenerateImage.Activated += HandlePintaCoreActionsLayersGenerateImageActivated;
 		GenerateSpritesheet.Activated += HandlePintaCoreActionsLayersGenerateSpritesheetActivated;
+		GenerateSingleDirectionAnimation.Activated += HandleGenerateSingleDirectionAnimationActivated;
 		SplitSpritesheet.Activated += HandlePintaCoreActionsLayersSplitSpritesheetActivated;
+		CreateSingleDirectionAnimation.Activated += HandleCreateSingleDirectionAnimationActivated;
 		EditSpritesheet.Activated += HandlePintaCoreActionsLayersSplitSpritesheetActivated;
+		EditSingleDirectionAnimation.Activated += HandleSingleDirectionAnimationActivated;
 		SetSpritesheetAnchor.Activated += HandleSetSpritesheetAnchorActivated;
 		DuplicateLayer.Activated += HandlePintaCoreActionsLayersDuplicateLayerActivated;
 		MergeLayerDown.Activated += HandlePintaCoreActionsLayersMergeLayerDownActivated;
@@ -308,11 +336,20 @@ public sealed partial class LayerActions
                 AddNewGroup.Sensitive = activeDoc != null;
 		GenerateImage.Sensitive = !cutout_running;
 		GenerateSpritesheet.Sensitive = activeDoc is not null && !cutout_running;
+		GenerateSingleDirectionAnimation.Sensitive = hasSelectedLayer
+			&& CanCreateSpritesheetAnimation (activeDoc!.Layers.CurrentUserLayer)
+			&& !cutout_running;
 		SplitSpritesheet.Sensitive = hasSelectedLayer
+			&& CanCreateSpritesheetAnimation (activeDoc!.Layers.CurrentUserLayer)
+			&& !cutout_running;
+		CreateSingleDirectionAnimation.Sensitive = hasSelectedLayer
 			&& CanCreateSpritesheetAnimation (activeDoc!.Layers.CurrentUserLayer)
 			&& !cutout_running;
 		EditSpritesheet.Sensitive = hasSelectedLayer
 			&& CanEditSpritesheetAnimation (activeDoc!.Layers.CurrentUserLayer)
+			&& !cutout_running;
+		EditSingleDirectionAnimation.Sensitive = hasSelectedLayer
+			&& CanEditSingleDirectionAnimation (activeDoc!.Layers.CurrentUserLayer)
 			&& !cutout_running;
 		SetSpritesheetAnchor.Sensitive = hasSelectedLayer && IsDirectionSheetSource (activeDoc!.Layers.CurrentUserLayer);
 
@@ -323,7 +360,7 @@ public sealed partial class LayerActions
 
 		MoveLayerUp.Sensitive = activeDoc?.Layers.CanMoveCurrentLayerUp () ?? false;
 		Properties.Sensitive = hasSelectedLayer;
-		SaveLayerImage.Sensitive = hasSelectedLayer;
+		SaveLayerImage.Sensitive = hasSelectedLayer && !save_layer_running;
 		FlipHorizontal.Sensitive = currentEditable;
 		FlipVertical.Sensitive = currentEditable;
 		ResizeLayer.Sensitive = currentEditable;

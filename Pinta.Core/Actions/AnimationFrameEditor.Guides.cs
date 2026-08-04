@@ -5,7 +5,7 @@ using Cairo;
 
 namespace Pinta.Core;
 
-internal sealed partial class SpritesheetSplitDialog
+internal sealed partial class AnimationFrameEditor
 {
 	private const double guide_hit_tolerance = 6;
 	private const double guide_snap_tolerance = 8;
@@ -396,7 +396,7 @@ internal sealed partial class SpritesheetSplitDialog
 			: (int) canvas_width.Value;
 		using Gtk.Dialog dialog = Gtk.Dialog.New ();
 		dialog.Title = Translations.GetString ("Guide position");
-		dialog.TransientFor = this.dialog;
+		dialog.TransientFor = host_window;
 		dialog.Modal = true;
 		dialog.AddButton (Translations.GetString ("_Cancel"), (int) Gtk.ResponseType.Cancel);
 		Gtk.Widget okButton = dialog.AddButton (Translations.GetString ("_OK"), (int) Gtk.ResponseType.Ok);

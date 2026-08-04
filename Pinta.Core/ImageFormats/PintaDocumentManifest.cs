@@ -42,6 +42,8 @@ public sealed class PintaDocumentLayerNode
 	public double PositionOffsetX { get; set; }
 	public double PositionOffsetY { get; set; }
 	public List<PintaDocumentSpriteSheetAnimation> SpriteSheetAnimations { get; set; } = [];
+	public string? SingleDirectionId { get; set; }
+	public List<PintaDocumentSingleDirectionAnimation> SingleDirectionAnimations { get; set; } = [];
 }
 
 public sealed class PintaDocumentSpriteSheetAnimation
@@ -59,6 +61,25 @@ public sealed class PintaDocumentSpriteSheetDirection
 }
 
 public sealed class PintaDocumentSpriteSheetFrame
+{
+	public int FrameIndex { get; set; }
+	public int X { get; set; }
+	public int Y { get; set; }
+	public bool Visible { get; set; }
+	public string Surface { get; set; } = string.Empty;
+	public int Width { get; set; }
+	public int Height { get; set; }
+}
+
+public sealed class PintaDocumentSingleDirectionAnimation
+{
+	public string ActionId { get; set; } = string.Empty;
+	public int CanvasWidth { get; set; }
+	public int CanvasHeight { get; set; }
+	public List<PintaDocumentSingleDirectionFrame> Frames { get; set; } = [];
+}
+
+public sealed class PintaDocumentSingleDirectionFrame
 {
 	public int FrameIndex { get; set; }
 	public int X { get; set; }

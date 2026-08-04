@@ -4,12 +4,12 @@ namespace Pinta.Core;
 
 public sealed partial class DocumentLayers
 {
-	internal bool IsSpritesheetOutputLayer (UserLayer layer)
-		=> layer is SpriteSheetLayer;
+	internal bool IsAnimationOutputLayer (UserLayer layer)
+		=> layer is AnimationOutputLayer;
 
-	internal void UpdateSpritesheetOutputTransforms ()
+	internal void UpdateAnimationOutputTransforms ()
 	{
-		foreach (SpriteSheetLayer layer in AllLayers.OfType<SpriteSheetLayer> ())
+		foreach (AnimationOutputLayer layer in AllLayers.OfType<AnimationOutputLayer> ())
 			layer.UpdateTransforms (document.ImageSize);
 	}
 }

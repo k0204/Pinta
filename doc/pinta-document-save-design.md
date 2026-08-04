@@ -119,6 +119,8 @@ example.pinta
     ├── layer-0001.png
     ├── layer-0002.png
     └── layer-0003.png
+└── spritesheets/ 或 single-direction-animations/
+    └── {layer-id}/frame-0000.png
 ```
 
 ### project.json
@@ -128,7 +130,7 @@ example.pinta
 ```json
 {
   "format": "pinta-document",
-  "version": 3,
+  "version": 5,
   "width": 800,
   "height": 600,
   "selectedLayerId": "layer-0002",
@@ -193,8 +195,21 @@ example.pinta
 - `Surface`
 - `SurfaceWidth` / `SurfaceHeight`: v3 起保存每个普通图层的真实像素尺寸；允许精灵帧等图层小于文档画布
 - `Metadata`: v3 起保存功能级字符串元数据，例如精灵图的动作、方向、帧数和拆分参数
+- `Kind`: `layer`、`group`、`spritesheet` 或 `single-direction-animation`
+- `PositionOffsetX` / `PositionOffsetY`: 动画输出层的整体平移偏移
+- `SpriteSheetAnimations`: 多方向动画层的 `Action -> Direction -> Frame` 数据
+- `SingleDirectionId` / `SingleDirectionAnimations`: 单方向动画层的方向 ID 和 `Action -> Frame` 数据
 - `Transform`
 - `Children`
+
+### 动画帧资源
+
+动画输出层不把帧写入普通 `layers/` 表面：
+
+- `spritesheet` 层使用 `spritesheets/{layer-id}/frame-XXXX.png`。
+- `single-direction-animation` 层使用 `single-direction-animations/{layer-id}/frame-XXXX.png`。
+
+两种运行时层都使用通用的 `AnimationFrameData` 和 `AnimationFrameSequenceData`，但 manifest 保留独立的多方向和单方向结构，避免把 `Directions` 变成可选字段。
 
 ### PintaDocumentSelection
 
@@ -225,7 +240,7 @@ example.pinta
 2. 打开 zip，读取 `project.json`。
 3. 校验：
    - `format == "pinta-document"`
-   - `version` 是当前支持版本。当前写入 v3，并继续读取 v1/v2；旧版本缺失的尺寸按文档画布处理，元数据按空集合处理。
+   - `version` 是当前支持版本。当前写入 v5，并继续读取 v1-v4；旧版本缺失的尺寸按文档画布处理，元数据按空集合处理。
    - manifest 中引用的 layer PNG 都存在。
 4. 创建新的 `Document`。
 5. 递归读取 `layers` 树：
@@ -247,6 +262,8 @@ example.pinta
 - 未提交的工具临时层。
 - 多个打开标签页组成的工作区。
 
+动画输出层的动作、方向、帧顺序、帧像素、位置偏移和可见性属于文档数据，必须保存并在重新打开时恢复。`SpriteSheetLayer` 和 `SingleDirectionAnimationLayer` 分别校验和合并自己的 manifest 数据；不会互相转换。
+
 ## 测试场景
 
 - 单图层 `.pinta` 保存后重新打开，像素和尺寸一致。
@@ -256,6 +273,9 @@ example.pinta
 - selection 的 `Visible`、`HandleBounds`、`SelectionPolygons` 保存并恢复。
 - 损坏 zip、缺失 `project.json`、缺失 layer PNG、未知版本时能给出明确错误。
 - 保存成功后 `IsDirty == false`。
+- 多方向动画保存后恢复动作、方向和帧顺序。
+- 单方向动画保存后恢复方向 ID、动作和帧顺序。
+- 两种动画输出层的帧像素、位置偏移和可见性 round-trip 后一致。
 
 ## 实现约束
 

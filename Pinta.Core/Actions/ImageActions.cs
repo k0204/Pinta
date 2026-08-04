@@ -187,8 +187,8 @@ public sealed class ImageActions
 	{
 		Document? document = workspace.ActiveDocumentOrDefault;
 		bool canEditCanvas = document is not null && !document.Layers.HasLockedReferences;
-		bool hasSpriteSheet = document?.Layers.AllLayers.Any (layer => layer is SpriteSheetLayer) == true;
-		bool canEditPixels = canEditCanvas && !hasSpriteSheet;
+		bool hasAnimationOutput = document?.Layers.AllLayers.Any (layer => layer is AnimationOutputLayer) == true;
+		bool canEditPixels = canEditCanvas && !hasAnimationOutput;
 		Resize.Sensitive = canEditPixels;
 		CanvasSize.Sensitive = canEditCanvas;
 		FlipHorizontal.Sensitive = canEditPixels;
@@ -332,7 +332,7 @@ public sealed class ImageActions
 		view.UpdateCanvasScale ();
 
 		foreach (var layer in doc.Layers.AllLayers)
-			if (!doc.Layers.IsSpritesheetOutputLayer (layer))
+			if (!doc.Layers.IsAnimationOutputLayer (layer))
 				layer.Crop (rect, selection);
 
 		hist.FinishSnapshotOfImage ();
@@ -345,5 +345,5 @@ public sealed class ImageActions
 
 	private static bool CanTransformPixels (Document document)
 		=> !document.Layers.HasLockedReferences
-		&& !document.Layers.AllLayers.Any (layer => layer is SpriteSheetLayer);
+		&& !document.Layers.AllLayers.Any (layer => layer is AnimationOutputLayer);
 }

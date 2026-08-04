@@ -20,8 +20,8 @@ public sealed partial class DocumentLayers
 
 	private void TranslateNode (UserLayer node, PointD delta)
 	{
-		if (node is SpriteSheetLayer spriteSheet) {
-			spriteSheet.SetPositionOffset (spriteSheet.PositionOffset + delta, document.ImageSize);
+		if (node is AnimationOutputLayer animationLayer) {
+			animationLayer.SetPositionOffset (animationLayer.PositionOffset + delta, document.ImageSize);
 		} else {
 			foreach (Layer layer in node.GetOwnLayersToPaint ())
 				Translate (layer, delta);

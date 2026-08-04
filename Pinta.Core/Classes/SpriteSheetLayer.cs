@@ -1,38 +1,19 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Cairo;
 
 namespace Pinta.Core;
 
-public sealed class SpriteSheetLayer : GroupLayer
+public sealed class SpriteSheetLayer : AnimationOutputLayer
 {
 	private readonly List<SpriteSheetAnimationData> animations = [];
 
 	public SpriteSheetLayer (string name, int canvasWidth, int canvasHeight)
-		: base (CairoExtensions.CreateImageSurface (Format.Argb32, 1, 1), false, 1, name)
+		: base (name, canvasWidth, canvasHeight)
 	{
-		if (canvasWidth <= 0 || canvasHeight <= 0)
-			throw new ArgumentOutOfRangeException (nameof (canvasWidth));
-
-		CanvasWidth = canvasWidth;
-		CanvasHeight = canvasHeight;
 	}
 
-	public int CanvasWidth { get; private set; }
-	public int CanvasHeight { get; private set; }
-	public PointD PositionOffset { get; private set; }
 	public IReadOnlyList<SpriteSheetAnimationData> Animations => animations;
-	public override bool CanMoveOnCanvas => true;
-
-	public void SetPositionOffset (PointD offset, Size documentSize)
-	{
-		if (!double.IsFinite (offset.X) || !double.IsFinite (offset.Y))
-			throw new ArgumentOutOfRangeException (nameof (offset));
-
-		PositionOffset = offset;
-		UpdateTransforms (documentSize);
-	}
 
 	public SpriteSheetLayerSnapshot CaptureSnapshot ()
 		=> new (CanvasWidth, CanvasHeight, PositionOffset, animations.Select (animation => animation.Clone ()).ToList ());
@@ -43,17 +24,14 @@ public sealed class SpriteSheetLayer : GroupLayer
 			throw new InvalidOperationException ("A spritesheet canvas must be positive.");
 
 		animations.Clear ();
-		CanvasWidth = snapshot.CanvasWidth;
-		CanvasHeight = snapshot.CanvasHeight;
-		PositionOffset = snapshot.PositionOffset;
 		animations.AddRange (snapshot.Animations.Select (animation => animation.Clone ()));
+		SetOutputGeometry (snapshot.CanvasWidth, snapshot.CanvasHeight, snapshot.PositionOffset);
 		UpdateTransforms (documentSize);
 	}
 
 	public void MergeSnapshot (SpriteSheetLayerSnapshot snapshot, Size documentSize)
 	{
-		CanvasWidth = snapshot.CanvasWidth;
-		CanvasHeight = snapshot.CanvasHeight;
+		SetOutputGeometry (snapshot.CanvasWidth, snapshot.CanvasHeight, snapshot.PositionOffset);
 		foreach (SpriteSheetAnimationData animation in snapshot.Animations) {
 			SpriteSheetAnimationData targetAnimation = animations.FirstOrDefault (item => item.ActionId == animation.ActionId)
 				?? AddAnimation (animation.ActionId, animation.CanvasWidth, animation.CanvasHeight);
@@ -62,7 +40,7 @@ public sealed class SpriteSheetLayer : GroupLayer
 			foreach (SpriteSheetDirectionData direction in animation.Directions) {
 				SpriteSheetDirectionData targetDirection = targetAnimation.Directions.FirstOrDefault (item => item.DirectionId == direction.DirectionId)
 					?? targetAnimation.AddDirection (direction.DirectionId);
-				foreach (SpriteSheetFrameData frame in direction.Frames) {
+				foreach (AnimationFrameData frame in direction.Frames) {
 					int framePosition = targetDirection.Frames.FindIndex (item => item.FrameIndex == frame.FrameIndex);
 					if (framePosition < 0)
 						targetDirection.Frames.Add (frame.Clone ());
@@ -72,7 +50,6 @@ public sealed class SpriteSheetLayer : GroupLayer
 			}
 		}
 
-		PositionOffset = snapshot.PositionOffset;
 		UpdateTransforms (documentSize);
 	}
 
@@ -83,75 +60,12 @@ public sealed class SpriteSheetLayer : GroupLayer
 		return result;
 	}
 
-	public ImageSurface? CreateThumbnailSurface ()
-	{
-		SpriteSheetFrameData? frame = animations.FirstOrDefault ()?.Directions.FirstOrDefault ()?.Frames
-			.OrderBy (frame => frame.FrameIndex)
-			.FirstOrDefault ();
-		if (frame is null)
-			return null;
-
-		ImageSurface result = CairoExtensions.CreateImageSurface (Format.Argb32, CanvasWidth, CanvasHeight);
-		using Context context = new (result);
-		context.SetSourceSurface (frame.Surface, frame.X, frame.Y);
-		context.Paint ();
-		return result;
-	}
-
-	public IEnumerable<SpriteSheetFrameData> GetFrames ()
+	public override IEnumerable<AnimationFrameData> GetFrames ()
 		=> animations.SelectMany (animation => animation.Directions.SelectMany (direction => direction.Frames));
 
-	public void UpdateTransforms (Size documentSize)
-	{
-		Transform = CreateAnchorTransform (documentSize, PositionOffset);
-		foreach (SpriteSheetFrameData frame in GetFrames ()) {
-			frame.RenderLayer ??= new Layer (frame.Surface);
-			frame.RenderLayer.Surface = frame.Surface;
-			frame.RenderLayer.Hidden = !frame.Visible;
-			frame.RenderLayer.Opacity = Opacity;
-			frame.RenderLayer.BlendMode = BlendMode;
-			frame.RenderLayer.Transform = CreateFrameTransform (documentSize, CanvasWidth, CanvasHeight, frame, PositionOffset);
-		}
-	}
-
-	internal override IEnumerable<Layer> GetOwnLayersToPaint ()
-	{
-		foreach (SpriteSheetFrameData frame in GetDisplayFrames ()) {
-			if (!frame.Visible)
-				continue;
-			frame.RenderLayer ??= new Layer (frame.Surface);
-			frame.RenderLayer.Surface = frame.Surface;
-			frame.RenderLayer.Hidden = !frame.Visible;
-			frame.RenderLayer.Opacity = Opacity;
-			frame.RenderLayer.BlendMode = BlendMode;
-			yield return frame.RenderLayer;
-		}
-	}
-
-	private IEnumerable<SpriteSheetFrameData> GetDisplayFrames ()
+	protected override IEnumerable<AnimationFrameData> GetDisplayFrames ()
 		=> animations.FirstOrDefault ()?.Directions.FirstOrDefault ()?.Frames
-			?? Enumerable.Empty<SpriteSheetFrameData> ();
-
-	public override void Resize (Size newSize, ResamplingMode resamplingMode) { }
-	public override void ResizeCanvas (Size newSize, Anchor anchor) { }
-	public override void Crop (RectangleI rect, Path? selection) { }
-
-	private static Matrix CreateAnchorTransform (Size documentSize, PointD offset)
-	{
-		Matrix result = CairoExtensions.CreateIdentityMatrix ();
-		result.Translate (documentSize.Width / 2.0 + offset.X, documentSize.Height + offset.Y);
-		return result;
-	}
-
-	private static Matrix CreateFrameTransform (Size documentSize, int canvasWidth, int canvasHeight, SpriteSheetFrameData frame, PointD offset)
-	{
-		Matrix result = CairoExtensions.CreateIdentityMatrix ();
-		result.Translate (
-			Math.Floor ((documentSize.Width - canvasWidth) / 2.0) + offset.X + frame.X,
-			documentSize.Height - canvasHeight + offset.Y + frame.Y);
-		return result;
-	}
-
+			?? Enumerable.Empty<AnimationFrameData> ();
 }
 
 public sealed class SpriteSheetLayerSnapshot
@@ -204,34 +118,13 @@ public sealed class SpriteSheetDirectionData
 	public SpriteSheetDirectionData (string directionId) => DirectionId = directionId;
 
 	public string DirectionId { get; }
-	public List<SpriteSheetFrameData> Frames { get; } = [];
+	public AnimationFrameSequenceData Sequence { get; } = new ();
+	public List<AnimationFrameData> Frames => Sequence.Frames;
 
 	internal SpriteSheetDirectionData Clone ()
 	{
 		SpriteSheetDirectionData result = new (DirectionId);
-		result.Frames.AddRange (Frames.Select (frame => frame.Clone ()));
+		result.Sequence.Frames.AddRange (Sequence.Clone ().Frames);
 		return result;
 	}
-}
-
-public sealed class SpriteSheetFrameData
-{
-	public SpriteSheetFrameData (int frameIndex, int x, int y, bool visible, ImageSurface surface)
-	{
-		FrameIndex = frameIndex;
-		X = x;
-		Y = y;
-		Visible = visible;
-		Surface = surface;
-	}
-
-	public int FrameIndex { get; }
-	public int X { get; set; }
-	public int Y { get; set; }
-	public bool Visible { get; set; }
-	public ImageSurface Surface { get; }
-	internal Layer? RenderLayer { get; set; }
-
-	internal SpriteSheetFrameData Clone ()
-		=> new (FrameIndex, X, Y, Visible, Surface.Clone ());
 }

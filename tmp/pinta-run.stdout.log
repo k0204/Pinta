@@ -1,0 +1,2 @@
+AI HTTP request: method=GET, url=http://localhost:8080/api/providers, auth=bearer, attempt=1
+AI HTTP request: method=GET, url=http://localhost:8080/api/me, auth=bearer, attempt=1
