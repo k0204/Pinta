@@ -44,16 +44,11 @@ internal sealed partial class SpritesheetSplitDialog : IDisposable
 	private readonly Gtk.SpinButton frame_y;
 	private readonly Gtk.Button previous_frame;
 	private readonly Gtk.Button next_frame;
-	private readonly Gtk.Button zoom_out;
-	private readonly Gtk.Button zoom_original;
-	private readonly Gtk.Button zoom_in;
 	private readonly Gtk.Button undo_position;
 	private readonly Gtk.Button redo_position;
-	private readonly Gtk.Button add_horizontal_guide;
-	private readonly Gtk.Button add_vertical_guide;
-	private readonly Gtk.Button toggle_guides;
-	private readonly Gtk.Button clear_guides;
 	private readonly Gtk.CheckButton move_root;
+	private readonly Gtk.CheckButton previous_frame_reference;
+	private readonly Gtk.Scale previous_frame_opacity;
 	private readonly Gtk.Button fullscreen_button;
 	private readonly Gtk.Label validation_label;
 	private readonly Gtk.Label sprite_name_label;
@@ -62,7 +57,6 @@ internal sealed partial class SpritesheetSplitDialog : IDisposable
 	private int selected_frame;
 	private bool syncing;
 	private bool fullscreened;
-	private bool guides_visible = true;
 	private int root_dx;
 	private int root_dy;
 	private int drag_start_x;
@@ -122,8 +116,8 @@ internal sealed partial class SpritesheetSplitDialog : IDisposable
 		source_mode_stack = Adw.ViewStack.New ();
 
 		source_preview = CreatePreview (0);
-		source_preview.Vexpand = false;
-		source_preview.Valign = Gtk.Align.Start;
+		source_preview.Vexpand = true;
+		source_preview.Valign = Gtk.Align.Fill;
 		frame_preview = CreatePreview (0);
 		frame_preview.Vexpand = true;
 		frame_preview.Focusable = true;
@@ -135,27 +129,19 @@ internal sealed partial class SpritesheetSplitDialog : IDisposable
 		frame_y = CreateSpinner (-16384, 16384, 0);
 		previous_frame = CreateNavigationButton (Resources.StandardIcons.GoPrevious, Translations.GetString ("Previous frame"));
 		next_frame = CreateNavigationButton (Resources.StandardIcons.GoNext, Translations.GetString ("Next frame"));
-		zoom_out = CreateNavigationButton (Resources.StandardIcons.ZoomOut, Translations.GetString ("Zoom out preview"));
-		zoom_original = CreateNavigationButton (Resources.StandardIcons.ZoomOriginal, Translations.GetString ("Fit preview"));
-		zoom_in = CreateNavigationButton (Resources.StandardIcons.ZoomIn, Translations.GetString ("Zoom in preview"));
 		undo_position = CreateNavigationButton (Resources.StandardIcons.EditUndo, Translations.GetString ("Undo frame position"));
 		redo_position = CreateNavigationButton (Resources.StandardIcons.EditRedo, Translations.GetString ("Redo frame position"));
-		add_horizontal_guide = CreateLabeledButton (
-			"line-horizontal-symbolic",
-			Translations.GetString ("+ Horizontal guide"),
-			Translations.GetString ("Add horizontal guide"));
-		add_vertical_guide = CreateLabeledButton (
-			"line-vertical-symbolic",
-			Translations.GetString ("+ Vertical guide"),
-			Translations.GetString ("Add vertical guide"));
-		toggle_guides = CreateFlatButton (
-			Resources.StandardIcons.ViewConceal,
-			Translations.GetString ("Hide guides"));
-		clear_guides = CreateFlatButton (
-			"edit-clear-symbolic",
-			Translations.GetString ("Clear guides"));
 		move_root = Gtk.CheckButton.NewWithLabel (Translations.GetString ("Move root anchor"));
 		move_root.SetTooltipText (Translations.GetString ("Shift the root anchor 30 pixels up by default; drag the anchor cross in the preview to adjust it."));
+		previous_frame_reference = Gtk.CheckButton.NewWithLabel ("上一帧参考");
+		previous_frame_reference.SetTooltipText ("勾选后在画布中显示上一帧，仅用于参考，无法操作。");
+		previous_frame_opacity = Gtk.Scale.NewWithRange (Gtk.Orientation.Horizontal, 0, 100, 1);
+		previous_frame_opacity.SetValue (70);
+		previous_frame_opacity.Digits = 0;
+		previous_frame_opacity.DrawValue = true;
+		previous_frame_opacity.Hexpand = true;
+		previous_frame_opacity.SetTooltipText ("调节上一帧参考图的透明度。");
+		previous_frame_opacity.Sensitive = false;
 		validation_label = Gtk.Label.New (string.Empty);
 		sprite_name_label = Gtk.Label.New (string.Empty);
 		sprite_name_label.AddCssClass (AdwaitaStyles.Title4);
@@ -197,6 +183,17 @@ internal sealed partial class SpritesheetSplitDialog : IDisposable
 			dialog.Unfullscreen ();
 	}
 
+	private bool HandleFullscreenKeyPressed (
+		Gtk.EventControllerKey controller,
+		Gtk.EventControllerKey.KeyPressedSignalArgs args)
+	{
+		if (!fullscreened || args.GetKey ().Value != Gdk.Constants.KEY_Escape)
+			return false;
+
+		ToggleFullscreen ();
+		return true;
+	}
+
 	private void ConnectEvents ()
 	{
 		foreach (Gtk.SpinButton spinner in new[] { cell_width, cell_height, offset_x, offset_y, gap_x, gap_y })
@@ -214,36 +211,27 @@ internal sealed partial class SpritesheetSplitDialog : IDisposable
 		frame_y.OnValueChanged += (_, _) => UpdateSelectedPosition ();
 		previous_frame.OnClicked += (_, _) => MoveFrameSelection (-1);
 		next_frame.OnClicked += (_, _) => MoveFrameSelection (1);
-		zoom_out.OnClicked += (_, _) => ChangePreviewZoom (1 / preview_zoom_step);
-		zoom_original.OnClicked += (_, _) => ResetPreviewZoom ();
-		zoom_in.OnClicked += (_, _) => ChangePreviewZoom (preview_zoom_step);
 		undo_position.OnClicked += (_, _) => UndoFramePosition ();
 		redo_position.OnClicked += (_, _) => RedoFramePosition ();
-		add_horizontal_guide.OnClicked += (_, _) => AddGuide (GuideOrientation.Horizontal);
-		add_vertical_guide.OnClicked += (_, _) => AddGuide (GuideOrientation.Vertical);
-		toggle_guides.OnClicked += (_, _) => {
-			guides_visible = !guides_visible;
-			toggle_guides.IconName = guides_visible
-				? Resources.StandardIcons.ViewConceal
-				: Resources.StandardIcons.ViewReveal;
-			toggle_guides.TooltipText = Translations.GetString (guides_visible ? "Hide guides" : "Show guides");
-			Refresh ();
-		};
-		clear_guides.OnClicked += (_, _) => {
-			guides.Clear ();
-			Refresh ();
-		};
 		move_root.OnToggled += (_, _) => {
 			root_dx = 0;
 			root_dy = move_root.Active ? -30 : 0;
 			RepositionFramesAroundAnchor ();
 			Refresh ();
 		};
+		previous_frame_reference.OnToggled += (_, _) => {
+			previous_frame_opacity.Sensitive = previous_frame_reference.Active;
+			frame_preview.QueueDraw ();
+		};
+		previous_frame_opacity.OnValueChanged += (_, _) => frame_preview.QueueDraw ();
 		ConnectRulerAndGuidePointerEvents ();
 
 		Gtk.EventControllerKey keys = Gtk.EventControllerKey.New ();
 		keys.PropagationPhase = Gtk.PropagationPhase.Capture;
+		keys.OnKeyPressed += HandleFullscreenKeyPressed;
 		keys.OnKeyPressed += HandlePositionHistoryKeyPressed;
+		keys.OnKeyPressed += HandlePreviewSpaceKeyPressed;
+		keys.OnKeyReleased += HandlePreviewSpaceKeyReleased;
 		dialog.AddController (keys);
 		Adw.ViewStack.VisibleChildNamePropertyDefinition.Notify (
 			source_mode_stack,
@@ -258,9 +246,19 @@ internal sealed partial class SpritesheetSplitDialog : IDisposable
 		Gtk.GestureDrag drag = Gtk.GestureDrag.New ();
 		drag.SetButton (GtkExtensions.MOUSE_LEFT_BUTTON);
 		drag.OnDragBegin += (_, args) => BeginPreviewDrag (args.StartX, args.StartY);
-		drag.OnDragUpdate += (_, args) => UpdatePreviewDrag (args.OffsetX, args.OffsetY);
-		drag.OnDragEnd += (_, args) => EndPreviewDrag (args.OffsetX, args.OffsetY);
+		drag.OnDragUpdate += (_, args) => UpdatePreviewDrag (
+		args.OffsetX,
+		args.OffsetY,
+		drag.GetCurrentEventState ().IsShiftPressed ());
+		drag.OnDragEnd += (_, args) => EndPreviewDrag (
+		args.OffsetX,
+		args.OffsetY,
+		drag.GetCurrentEventState ().IsShiftPressed ());
 		frame_preview.AddController (drag);
+
+		Gtk.EventControllerScroll scroll = Gtk.EventControllerScroll.New (Gtk.EventControllerScrollFlags.BothAxes);
+		scroll.OnScroll += HandlePreviewScroll;
+		frame_preview.AddController (scroll);
 
 		Gtk.GestureDrag pan = Gtk.GestureDrag.New ();
 		pan.SetButton (GtkExtensions.MOUSE_MIDDLE_BUTTON);
@@ -271,10 +269,23 @@ internal sealed partial class SpritesheetSplitDialog : IDisposable
 
 		Gtk.GestureClick preview_click = Gtk.GestureClick.New ();
 		preview_click.SetButton (GtkExtensions.MOUSE_LEFT_BUTTON);
-		preview_click.OnPressed += (_, _) => frame_preview.GrabFocus ();
+		preview_click.OnPressed += async (_, args) => {
+			if (args.NPress == 2 && FindGuideAtPoint (args.X, args.Y) is GuideDragState state) {
+				drag.SetState (Gtk.EventSequenceState.Denied);
+				CancelPreviewDrag ();
+				preview_click.SetState (Gtk.EventSequenceState.Claimed);
+				await EditGuidePositionAsync (state.Index);
+				return;
+			}
+
+			frame_preview.GrabFocus ();
+		};
 		frame_preview.AddController (preview_click);
 
 		Gtk.EventControllerKey preview_keys = Gtk.EventControllerKey.New ();
+		preview_keys.PropagationPhase = Gtk.PropagationPhase.Capture;
+		preview_keys.OnKeyPressed += HandlePreviewSpaceKeyPressed;
+		preview_keys.OnKeyReleased += HandlePreviewSpaceKeyReleased;
 		preview_keys.OnKeyPressed += HandlePreviewArrowKeyPressed;
 		frame_preview.AddController (preview_keys);
 	}
@@ -495,8 +506,6 @@ internal sealed partial class SpritesheetSplitDialog : IDisposable
 		bool canLoop = frames.Count (frame => frame.Visible) > 1;
 		previous_frame.Sensitive = canLoop;
 		next_frame.Sensitive = canLoop;
-		zoom_out.Sensitive = preview_zoom > preview_zoom_min;
-		zoom_in.Sensitive = preview_zoom < preview_zoom_max;
 		UpdatePositionHistoryButtons ();
 		validation_label.SetText (GetValidationMessage (valid));
 		validation_label.RemoveCssClass (AdwaitaStyles.Error);
@@ -576,20 +585,33 @@ internal sealed partial class SpritesheetSplitDialog : IDisposable
 		context.Scale (scale, scale);
 		DrawCheckerboard (context, canvasWidth, canvasHeight, scale);
 
-		if (frames.Count > 0 && frames[selected_frame].Visible) {
-			EditableFrame frame = frames[selected_frame];
-			using ImageSurface crop = CreatePreviewFrameSurface (selected_frame);
-			context.Save ();
-			context.Rectangle (0, 0, canvasWidth, canvasHeight);
-			context.Clip ();
-			context.SetSourceSurface (crop, frame.X, frame.Y);
-			context.Paint ();
-			context.Restore ();
-		}
+		int referenceFrame = previous_frame_reference.Active
+			? FindVisibleFrame (selected_frame, -1)
+			: -1;
+		if (referenceFrame >= 0 && referenceFrame != selected_frame)
+			DrawPreviewFrameSurface (context, referenceFrame, canvasWidth, canvasHeight, previous_frame_opacity.GetValue () / 100);
+		DrawPreviewFrameSurface (context, selected_frame, canvasWidth, canvasHeight);
 		context.DrawRectangle (new RectangleD (0, 0, canvasWidth, canvasHeight), new Color (0.25, 0.25, 0.25), Math.Max (1, (int) Math.Ceiling (1 / scale)));
 		DrawAnchorMarker (context, canvasWidth / 2.0 + root_dx, canvasHeight + root_dy);
-		if (guides_visible)
-			DrawPreviewGuides (context, scale, canvasWidth, canvasHeight);
+		DrawPreviewGuides (context, scale, canvasWidth, canvasHeight);
+	}
+
+	private void DrawPreviewFrameSurface (Context context, int frameIndex, int canvasWidth, int canvasHeight, double opacity = 1)
+	{
+		if (frameIndex < 0 || frameIndex >= frames.Count || !frames[frameIndex].Visible)
+			return;
+
+		EditableFrame frame = frames[frameIndex];
+		using ImageSurface surface = CreatePreviewFrameSurface (frameIndex);
+		context.Save ();
+		context.Rectangle (0, 0, canvasWidth, canvasHeight);
+		context.Clip ();
+		context.SetSourceSurface (surface, frame.X, frame.Y);
+		if (opacity < 1)
+			context.PaintWithAlpha (opacity);
+		else
+			context.Paint ();
+		context.Restore ();
 	}
 
 	private ImageSurface CreatePreviewFrameSurface (int frame)

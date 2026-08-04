@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using Cairo;
 
 namespace Pinta.Core;
@@ -7,6 +8,7 @@ namespace Pinta.Core;
 internal sealed partial class SpritesheetSplitDialog
 {
 	private const double guide_hit_tolerance = 6;
+	private const double guide_snap_tolerance = 8;
 	private const double anchor_hit_tolerance = 10;
 	private readonly List<DocumentGuide> guides = [];
 	private readonly Gtk.DrawingArea horizontal_ruler = Gtk.DrawingArea.New ();
@@ -26,6 +28,7 @@ internal sealed partial class SpritesheetSplitDialog
 	private double preview_pan_start_x;
 	private double preview_pan_start_y;
 	private bool preview_panning;
+	private bool preview_space_pressed;
 	private bool root_dragging;
 	private int drag_start_root_dx;
 	private int drag_start_root_dy;
@@ -75,7 +78,11 @@ internal sealed partial class SpritesheetSplitDialog
 		drag.GetStartPoint (out double startX, out double startY);
 		PointD point = new (startX + offsetX, startY + offsetY);
 		if (ruler.TranslateCoordinates (frame_preview, point, out PointD previewPoint))
-			UpdateGuide (state.Index, previewPoint.X, previewPoint.Y);
+				UpdateGuide (
+					state.Index,
+					previewPoint.X,
+					previewPoint.Y,
+					drag.GetCurrentEventState ().IsShiftPressed ());
 	}
 
 	private void EndRulerGuideDrag (
@@ -114,11 +121,47 @@ internal sealed partial class SpritesheetSplitDialog
 		}
 
 		GuideDragState? state = guide_drag_state ?? FindGuideAtPoint (x, y);
-		frame_preview.Cursor = preview_panning
+		frame_preview.Cursor = preview_space_pressed || preview_panning
 			? GetPanCursor ()
 			: state is GuideDragState guide
 			? GetGuideCursor (guides[guide.Index].Orientation)
 			: null;
+	}
+
+	private bool HandlePreviewScroll (
+		Gtk.EventControllerScroll controller,
+		Gtk.EventControllerScroll.ScrollSignalArgs args)
+	{
+		double delta = Math.Abs (args.Dy) >= Math.Abs (args.Dx) ? args.Dy : args.Dx;
+		if (delta == 0)
+			return false;
+
+		ChangePreviewZoom (delta < 0 ? 1.1 : 1 / 1.1);
+		return true;
+	}
+
+	private bool HandlePreviewSpaceKeyPressed (
+		Gtk.EventControllerKey controller,
+		Gtk.EventControllerKey.KeyPressedSignalArgs args)
+	{
+		if (args.GetKey ().Value != Gdk.Constants.KEY_space)
+			return false;
+
+		preview_space_pressed = true;
+		frame_preview.Cursor = GetPanCursor ();
+		return true;
+	}
+
+	private void HandlePreviewSpaceKeyReleased (
+		Gtk.EventControllerKey controller,
+		Gtk.EventControllerKey.KeyReleasedSignalArgs args)
+	{
+		if (args.GetKey ().Value != Gdk.Constants.KEY_space)
+			return;
+
+		preview_space_pressed = false;
+		if (!preview_panning)
+			frame_preview.Cursor = null;
 	}
 
 	private Gdk.Cursor? pan_cursor;
@@ -147,22 +190,22 @@ internal sealed partial class SpritesheetSplitDialog
 	private void EndPreviewPan ()
 	{
 		preview_panning = false;
-		frame_preview.Cursor = null;
+		frame_preview.Cursor = preview_space_pressed ? GetPanCursor () : null;
+	}
+
+	private void CancelPreviewDrag ()
+	{
+		guide_drag_state = null;
+		root_dragging = false;
+		frame_position_dragging = false;
+		preview_panning = false;
+		frame_preview.Cursor = preview_space_pressed ? GetPanCursor () : null;
 	}
 
 	private void ChangePreviewZoom (double factor)
 	{
 		preview_zoom = Math.Clamp (preview_zoom * factor, preview_zoom_min, preview_zoom_max);
 		ClampPreviewPan ();
-		QueuePreviewTransformDraw ();
-		Refresh ();
-	}
-
-	private void ResetPreviewZoom ()
-	{
-		preview_zoom = 1.0;
-		preview_pan_x = 0;
-		preview_pan_y = 0;
 		QueuePreviewTransformDraw ();
 		Refresh ();
 	}
@@ -202,19 +245,10 @@ internal sealed partial class SpritesheetSplitDialog
 	private void HandlePreviewLeave ()
 	{
 		ruler_position = null;
-		if (guide_drag_state is null && !preview_panning)
+		if (guide_drag_state is null && !preview_panning && !preview_space_pressed)
 			frame_preview.Cursor = null;
 		horizontal_ruler.QueueDraw ();
 		vertical_ruler.QueueDraw ();
-	}
-
-	private void AddGuide (GuideOrientation orientation)
-	{
-		double position = orientation == GuideOrientation.Horizontal
-			? canvas_height.Value / 2
-			: canvas_width.Value / 2;
-		guides.Add (new DocumentGuide (orientation, position));
-		frame_preview.QueueDraw ();
 	}
 
 	private void ClampGuidesAndRefresh ()
@@ -229,6 +263,11 @@ internal sealed partial class SpritesheetSplitDialog
 
 	private void BeginPreviewDrag (double x, double y)
 	{
+		if (preview_space_pressed) {
+			BeginPreviewPan ();
+			return;
+		}
+
 		preview_drag_start_x = x;
 		preview_drag_start_y = y;
 		guide_drag_state = FindGuideAtPoint (x, y);
@@ -268,18 +307,28 @@ internal sealed partial class SpritesheetSplitDialog
 		Refresh ();
 	}
 
-	private void UpdatePreviewDrag (double offsetX, double offsetY)
+	private void UpdatePreviewDrag (double offsetX, double offsetY, bool snapToRuler)
 	{
-		if (root_dragging)
+		if (preview_panning)
+			UpdatePreviewPan (offsetX, offsetY);
+		else if (root_dragging)
 			DragRoot (offsetX, offsetY);
 		else if (guide_drag_state is GuideDragState state)
-			UpdateGuide (state.Index, preview_drag_start_x + offsetX, preview_drag_start_y + offsetY);
+			UpdateGuide (
+				state.Index,
+				preview_drag_start_x + offsetX,
+				preview_drag_start_y + offsetY,
+				snapToRuler);
 		else
 			DragSelectedFrame (offsetX, offsetY);
 	}
 
-	private void EndPreviewDrag (double offsetX, double offsetY)
+	private void EndPreviewDrag (double offsetX, double offsetY, bool snapToRuler)
 	{
+		if (preview_panning) {
+			EndPreviewPan ();
+			return;
+		}
 		if (root_dragging) {
 			root_dragging = false;
 			return;
@@ -290,6 +339,8 @@ internal sealed partial class SpritesheetSplitDialog
 		}
 
 		PointD point = new (preview_drag_start_x + offsetX, preview_drag_start_y + offsetY);
+		if (guide_drag_state is GuideDragState guide)
+			UpdateGuide (guide.Index, point.X, point.Y, snapToRuler);
 		RectangleD bounds = GetPreviewBounds ();
 		if (point.X < bounds.Left || point.X > bounds.Right || point.Y < bounds.Top || point.Y > bounds.Bottom)
 			guides.RemoveAt (state.Index);
@@ -320,7 +371,7 @@ internal sealed partial class SpritesheetSplitDialog
 		return result;
 	}
 
-	private void UpdateGuide (int index, double x, double y)
+	private void UpdateGuide (int index, double x, double y, bool snapToRuler = false)
 	{
 		(double scale, double left, double top) = GetFramePreviewTransform ();
 		DocumentGuide guide = guides[index];
@@ -328,8 +379,60 @@ internal sealed partial class SpritesheetSplitDialog
 			? (y - top) / scale
 			: (x - left) / scale;
 		double maximum = guide.Orientation == GuideOrientation.Horizontal ? canvas_height.Value : canvas_width.Value;
+		if (snapToRuler)
+			position = SnapGuidePosition (position, scale);
 		guides[index] = guide with { Position = Math.Clamp (position, 0, maximum) };
 		frame_preview.QueueDraw ();
+	}
+
+	private async Task EditGuidePositionAsync (int index)
+	{
+		if (index < 0 || index >= guides.Count)
+			return;
+
+		DocumentGuide guide = guides[index];
+		int maximum = guide.Orientation == GuideOrientation.Horizontal
+			? (int) canvas_height.Value
+			: (int) canvas_width.Value;
+		using Gtk.Dialog dialog = Gtk.Dialog.New ();
+		dialog.Title = Translations.GetString ("Guide position");
+		dialog.TransientFor = this.dialog;
+		dialog.Modal = true;
+		dialog.AddButton (Translations.GetString ("_Cancel"), (int) Gtk.ResponseType.Cancel);
+		Gtk.Widget okButton = dialog.AddButton (Translations.GetString ("_OK"), (int) Gtk.ResponseType.Ok);
+		okButton.AddCssClass (AdwaitaStyles.SuggestedAction);
+		dialog.SetDefaultResponse (Gtk.ResponseType.Ok);
+
+		Gtk.Label label = Gtk.Label.New (Translations.GetString ("Position:"));
+		label.Halign = Gtk.Align.Start;
+		Gtk.SpinButton input = Gtk.SpinButton.NewWithRange (0, maximum, 1);
+		input.Value = Math.Clamp (Math.Round (guide.Position), 0, maximum);
+		input.SetActivatesDefaultImmediate (true);
+		Gtk.Box row = Gtk.Box.New (Gtk.Orientation.Horizontal, 8);
+		row.Append (label);
+		row.Append (input);
+		Gtk.Box content = dialog.GetContentAreaBox ();
+		content.SetAllMargins (12);
+		content.Append (row);
+
+		Gtk.ResponseType response = await dialog.RunAsync ();
+		dialog.Close ();
+		if (response == Gtk.ResponseType.Ok && index < guides.Count) {
+			guides[index] = guide with { Position = input.Value };
+			Refresh ();
+		}
+	}
+
+	private static double SnapGuidePosition (double position, double scale)
+	{
+		double step = GetRulerStep (scale) / 5;
+		if (step <= 0)
+			return position;
+
+		double snapped = Math.Round (position / step) * step;
+		return Math.Abs (snapped - position) * scale <= guide_snap_tolerance
+			? snapped
+			: position;
 	}
 
 	private void DrawPreviewGuides (Context context, double scale, int width, int height)

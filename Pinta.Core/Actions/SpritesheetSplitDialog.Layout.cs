@@ -14,7 +14,6 @@ internal sealed partial class SpritesheetSplitDialog
 	private const int max_left_panel_width = 420;
 	private const int min_right_panel_width = 190;
 	private const int max_right_panel_width = 360;
-	private const int max_source_preview_height = 360;
 	private int left_panel_width = default_left_panel_width;
 	private int right_panel_width = default_right_panel_width;
 	private readonly Gtk.Box source_section = CreateCard ();
@@ -93,12 +92,12 @@ internal sealed partial class SpritesheetSplitDialog
 		card.SetAllMargins (6);
 		card.SetSizeRequest (left_panel_width - 12, -1);
 		card.Hexpand = false;
-		card.Vexpand = false;
+		card.Vexpand = true;
 		card.Append (CreateHeading (Translations.GetString ("Source preview")));
 
 		Gtk.ScrolledWindow scroll = Gtk.ScrolledWindow.New ();
 		scroll.Hexpand = true;
-		scroll.Vexpand = false;
+		scroll.Vexpand = true;
 		scroll.SetSizeRequest (left_panel_width - 28, -1);
 		scroll.SetPolicy (Gtk.PolicyType.Never, Gtk.PolicyType.Automatic);
 		InsetCardChild (scroll);
@@ -181,16 +180,33 @@ internal sealed partial class SpritesheetSplitDialog
 		pos_card.SetAllMargins (6);
 		pos_card.Spacing = 6;
 		pos_card.Append (CreateHeading (Translations.GetString ("Position")));
-		Gtk.Grid position_grid = CreateGrid ([
-			(Translations.GetString ("X:"), frame_x),
-			(Translations.GetString ("Y:"), frame_y),
-		]);
-		InsetCardChild (position_grid);
-		pos_card.Append (position_grid);
+		frame_x.SetSizeRequest (72, 28);
+		frame_y.SetSizeRequest (72, 28);
+		Gtk.Box position_row = Gtk.Box.New (Gtk.Orientation.Horizontal, 6);
+		position_row.MarginStart = 8;
+		position_row.MarginEnd = 8;
+		Gtk.Label x_label = Gtk.Label.New (Translations.GetString ("X:"));
+		x_label.Halign = Gtk.Align.Start;
+		Gtk.Label y_label = Gtk.Label.New (Translations.GetString ("Y:"));
+		y_label.Halign = Gtk.Align.Start;
+		position_row.Append (x_label);
+		position_row.Append (frame_x);
+		position_row.Append (y_label);
+		position_row.Append (frame_y);
+		pos_card.Append (position_row);
+		pos_card.Append (previous_frame_reference);
+		Gtk.Box opacity_row = Gtk.Box.New (Gtk.Orientation.Horizontal, 6);
+		opacity_row.MarginStart = 8;
+		opacity_row.MarginEnd = 8;
+		Gtk.Label opacity_label = Gtk.Label.New ("参考透明度:");
+		opacity_label.Halign = Gtk.Align.Start;
+		opacity_row.Append (opacity_label);
+		opacity_row.Append (previous_frame_opacity);
+		pos_card.Append (opacity_row);
 		InsetCardChild (move_root);
 		pos_card.Append (move_root);
 		Gtk.Label hint = Gtk.Label.New (Translations.GetString (
-			"Drag red anchor in preview or enter X/Y values."));
+			"拖动预览中的红色锚点，或输入 X/Y 数值。"));
 		hint.Wrap = true;
 		hint.MaxWidthChars = 24;
 		hint.Xalign = 0;
@@ -237,21 +253,6 @@ internal sealed partial class SpritesheetSplitDialog
 		nav_group.Append (next_frame);
 		bar.Append (nav_group);
 
-		Gtk.Box zoom_group = Gtk.Box.New (Gtk.Orientation.Horizontal, 0);
-		zoom_group.AddCssClass (AdwaitaStyles.Linked);
-		zoom_group.Append (zoom_out);
-		zoom_group.Append (zoom_original);
-		zoom_group.Append (zoom_in);
-		bar.Append (zoom_group);
-
-		// Guide buttons (linked group)
-		Gtk.Box guide_group = Gtk.Box.New (Gtk.Orientation.Horizontal, 0);
-		guide_group.AddCssClass (AdwaitaStyles.Linked);
-		guide_group.Append (add_vertical_guide);
-		guide_group.Append (add_horizontal_guide);
-		bar.Append (guide_group);
-		bar.Append (toggle_guides);
-		bar.Append (clear_guides);
 		sprite_name_label.Halign = Gtk.Align.Start;
 		sprite_name_label.MarginStart = 0;
 		bar.Append (sprite_name_label);
@@ -407,26 +408,6 @@ internal sealed partial class SpritesheetSplitDialog
 		return button;
 	}
 
-	private static Gtk.Button CreateFlatButton (string icon, string tooltip)
-	{
-		Gtk.Button button = Gtk.Button.NewFromIconName (icon);
-		button.SetTooltipText (tooltip);
-		button.AddCssClass (AdwaitaStyles.Flat);
-		return button;
-	}
-
-	private static Gtk.Button CreateLabeledButton (string icon, string label, string tooltip)
-	{
-		Gtk.Button button = Gtk.Button.New ();
-		Adw.ButtonContent content = Adw.ButtonContent.New ();
-		content.IconName = icon;
-		content.Label = label;
-		button.Child = content;
-		button.SetTooltipText (tooltip);
-		button.AddCssClass (AdwaitaStyles.Flat);
-		return button;
-	}
-
 	private static Gtk.Overlay CreatePanelDivider (
 		Gtk.Widget panel,
 		bool left,
@@ -507,11 +488,6 @@ internal sealed partial class SpritesheetSplitDialog
 			source_preview.WidthRequest = width;
 		if (height > 0 && source_preview.HeightRequest != height)
 			source_preview.HeightRequest = height;
-		if (source_preview_scroll is not null) {
-			int viewportHeight = Math.Min (height, max_source_preview_height);
-			if (source_preview_scroll.HeightRequest != viewportHeight)
-				source_preview_scroll.HeightRequest = viewportHeight;
-		}
 	}
 
 	private void ResizeLeftPanel (Gtk.Widget panel, int width)

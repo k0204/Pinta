@@ -83,20 +83,24 @@ Write-Host ">>> Output: $exe" -ForegroundColor Green
 
 if ($Run) {
     Write-Host '>>> Launching Pinta (using dotnet.exe directly)...' -ForegroundColor Cyan
-    if ($SelfContained) {
-        $exeDir = Split-Path $exe
-        Push-Location $exeDir
-        & $exe
-        Pop-Location
-    } else {
-        # Bypass the apphost (Pinta.exe), use dotnet.exe to load Pinta.dll directly (most reliable roll-forward)
-        $dllPath = Join-Path (Split-Path $exe -Parent) 'Pinta.dll'
-        Push-Location (Split-Path $exe -Parent)
-        if (Test-Path $dllPath) {
-            & dotnet $dllPath
+    $runProcess = $null
+    try {
+        if ($SelfContained) {
+            $exeDir = Split-Path $exe
+            $runProcess = Start-Process -FilePath $exe -WorkingDirectory $exeDir -NoNewWindow -PassThru -Wait
         } else {
-            & $exe
+            # Bypass the apphost (Pinta.exe), use dotnet.exe to load Pinta.dll directly (most reliable roll-forward)
+            $dllPath = Join-Path (Split-Path $exe -Parent) 'Pinta.dll'
+            $exeDir = Split-Path $exe -Parent
+            if (Test-Path $dllPath) {
+                $runProcess = Start-Process -FilePath 'dotnet' -ArgumentList "`"$dllPath`"" -WorkingDirectory $exeDir -NoNewWindow -PassThru -Wait
+            } else {
+                $runProcess = Start-Process -FilePath $exe -WorkingDirectory $exeDir -NoNewWindow -PassThru -Wait
+            }
         }
-        Pop-Location
+    } finally {
+        if ($runProcess -and -not $runProcess.HasExited) {
+            Stop-Process -Id $runProcess.Id -Force -ErrorAction SilentlyContinue
+        }
     }
 }
