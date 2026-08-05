@@ -100,6 +100,8 @@ public sealed class SelectionModeHandler
 	public static void PerformSelectionMode (Document doc, CombineMode mode, List<List<IntPoint>> polygons)
 	{
 		doc.Selection = doc.PreviousSelection.Clone ();
+		if (!doc.PreviousSelection.Visible)
+			doc.Selection.SelectionPolygons.Clear ();
 		doc.Selection.Visible = true;
 
 		//Make sure time isn't wasted if the CombineMode is Replace - Replace is much simpler than the other 4 selection modes.

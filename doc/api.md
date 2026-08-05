@@ -78,57 +78,14 @@ All requests in this section include `Authorization: Bearer <token>`.
 - The free plan accepts uploads up to `104857600` bytes (100 MiB); the previous 5 MiB limit has been removed.
 - Client behavior: not used by the current Pinta account display.
 
-## Character Border Recognition
+## Smart Selection
 
-All requests in this section include `Authorization: Bearer <token>` when a token is saved.
-
-### Create Job
-
-- Method: `POST`
-- Path: `/api/jobs`
-- Content type: `multipart/form-data`
-- Form fields:
-  - `file`: PNG image, sent as `pinta.png`
-- Response JSON:
-
-```json
-{
-  "job_id": "job-id"
-}
-```
-
-### Create Part
-
-- Method: `POST`
-- Path: `/api/jobs/{job_id}/parts`
-- Content type: `application/json`
-- Request JSON:
-
-```json
-{
-  "name": "Detected Border",
-  "segment_prompt": "object",
-  "box": [0, 0, 100, 100],
-  "part_type": "other"
-}
-```
-
-- Response JSON:
-
-```json
-{
-  "part": {
-    "image_url": "/path/to/image.png",
-    "mask_url": "/path/to/mask.png"
-  }
-}
-```
-
-### Download Generated Images
-
-- Method: `GET`
-- Path: value returned by `image_url` or `mask_url`
-- Response: PNG bytes
+- The `Detect Border` tool requires a visible rectangular selection and a logged-in AI account.
+- After the rectangle is created, the client can record local keep-brush and erase-brush strokes in a temporary mask overlay. Transparent mask pixels mean no local override; green pixels force foreground retention and red pixels force exclusion. The tool keeps a local undo/redo stack for these strokes.
+- It submits the flattened document to `/api/baidu-images` with `return_form=rgba`. A visible selection uses `method=control` with the selected box in Baidu's top-left-origin `position` coordinates; if the selection touches an image edge, only that edge is inset by one pixel because Baidu rejects edge-touching control boxes.
+- The official Baidu endpoint receives the rectangle only; it does not receive the webpage's private per-stroke payload. After the completed Base64 PNG returns, Pinta applies local brush overrides to the returned alpha and uses the original flattened pixels for forced-retain strokes.
+- The client creates a transparent detected layer, a hidden grayscale `Cutout Mask` layer, and a visible border-control overlay. The mask layer is derived from the final result alpha, so it includes both Baidu segmentation and local edits.
+- The old `/api/jobs/{job_id}/parts` local recognition flow is no longer used by Pinta.
 
 ## Image Editing
 
@@ -181,7 +138,9 @@ All requests in this section include `Authorization: Bearer <token>`.
 - Result JSON includes `operation`, `provider`, `model`, `text`, `finish_reason`, and `usage`.
 - `/api/chat` is a generic pass-through: it does not select prompts, request a JSON schema, or parse model text. Smart spritesheet analysis lists the catalog entries with `supports_chat=true`, persists that selection independently from image generation settings, loads its prompt text from `config/sprite-segmentation-prompt.txt`, appends the uploaded PNG's exact dimensions, and sends that PNG as the first `image_base64` array item. The analysis prompt explicitly allows non-grid layouts and independent per-frame bbox sizes: the model returns only absolute source-image `bbox` rectangles and `foot_anchor` points, while Pinta performs the crop and output placement. If the source PNG exceeds 5 MiB, Pinta proportionally downsizes it before upload, changes the prompt dimensions to the uploaded size, and restores returned `bbox` and `foot_anchor` coordinates to the original source dimensions before validation and cropping. Pinta saves each request and response under `ai-sprite-segmentation-logs/<timestamp>/` in the application directory (`request.png`, `request.json`, `accepted.json`, `status.json`, and `result.json`); `request.json` includes the selected `provider`. It extracts the first complete JSON object from the returned text, allowing a model preamble or Markdown code fence, then requires the reported `image_width` and `image_height` to match the uploaded PNG and validates the returned sprite count, unique indices, bounding boxes, and foot anchors before using each AI-returned `items[].bbox` as a source crop. `foot_anchor` must be an object containing numeric `x` and `y`; other shapes are rejected. AI analysis does not request or consume grid dimensions or cell positions; the returned `items` are authoritative and sorted by `index`. It keeps the configured output canvas unchanged and preserves foot-anchor-relative placement inside the output parent.
 
-## Baidu Human Segmentation
+- The AI image-generation dialog can send a chat request with the currently selected reference layers and files to optimize the editable prompt. The original prompt is the source of truth; references only clarify or enrich compatible visual details. The selected chat-capable provider is used; the result contains optimized Chinese and English text, the Chinese text replaces the editable prompt for review, the English text is sent to image generation, and the original prompt is used when no optimized English text is available.
+
+## Baidu Intelligent Cutout
 
 All client requests in this section include `Authorization: Bearer <token>`. Baidu credentials exist only on the API server in `config/baiduConfig.json`. `BAIDU_CONFIG_PATH` optionally selects another config file.
 
@@ -192,15 +151,18 @@ All client requests in this section include `Authorization: Bearer <token>`. Bai
 - Content type: `multipart/form-data`
 - Form fields:
   - `file`: PNG image, sent as `pinta.png`
+  - `method`: optional `auto` or `control`; Pinta sends `control` when an image selection is visible
+  - `refine_mask`: optional boolean, defaults to `true`
+  - `return_form`: optional `rgba` or `mask`; Pinta uses `rgba` to create the result layer directly
+  - `position`: JSON `[[[x1,y1],[x2,y2]]]`, required by `control` mode
 - Response: `202 Accepted` with an image job object. The client polls the standard image job endpoints.
 - Result JSON:
   - `operation`: `baidu_cutout`
   - `provider`: `baidu`
-  - `result_b64_json`: Base64-encoded transparent PNG returned from Baidu's `foreground` field
-  - `person_num`: number of detected people
-- Server behavior: obtains and caches the Baidu access token, sends `type=foreground` to Baidu, and never exposes Baidu credentials or access tokens to the client.
-- Limits: the server accepts JPEG and PNG; after Base64 and URL encoding the request image must not exceed 4 MB; shortest edge is at least 50 px and longest edge is at most 4096 px. Invalid input is rejected before balance deduction.
-- Scope: this endpoint segments people. It is not a general object cutout endpoint.
+  - `method`, `refine_mask`, `return_form`, and optional `log_id`
+  - `result_b64_json`: Base64-encoded PNG returned from Baidu's `image` field; `rgba` is transparent output and `mask` is a grayscale mask
+- Server behavior: obtains and caches the Baidu access token, sends the selected method to Baidu's intelligent cutout endpoint, and never exposes Baidu credentials or access tokens to the client.
+- Limits: the server accepts BMP, JPEG, PNG, and WEBP; the Base64 image must not exceed 10 MB; the shortest edge is at least 128 px and the longest edge is at most 3000 px. Invalid input is rejected before balance deduction.
 
 ### Client Background Cleanup and Cutout Flow
 
@@ -209,7 +171,7 @@ All client requests in this section include `Authorization: Bearer <token>`. Bai
 - Operation buttons immediately save the selected service and close the dialog; there are no separate Cancel or Save buttons.
 - White-image generation opens the additional prompt/reference dialog, sends the selected layer and references to Agnes or GPT Image, and creates a white-background layer.
 - Agnes/GPT cutout treats the selected layer as the white-background input, generates a black-background image, and diffs the pair into a transparent layer.
-- Baidu cutout sends the selected layer to `/api/baidu-images` and creates one transparent layer from `result_b64_json`.
+- Baidu cutout sends the selected layer to `/api/baidu-images`; with a valid visible Pinta selection it uses `control` mode and sends the selection box, insetting edge-touching edges by one pixel to satisfy Baidu's coordinate limits. It creates one transparent layer from `result_b64_json`.
 - The GPT provider setting is shown only for `gpt-image`.
 - Agnes and GPT Image both call `/api/images` with repeated `reference_files`, `prompt`, `size`, and `provider`; the client selects sizes according to the selected provider's constraints.
 - The layer toolbar also provides AI image generation. It accepts a required prompt, a service-specific output size, and optional reference layers/files, then adds the result as a new undoable layer in the current document. GPT Image offers the standard, common-aspect, 2K, and 4K presets from ImageLayer plus custom width and height values; custom values are validated against the GPT Image constraints above before submission.

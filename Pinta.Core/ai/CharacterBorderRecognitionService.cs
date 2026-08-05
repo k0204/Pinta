@@ -1,5 +1,5 @@
 using System;
-using System.Collections.Generic;
+using Cairo;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -7,60 +7,63 @@ using System.Threading.Tasks;
 namespace Pinta.Core.AI;
 
 /// <summary>
-/// C# client for the local character border recognition service.
+/// C# client for Baidu's selection-guided intelligent cutout service.
 /// </summary>
 public sealed class CharacterBorderRecognitionService
 {
-	private readonly AiApiClient api;
+	private readonly AiJobService jobs;
 
 	public CharacterBorderRecognitionService (AiAuthService auth)
 	{
-		api = new (auth);
+		jobs = new (auth);
 	}
 
 	public async Task<CharacterBorderRecognitionResult> RecognizeAsync (
 		byte[] sourcePng,
-		RectangleI box,
+		RectangleI? controlBox,
 		CancellationToken cancellationToken = default)
 	{
-		string jobId = await CreateJobAsync (sourcePng, cancellationToken);
-		(string imageUrl, string maskUrl) = await CreatePartAsync (jobId, box, cancellationToken);
-		Task<byte[]> partTask = api.GetBytesAsync (imageUrl, cancellationToken);
-		Task<byte[]> maskTask = api.GetBytesAsync (maskUrl, cancellationToken);
-		await Task.WhenAll (partTask, maskTask);
-		return new (await partTask, await maskTask);
-	}
-
-	private async Task<string> CreateJobAsync (byte[] sourcePng, CancellationToken cancellationToken)
-	{
-		using JsonDocument json = JsonDocument.Parse (await api.PostPngAsync (
-			"api/jobs",
+		using JsonDocument json = await jobs.RunBaiduCutoutAsync (
 			sourcePng,
-			"file",
-			"pinta.png",
-			cancellationToken));
-		return json.RootElement.GetProperty ("job_id").GetString ()
-			?? throw new InvalidOperationException ("Missing job_id");
+			controlBox,
+			returnForm: "rgba",
+			cancellationToken: cancellationToken);
+		if (!TryReadImage (json.RootElement, out byte[]? cutoutPng))
+			throw new InvalidOperationException ("Baidu response did not include an intelligent selection image.");
+
+		return new (cutoutPng!, CreateMaskPng (cutoutPng!));
 	}
 
-	private async Task<(string ImageUrl, string MaskUrl)> CreatePartAsync (
-		string jobId,
-		RectangleI box,
-		CancellationToken cancellationToken)
+	private static byte[] CreateMaskPng (byte[] cutoutPng)
 	{
-		var payload = new Dictionary<string, object> {
-			["name"] = "Detected Border",
-			["segment_prompt"] = "object",
-			["box"] = new[] { box.X, box.Y, box.X + box.Width, box.Y + box.Height },
-			["part_type"] = "other",
-		};
+		using GLib.Bytes bytes = GLib.Bytes.New (cutoutPng);
+		using Gio.MemoryInputStream stream = Gio.MemoryInputStream.NewFromBytes (bytes);
+		using GdkPixbuf.Pixbuf pixbuf = GdkPixbuf.Pixbuf.NewFromStream (stream, cancellable: null)!;
+		using ImageSurface source = CairoExtensions.CreateImageSurface (Format.Argb32, pixbuf.Width, pixbuf.Height);
+		using (Context context = new (source))
+			context.DrawPixbuf (pixbuf, PointD.Zero);
 
-		using JsonDocument json = JsonDocument.Parse (await api.PostJsonAsync ($"api/jobs/{jobId}/parts", payload, cancellationToken));
-		JsonElement part = json.RootElement.GetProperty ("part");
-		string imageUrl = part.GetProperty ("image_url").GetString ()
-			?? throw new InvalidOperationException ("Missing image_url");
-		string maskUrl = part.GetProperty ("mask_url").GetString ()
-			?? throw new InvalidOperationException ("Missing mask_url");
-		return (imageUrl, maskUrl);
+		using ImageSurface mask = CairoExtensions.CreateImageSurface (Format.Argb32, source.Width, source.Height);
+		ReadOnlySpan<ColorBgra> sourcePixels = source.GetReadOnlyPixelData ();
+		Span<ColorBgra> maskPixels = mask.GetPixelData ();
+		for (int i = 0; i < maskPixels.Length; i++) {
+			byte alpha = sourcePixels[i].A;
+			maskPixels[i] = ColorBgra.FromBgra (alpha, alpha, alpha, alpha);
+		}
+		mask.MarkDirty ();
+		using GdkPixbuf.Pixbuf maskPixbuf = mask.ToPixbuf ();
+		return maskPixbuf.SaveToBuffer ("png");
+	}
+
+	private static bool TryReadImage (JsonElement root, out byte[]? image)
+	{
+		image = null;
+		if (!root.TryGetProperty ("result_b64_json", out JsonElement value) ||
+			value.GetString () is not string encoded ||
+			string.IsNullOrWhiteSpace (encoded))
+			return false;
+
+		image = Convert.FromBase64String (encoded);
+		return true;
 	}
 }

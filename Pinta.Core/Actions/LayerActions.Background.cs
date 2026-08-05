@@ -292,20 +292,27 @@ public sealed partial class LayerActions
 			byte[] sourcePng = CreateLayerPng (sourceLayer);
 			string cutoutName = Translations.GetString ("Transparent Cutout");
 			string imageService = AI.AiRequestSettings.GetImageService (PintaCore.Settings);
+			RectangleI? baiduControlBox = imageService == AI.AiRequestSettings.BaiduService
+				? GetBaiduControlBox (doc, operationSize)
+				: null;
 			string debugDir = CreateCutoutDebugDirectory ();
 			SaveCutoutDebugLog (
 				debugDir,
 				$"AI cutout: service={imageService}, document_size={doc.ImageSize.Width}x{doc.ImageSize.Height}, "
 				+ $"layer_size={operationSize.Width}x{operationSize.Height}, "
-				+ $"source_layer={sourceLayer.Name}, source_bytes={sourcePng.Length}");
+				+ $"source_layer={sourceLayer.Name}, source_bytes={sourcePng.Length}, "
+				+ $"selection={doc.GetSelectedBounds (canvasOnly: true)}, "
+				+ $"baidu_mode={(baiduControlBox is null ? "auto" : "control")}, "
+				+ $"baidu_control_box={baiduControlBox?.ToString () ?? "none"}");
 			SaveCutoutDebugPng (debugDir, "source.png", sourcePng);
 			if (imageService == AI.AiRequestSettings.BaiduService) {
-				SetProgress (Translations.GetString ("Requesting Baidu human segmentation..."), 0.25);
+				SetProgress (Translations.GetString ("Requesting Baidu intelligent cutout..."), 0.25);
 				byte[] transparentPng = await GenerateBackgroundWithRetryAsync (
 					Translations.GetString ("Cutout"),
 					() => background_cutout.GenerateBaiduCutoutAsync (
 						sourcePng,
 						operationSize,
+						baiduControlBox,
 						SetProgress,
 						(fileName, png) => SaveCutoutDebugPng (debugDir, fileName, png),
 						message => SaveCutoutDebugLog (debugDir, message),
@@ -386,6 +393,29 @@ public sealed partial class LayerActions
 			progress.Progress = Math.Clamp (value, 0.0, 1.0);
 			chrome.SetStatusBarText (text);
 		}
+	}
+
+	private static RectangleI? GetBaiduControlBox (Document doc, Size sourceSize)
+	{
+		if (!doc.Selection.Visible)
+			return null;
+
+		RectangleI sourceBounds = new (0, 0, sourceSize.Width, sourceSize.Height);
+		RectangleI selection = doc.GetSelectedBounds (canvasOnly: true).Intersect (sourceBounds);
+		if (selection.IsEmpty)
+			return null;
+
+		// Baidu requires both rectangle corners to be strictly inside the image.
+		// Pinta selections use the same top-left origin, but a selection can touch
+		// an edge; move only that edge inward instead of discarding the control box.
+		int left = Math.Max (selection.X, sourceBounds.X + 1);
+		int top = Math.Max (selection.Y, sourceBounds.Y + 1);
+		int right = Math.Min (selection.X + selection.Width, sourceBounds.Right);
+		int bottom = Math.Min (selection.Y + selection.Height, sourceBounds.Bottom);
+		if (right - left < 10 || bottom - top < 10)
+			return null;
+
+		return new RectangleI (left, top, right - left, bottom - top);
 	}
 
 	private async Task<byte[]> GenerateBackgroundWithRetryAsync (
@@ -812,6 +842,16 @@ public sealed partial class LayerActions
 			if (directory is not null)
 				recent_files.LastDialogDirectory = directory;
 		};
+		PromptOptimizationControls? promptOptimization = CreatePromptOptimizationControls (
+			mode,
+			promptBuffer,
+			promptScroll,
+			serviceCombobox,
+			providerCombobox,
+			gptProviders,
+			sourceLayer,
+			layerChoices,
+			files);
 
 		Gtk.Box content = Gtk.Box.New (Gtk.Orientation.Vertical, 8);
 		content.SetAllMargins (12);
@@ -833,8 +873,7 @@ public sealed partial class LayerActions
 			content.Append (sourcePreview);
 			content.Append (sourceLabel);
 		}
-		content.Append (CreateDialogLabel (Translations.GetString ("提示词")));
-		content.Append (promptScroll);
+		content.Append (promptOptimization?.Section ?? CreatePromptSection (promptScroll));
 		if (doc is not null) {
 			content.Append (CreateDialogLabel (Translations.GetString ("其他参考图层")));
 			content.Append (layerScroll);
@@ -865,6 +904,9 @@ public sealed partial class LayerActions
 
 		promptBuffer.GetBounds (out Gtk.TextIter promptStart, out Gtk.TextIter promptEnd);
 		string prompt = promptBuffer.GetText (promptStart, promptEnd, includeHiddenChars: true).Trim ();
+		prompt = promptOptimization?.GetPrompt (prompt) ?? prompt;
+		AI.AiPromptHistoryItem? promptHistory = promptOptimization?.GetPromptHistory ();
+		SavePromptHistory (promptHistory);
 		Size imageSize = mode == AiImageRequestMode.BackgroundCleanup
 			? doc!.ImageSize
 			: sizePicker.SelectedSize ?? throw new InvalidOperationException ("A valid image size is required.");

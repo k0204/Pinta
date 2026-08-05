@@ -240,7 +240,7 @@ internal sealed class SaveDocumentImplmentationAction : IActionHandler
 		tools.Commit ();
 
 		try {
-			format.Exporter.Export (document, file, parent);
+			await ExportWithProgress (document, file, format.Exporter, parent);
 			document.File = file;
 			document.FileType = format.Extensions.First ();
 
@@ -286,6 +286,35 @@ internal sealed class SaveDocumentImplmentationAction : IActionHandler
 		document.HasBeenSavedInSession = true;
 
 		return true;
+	}
+
+	private async Task ExportWithProgress (
+		Document document,
+		Gio.File file,
+		IImageExporter exporter,
+		Gtk.Window parent)
+	{
+		if (exporter is not PintaDocumentFormat pintaFormat) {
+			exporter.Export (document, file, parent);
+			return;
+		}
+
+		IProgressDialog progressDialog = chrome.ProgressDialog;
+		progressDialog.Title = Translations.GetString ("Saving Document");
+		progressDialog.Text = file.GetDisplayName ();
+		progressDialog.Progress = 0;
+		progressDialog.Cancellable = false;
+		progressDialog.Show ();
+		chrome.MainWindowBusy = true;
+
+		try {
+			IProgress<double> progress = new Progress<double> (value => progressDialog.Progress = Math.Clamp (value, 0, 1));
+			await Task.Run (() => pintaFormat.ExportWithProgress (document, file, progress));
+		} finally {
+			progressDialog.Cancellable = true;
+			progressDialog.Hide ();
+			chrome.MainWindowBusy = false;
+		}
 	}
 
 	private async Task<bool> ConfirmFlatten (Document document, FormatDescriptor format)

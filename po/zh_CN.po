@@ -3356,3 +3356,51 @@ msgstr "{0}%"
 
 #~ msgid "_Uninstall..."
 #~ msgstr "卸载..."
+
+msgid "Detect Border"
+msgstr "智能抠图"
+
+msgid "Detect border and create a new layer"
+msgstr "智能识别主体并创建新图层"
+
+msgid "Detecting border..."
+msgstr "正在智能抠图..."
+
+msgid "Detected Border"
+msgstr "抠图结果"
+
+msgid "Cutout Mask"
+msgstr "抠图蒙版"
+
+msgid "Border Control"
+msgstr "抠图控制预览"
+
+msgid "Detect Border Failed"
+msgstr "智能抠图失败"
+
+msgid "Select an area before detecting the border."
+msgstr "请先选择要抠图的区域。"
+
+msgid "The selected area is empty."
+msgstr "所选区域为空。"
+
+msgid "Detect the border in the selected area?"
+msgstr "是否识别所选区域中的主体？"
+
+msgid "Check the API server, Baidu credentials, balance, and login status, then try again."
+msgstr "请检查 API 服务、百度配置、账户余额和登录状态后重试。"
+
+msgid "Select an area, then use the keep brush or erase brush to guide border detection."
+msgstr "先选择区域，再使用保留画笔或排除橡皮擦辅助抠图。"
+
+msgid "Guidance"
+msgstr "操作模式"
+
+msgid "Rectangle selection"
+msgstr "矩形选区"
+
+msgid "Keep brush"
+msgstr "保留画笔"
+
+msgid "Erase brush"
+msgstr "排除橡皮擦"

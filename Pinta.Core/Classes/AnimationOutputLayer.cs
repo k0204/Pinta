@@ -82,7 +82,11 @@ public abstract class AnimationOutputLayer : GroupLayer
 		}
 	}
 
-	public override void Resize (Size newSize, ResamplingMode resamplingMode) { }
+	public override void Resize (Size newSize, ResamplingMode resamplingMode)
+	{
+		foreach (AnimationFrameData frame in GetFrames ())
+			frame.Resize (newSize, resamplingMode);
+	}
 	public override void ResizeCanvas (Size newSize, Anchor anchor) { }
 	public override void Crop (RectangleI rect, Path? selection) { }
 
@@ -130,8 +134,19 @@ public sealed class AnimationFrameData
 	public int X { get; set; }
 	public int Y { get; set; }
 	public bool Visible { get; set; }
-	public ImageSurface Surface { get; }
+	public ImageSurface Surface { get; private set; }
 	internal Layer? RenderLayer { get; set; }
+
+	public void Resize (Size newSize, ResamplingMode resamplingMode)
+	{
+		ImageSurface dest = CairoExtensions.CreateImageSurface (Format.Argb32, newSize.Width, newSize.Height);
+		using (Context context = new (dest)) {
+			context.Scale (newSize.Width / (double) Surface.Width, newSize.Height / (double) Surface.Height);
+			context.SetSourceSurface (Surface, resamplingMode);
+			context.Paint ();
+		}
+		Surface = dest;
+	}
 
 	internal AnimationFrameData Clone ()
 		=> new (FrameIndex, X, Y, Visible, Surface.Clone ());

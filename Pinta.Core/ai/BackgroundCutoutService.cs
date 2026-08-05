@@ -144,6 +144,7 @@ public sealed class BackgroundCutoutService
 	public async Task<byte[]> GenerateBaiduCutoutAsync (
 		byte[] sourcePng,
 		Size targetSize,
+		RectangleI? controlBox,
 		Action<string, double>? reportProgress = null,
 		Action<string, byte[]>? saveResult = null,
 		Action<string>? log = null,
@@ -151,9 +152,15 @@ public sealed class BackgroundCutoutService
 	{
 		string name = Translations.GetString ("transparent cutout");
 		string size = FormatSize (targetSize);
-		reportProgress?.Invoke (Translations.GetString ("Requesting Baidu human segmentation..."), 0.25);
-		Log (log, $"AI image start: service=baidu, name={name}, target_size={size}, request_size={size}, images=1");
-		using JsonDocument json = await jobs.RunBaiduCutoutAsync (sourcePng, log, cancellationToken);
+		string mode = controlBox is null ? "auto" : "control";
+		reportProgress?.Invoke (Translations.GetString ("Requesting Baidu intelligent cutout..."), 0.25);
+		Log (log, $"AI image start: service=baidu, mode={mode}, name={name}, target_size={size}, request_size={size}, images=1");
+		using JsonDocument json = await jobs.RunBaiduCutoutAsync (
+			sourcePng,
+			controlBox,
+			returnForm: "rgba",
+			log: log,
+			cancellationToken: cancellationToken);
 		if (!TryReadImage (json.RootElement, "result_b64_json", out byte[]? rawResult))
 			throw new InvalidOperationException ("Baidu response did not include a foreground image.");
 

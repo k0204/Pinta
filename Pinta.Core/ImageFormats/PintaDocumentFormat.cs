@@ -49,27 +49,48 @@ public sealed class PintaDocumentFormat : IImageImporter, IImageExporter
 
 	public void Export (Document document, Gio.File file, Gtk.Window parent)
 	{
-		using GioStream stream = new (file.Replace ());
-		using ZipArchive archive = new (stream, ZipArchiveMode.Create);
-		WriteArchive (document, archive);
+		ExportWithProgress (document, file, progress: null);
 	}
 
-	internal static void WriteArchive (Document document, ZipArchive archive)
+	public void ExportWithProgress (Document document, Gio.File file, IProgress<double>? progress)
+	{
+		using GioStream stream = new (file.Replace ());
+		using ZipArchive archive = new (stream, ZipArchiveMode.Create);
+		WriteArchive (document, archive, progress);
+	}
+
+	internal static void WriteArchive (
+		Document document,
+		ZipArchive archive,
+		IProgress<double>? progress = null)
 	{
 		AssignLayerIds (document.Layers.RootLayers);
 
-		foreach (UserLayer layer in document.Layers.AllLayers.Where (layer => layer is not GroupLayer && !layer.IsReference))
-			WriteLayerSurface (archive, layer);
-		foreach (AnimationOutputLayer layer in document.Layers.AllLayers.OfType<AnimationOutputLayer> ())
-			WriteAnimationFrames (archive, layer);
+		List<UserLayer> layers = [.. document.Layers.AllLayers.Where (layer => layer is not GroupLayer && !layer.IsReference)];
+		List<AnimationOutputLayer> animationLayers = [.. document.Layers.AllLayers.OfType<AnimationOutputLayer> ()];
+		int totalFiles = layers.Count + animationLayers.Sum (layer => layer.GetFrames ().Count ());
+		int completedFiles = 0;
+		progress?.Report (0);
+
+		void ReportFileComplete ()
+		{
+			completedFiles++;
+			progress?.Report (totalFiles == 0 ? 0.9 : 0.9 * completedFiles / totalFiles);
+		}
+
+		foreach (UserLayer layer in layers)
+			WriteLayerSurface (archive, layer, ReportFileComplete);
+		foreach (AnimationOutputLayer layer in animationLayers)
+			WriteAnimationFrames (archive, layer, ReportFileComplete);
 
 		PintaDocumentManifest manifest = CreateManifest (document);
 		ZipArchiveEntry manifestEntry = archive.CreateEntry ("project.json");
 		using Stream manifestStream = manifestEntry.Open ();
 		JsonSerializer.Serialize (manifestStream, manifest, json_options);
+		progress?.Report (1);
 	}
 
-	private static void WriteLayerSurface (ZipArchive archive, UserLayer layer)
+	private static void WriteLayerSurface (ZipArchive archive, UserLayer layer, Action reportComplete)
 	{
 		string temporaryFile = System.IO.Path.GetTempFileName ();
 		try {
@@ -79,12 +100,16 @@ public sealed class PintaDocumentFormat : IImageImporter, IImageExporter
 			using Stream source = File.OpenRead (temporaryFile);
 			using Stream destination = entry.Open ();
 			source.CopyTo (destination);
+			reportComplete ();
 		} finally {
 			File.Delete (temporaryFile);
 		}
 	}
 
-	private static void WriteAnimationFrames (ZipArchive archive, AnimationOutputLayer layer)
+	private static void WriteAnimationFrames (
+		ZipArchive archive,
+		AnimationOutputLayer layer,
+		Action reportComplete)
 	{
 		int index = 0;
 		string directory = layer switch {
@@ -101,6 +126,7 @@ public sealed class PintaDocumentFormat : IImageImporter, IImageExporter
 				using Stream source = File.OpenRead (temporaryFile);
 				using Stream destination = entry.Open ();
 				source.CopyTo (destination);
+				reportComplete ();
 			} finally {
 				File.Delete (temporaryFile);
 			}

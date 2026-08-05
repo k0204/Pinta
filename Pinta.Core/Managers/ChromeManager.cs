@@ -213,6 +213,7 @@ public interface IProgressDialog
 	string Title { get; set; }
 	string Text { get; set; }
 	double Progress { get; set; }
+	bool Cancellable { get; set; }
 	event EventHandler Canceled;
 }
 

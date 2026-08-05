@@ -14,4 +14,4 @@ public readonly record struct NewImageDialogOptions (Size Size, BackgroundType B
 public readonly record struct NewImageOptions (Size NewImageSize, Color NewImageBackgroundColor, BackgroundType NewImageBackgroundType);
 public readonly record struct ResizeImageOptions (Size NewSize, ResamplingMode ResamplingMode);
 public readonly record struct ResizeCanvasOptions (Size NewSize, Anchor Anchor, CompoundHistoryItem? CompoundAction);
-public readonly record struct ResizeLayerOptions (Size NewSize, ResamplingMode ResamplingMode);
+public readonly record struct ResizeLayerOptions (Size NewSize, ResamplingMode ResamplingMode, bool UseCanvasSizeAsOriginal);

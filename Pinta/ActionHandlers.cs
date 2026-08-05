@@ -129,6 +129,7 @@ public sealed class ActionHandlers
 		Document? document = enable ? PintaCore.Workspace.ActiveDocumentOrDefault : null;
 		bool hasSelectedLayer = document?.Layers.HasSelectedLayer == true;
 		bool editableLayer = hasSelectedLayer && document!.Layers.CurrentUserLayer.IsEditable;
+		bool resizableLayer = editableLayer || document?.Layers.CurrentUserLayer is AnimationOutputLayer;
 		bool editableCanvas = document is not null && !document.Layers.HasLockedReferences;
 		bool editableImage = editableCanvas && !document!.Layers.AllLayers.Any (layer => layer is AnimationOutputLayer);
 		bool selectionVisible = document?.Selection.Visible == true;
@@ -179,7 +180,7 @@ public sealed class ActionHandlers
 		PintaCore.Actions.Layers.Cutout.Sensitive = editableLayer;
 		PintaCore.Actions.Layers.FlipHorizontal.Sensitive = editableLayer;
 		PintaCore.Actions.Layers.FlipVertical.Sensitive = editableLayer;
-		PintaCore.Actions.Layers.ResizeLayer.Sensitive = editableLayer;
+		PintaCore.Actions.Layers.ResizeLayer.Sensitive = resizableLayer;
 		PintaCore.Actions.Layers.RotateZoom.Sensitive = editableLayer;
 		PintaCore.Actions.Layers.MoveLayerUp.Sensitive = hasSelectedLayer;
 		PintaCore.Actions.Layers.MoveLayerDown.Sensitive = hasSelectedLayer;

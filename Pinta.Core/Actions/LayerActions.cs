@@ -69,6 +69,7 @@ public sealed partial class LayerActions
 	private readonly AI.CharacterBorderRecognitionService border_recognition;
 	private readonly AI.BackgroundCutoutService background_cutout;
 	private readonly AI.SpriteSegmentationService sprite_segmentation;
+	private readonly AI.AiPromptOptimizationService prompt_optimization;
 	private bool detect_border_running;
 	private bool cutout_running;
 	private bool save_layer_running;
@@ -250,6 +251,7 @@ public sealed partial class LayerActions
 		border_recognition = new (aiAuth);
 		background_cutout = new (aiAuth);
 		sprite_segmentation = new (aiAuth);
+		prompt_optimization = new (aiAuth);
 	}
 
 	public void RegisterActions (Gtk.Application app)
@@ -343,6 +345,7 @@ public sealed partial class LayerActions
 		SetSpritesheetAnchor.Sensitive = hasSelectedLayer && IsDirectionSheetSource (activeDoc!.Layers.CurrentUserLayer);
 
 		bool currentEditable = hasSelectedLayer && activeDoc!.Layers.CurrentUserLayer.IsEditable;
+		bool currentResizable = currentEditable || activeDoc?.Layers.CurrentUserLayer is AnimationOutputLayer;
 		bool canMergeDown = activeDoc?.Layers.CanMoveCurrentLayerDown () ?? false;
 		MergeLayerDown.Sensitive = canMergeDown && currentEditable && activeDoc!.Layers.GetSiblingBelow (activeDoc.Layers.CurrentUserLayer).IsEditable;
 		MoveLayerDown.Sensitive = canMergeDown;
@@ -352,7 +355,7 @@ public sealed partial class LayerActions
 		SaveLayerImage.Sensitive = hasSelectedLayer && !save_layer_running;
 		FlipHorizontal.Sensitive = currentEditable;
 		FlipVertical.Sensitive = currentEditable;
-		ResizeLayer.Sensitive = currentEditable;
+		ResizeLayer.Sensitive = currentResizable;
 		RotateZoom.Sensitive = currentEditable;
 		adjustments.ToggleActionsSensitive (currentEditable);
 		effects.ToggleActionsSensitive (currentEditable);

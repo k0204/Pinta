@@ -43,17 +43,40 @@ public sealed class AiJobService
 
 	public Task<JsonDocument> RunBaiduCutoutAsync (
 		byte[] png,
+		RectangleI? controlBox = null,
+		string returnForm = "rgba",
 		Action<string>? log = null,
 		CancellationToken cancellationToken = default)
-		=> RunAsync (
+	{
+		List<KeyValuePair<string, string>> fields = [
+			new ("method", controlBox is null ? "auto" : "control"),
+			new ("refine_mask", "true"),
+			new ("return_form", returnForm),
+		];
+		if (controlBox is RectangleI box) {
+			int[][][] position = [
+				[
+					[box.X, box.Y],
+					[box.X + box.Width, box.Y + box.Height],
+				]
+			];
+			string positionJson = JsonSerializer.Serialize (position);
+			fields.Add (new ("position", positionJson));
+			Log (log, $"Baidu cutout request: method=control, position={positionJson}, source_bytes={png.Length}");
+		} else {
+			Log (log, $"Baidu cutout request: method=auto, source_bytes={png.Length}");
+		}
+
+		return RunAsync (
 			ct => api.PostMultipartAsync (
 				baidu_image_path,
-				[],
+				fields,
 				[(png, "file", "pinta.png")],
 				ct),
 			capture: null,
 			log,
 			cancellationToken);
+	}
 
 	public Task<byte[]> DownloadAsync (string path, CancellationToken cancellationToken = default)
 		=> api.GetBytesAsync (path, cancellationToken);

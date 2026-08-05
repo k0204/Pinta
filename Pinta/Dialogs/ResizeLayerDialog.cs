@@ -37,18 +37,20 @@ public sealed partial class ResizeLayerDialog
 	private Gtk.SpinButton width_spinner;
 	private Gtk.SpinButton height_spinner;
 	private Gtk.CheckButton aspect_checkbox;
+	private Gtk.CheckButton canvas_size_checkbox;
 	private Gtk.CheckButton percentage_radio;
 	private Gtk.CheckButton absolute_radio;
 	private Gtk.ComboBoxText resampling_combobox;
 
 	private ISettingsService settings = null!;
 	private Size layer_size;
+	private Size canvas_size;
 	private bool value_changing;
 
 	const int SPACING = 6;
 
 	[MemberNotNull (nameof (percentage_spinner), nameof (width_spinner), nameof (height_spinner))]
-	[MemberNotNull (nameof (aspect_checkbox), nameof (absolute_radio), nameof (percentage_radio), nameof (resampling_combobox))]
+	[MemberNotNull (nameof (aspect_checkbox), nameof (canvas_size_checkbox), nameof (absolute_radio), nameof (percentage_radio), nameof (resampling_combobox))]
 	partial void Initialize ()
 	{
 		BoxStyle spacedHorizontal = new (
@@ -72,6 +74,8 @@ public sealed partial class ResizeLayerDialog
 		heightSpinner.SetActivatesDefaultImmediate (true);
 
 		Gtk.CheckButton aspectCheckbox = Gtk.CheckButton.NewWithLabel (Translations.GetString ("Maintain aspect ratio"));
+		Gtk.CheckButton canvasSizeCheckbox = Gtk.CheckButton.NewWithLabel (Translations.GetString ("Use canvas size as original size"));
+		canvasSizeCheckbox.OnToggled += canvasSizeCheckbox_Toggled;
 
 		Gtk.Button resetButton = Gtk.Button.NewFromIconName (Resources.StandardIcons.EditUndo);
 		resetButton.WidthRequest = 24;
@@ -108,7 +112,6 @@ public sealed partial class ResizeLayerDialog
 			resetButton,
 			Gtk.Button.SensitivePropertyDefinition.UnmanagedName,
 			GObject.BindingFlags.SyncCreate);
-
 		Gtk.ComboBoxText resamplingCombobox = CreateResamplingCombobox ();
 
 		Gtk.Box hboxPercent = GtkExtensions.Box (
@@ -137,8 +140,9 @@ public sealed partial class ResizeLayerDialog
 		grid.Attach (heightSpinner, 1, 1, 1, 1);
 		grid.Attach (Gtk.Label.New (Translations.GetString ("pixels")), 2, 1, 1, 1);
 		grid.Attach (aspectCheckbox, 0, 2, 3, 1);
-		grid.Attach (Gtk.Label.New (Translations.GetString ("Resampling:")), 0, 3, 1, 1);
-		grid.Attach (resamplingCombobox, 1, 3, 2, 1);
+		grid.Attach (canvasSizeCheckbox, 0, 3, 3, 1);
+		grid.Attach (Gtk.Label.New (Translations.GetString ("Resampling:")), 0, 4, 1, 1);
+		grid.Attach (resamplingCombobox, 1, 4, 2, 1);
 
 		Gtk.Box mainVbox = GtkExtensions.Box (
 			spacedVertical,
@@ -166,16 +170,18 @@ public sealed partial class ResizeLayerDialog
 		width_spinner = widthSpinner;
 		height_spinner = heightSpinner;
 		aspect_checkbox = aspectCheckbox;
+		canvas_size_checkbox = canvasSizeCheckbox;
 		absolute_radio = absoluteRadio;
 		percentage_radio = percentageRadio;
 		resampling_combobox = resamplingCombobox;
 	}
 
-	private void Configure (IChromeService chrome, ISettingsService settings, Size layerSize)
+	private void Configure (IChromeService chrome, ISettingsService settings, Size layerSize, Size canvasSize)
 	{
 		TransientFor = chrome.MainWindow;
 		this.settings = settings;
 		layer_size = layerSize;
+		canvas_size = canvasSize;
 
 		value_changing = true;
 		width_spinner.Value = layer_size.Width;
@@ -191,14 +197,16 @@ public sealed partial class ResizeLayerDialog
 		else
 			absolute_radio.Active = true;
 
-		percentageSpinner_ValueChanged (null, EventArgs.Empty);
+		canvas_size_checkbox.Active = false;
+		if (percentage_radio.Active)
+			percentageSpinner_ValueChanged (null, EventArgs.Empty);
 		percentage_spinner.GrabFocus ();
 	}
 
-	internal static ResizeLayerDialog New (IChromeService chrome, ISettingsService settings, Size layerSize)
+	internal static ResizeLayerDialog New (IChromeService chrome, ISettingsService settings, Size layerSize, Size canvasSize)
 	{
 		ResizeLayerDialog dialog = NewWithProperties ([]);
-		dialog.Configure (chrome, settings, layerSize);
+		dialog.Configure (chrome, settings, layerSize, canvasSize);
 		return dialog;
 	}
 
@@ -233,16 +241,19 @@ public sealed partial class ResizeLayerDialog
 			Width: width_spinner.GetValueAsInt (),
 			Height: height_spinner.GetValueAsInt ());
 		ResamplingMode resamplingMode = (ResamplingMode) resampling_combobox.Active;
-		return new (newSize, resamplingMode);
+		return new (newSize, resamplingMode, canvas_size_checkbox.Active);
 	}
+
+	private Size GetOriginalSize () => canvas_size_checkbox.Active ? canvas_size : layer_size;
 
 	private void heightSpinner_ValueChanged (object? sender, EventArgs e)
 	{
 		if (value_changing || !aspect_checkbox.Active)
 			return;
 
+		Size originalSize = GetOriginalSize ();
 		value_changing = true;
-		width_spinner.Value = Math.Max (1, (int) (height_spinner.Value * layer_size.Width / layer_size.Height));
+		width_spinner.Value = Math.Max (1, (int) (height_spinner.Value * originalSize.Width / originalSize.Height));
 		value_changing = false;
 	}
 
@@ -251,8 +262,9 @@ public sealed partial class ResizeLayerDialog
 		if (value_changing || !aspect_checkbox.Active)
 			return;
 
+		Size originalSize = GetOriginalSize ();
 		value_changing = true;
-		height_spinner.Value = Math.Max (1, (int) (width_spinner.Value * layer_size.Height / layer_size.Width));
+		height_spinner.Value = Math.Max (1, (int) (width_spinner.Value * originalSize.Height / originalSize.Width));
 		value_changing = false;
 	}
 
@@ -261,11 +273,18 @@ public sealed partial class ResizeLayerDialog
 		if (value_changing)
 			return;
 
+		Size originalSize = GetOriginalSize ();
 		float proportion = percentage_spinner.GetValueAsInt () / 100f;
 		value_changing = true;
-		width_spinner.Value = Math.Max (1, (int) (layer_size.Width * proportion));
-		height_spinner.Value = Math.Max (1, (int) (layer_size.Height * proportion));
+		width_spinner.Value = Math.Max (1, (int) (originalSize.Width * proportion));
+		height_spinner.Value = Math.Max (1, (int) (originalSize.Height * proportion));
 		value_changing = false;
+	}
+
+	private void canvasSizeCheckbox_Toggled (Gtk.CheckButton sender, EventArgs e)
+	{
+		if (percentage_radio.Active)
+			percentageSpinner_ValueChanged (null, EventArgs.Empty);
 	}
 
 	void OnResetButtonClicked (Gtk.Button button, EventArgs eventArgs)

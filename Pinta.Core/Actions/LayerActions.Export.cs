@@ -51,7 +51,21 @@ public sealed partial class LayerActions
 				return;
 
 			Gio.File file = chooser.GetFile ()!;
-			SaveLayerPng (document, layer, file);
+			IProgressDialog progressDialog = chrome.ProgressDialog;
+			progressDialog.Title = Translations.GetString ("Saving Layer Image");
+			progressDialog.Text = layer.Name;
+			progressDialog.Progress = 0;
+			progressDialog.Cancellable = false;
+			progressDialog.Show ();
+			chrome.MainWindowBusy = true;
+			try {
+				IProgress<double> progress = new Progress<double> (value => progressDialog.Progress = Math.Clamp (value, 0, 1));
+				await Task.Run (() => SaveLayerPng (document, layer, file, progress));
+			} finally {
+				progressDialog.Cancellable = true;
+				progressDialog.Hide ();
+				chrome.MainWindowBusy = false;
+			}
 			recent_files.LastDialogDirectory = file.GetParent ();
 		} catch (OperationCanceledException) {
 			return;
@@ -73,15 +87,22 @@ public sealed partial class LayerActions
 		chooser.SetCurrentName ($"{name}.png");
 	}
 
-	private static void SaveLayerPng (Document document, UserLayer layer, Gio.File file)
+	private static void SaveLayerPng (
+		Document document,
+		UserLayer layer,
+		Gio.File file,
+		IProgress<double> progress)
 	{
-		using ImageSurface image = RenderLayer (document, layer);
+		using ImageSurface image = RenderLayer (document, layer, progress);
+		progress.Report (0.85);
 		string temporaryFile = System.IO.Path.GetTempFileName ();
 		try {
 			CairoExtensions.SaveToPng (image, temporaryFile);
+			progress.Report (0.95);
 			using FileStream source = File.OpenRead (temporaryFile);
 			using GioStream destination = new (file.Replace ());
 			source.CopyTo (destination);
+			progress.Report (1);
 		} finally {
 			File.Delete (temporaryFile);
 		}

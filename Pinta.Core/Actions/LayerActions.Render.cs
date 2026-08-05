@@ -10,11 +10,16 @@ namespace Pinta.Core;
 
 public sealed partial class LayerActions
 {
-	public static ImageSurface RenderLayer (Document document, UserLayer layer)
+	public static ImageSurface RenderLayer (
+		Document document,
+		UserLayer layer,
+		IProgress<double>? progress = null)
 	{
 		List<Layer> paintLayers = [.. layer.GetLayersToPaint ()];
-		if (paintLayers.Count == 0)
+		if (paintLayers.Count == 0) {
+			progress?.Report (1);
 			return CairoExtensions.CreateImageSurface (Format.Argb32, 1, 1);
+		}
 
 		double left = double.PositiveInfinity;
 		double top = double.PositiveInfinity;
@@ -28,11 +33,15 @@ public sealed partial class LayerActions
 		int width = GetRenderDimension (Math.Ceiling (right) - originX, "width");
 		int height = GetRenderDimension (Math.Ceiling (bottom) - originY, "height");
 		ImageSurface image = CairoExtensions.CreateImageSurface (Format.Argb32, width, height);
+		progress?.Report (0.1);
 		try {
 			using Context context = new (image);
 			context.Translate (-originX, -originY);
-			foreach (Layer paintLayer in paintLayers)
+			for (int i = 0; i < paintLayers.Count; i++) {
+				Layer paintLayer = paintLayers[i];
 				paintLayer.Draw (context);
+				progress?.Report (0.1 + 0.7 * (i + 1) / paintLayers.Count);
+			}
 			if (context.Status != Status.Success)
 				throw new InvalidOperationException ($"Unable to render layer: {context.Status}");
 

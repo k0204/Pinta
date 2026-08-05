@@ -35,12 +35,14 @@ public sealed partial class ProgressDialog : IProgressDialog
 {
 	private Gtk.Label text_label;
 	private Gtk.ProgressBar progress_bar;
+	private Gtk.Widget cancel_button;
 
 	public event EventHandler? Canceled;
 	public Gtk.Window Window => this;
 
 	[MemberNotNull (nameof (text_label))]
 	[MemberNotNull (nameof (progress_bar))]
+	[MemberNotNull (nameof (cancel_button))]
 	partial void Initialize ()
 	{
 		Gtk.Label textLabel = Gtk.Label.New ("");
@@ -69,7 +71,7 @@ public sealed partial class ProgressDialog : IProgressDialog
 		content_area.Append (textLabel);
 		content_area.Append (progressBar);
 
-		AddButton (Translations.GetString ("_Cancel"), (int) Gtk.ResponseType.Cancel);
+		cancel_button = AddButton (Translations.GetString ("_Cancel"), (int) Gtk.ResponseType.Cancel);
 
 		OnResponse += (_, args) => Canceled?.Invoke (this, EventArgs.Empty);
 	}
@@ -94,5 +96,10 @@ public sealed partial class ProgressDialog : IProgressDialog
 	public double Progress {
 		get => progress_bar.Fraction;
 		set => progress_bar.Fraction = value;
+	}
+
+	public bool Cancellable {
+		get => cancel_button.GetVisible ();
+		set => cancel_button.SetVisible (value);
 	}
 }
