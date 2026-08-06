@@ -23,8 +23,9 @@ internal sealed class MultiDirectionAnimationEditor : AnimationFrameEditorBase
 		Action<SpritesheetSplitData> saveAnalysis,
 		SpritesheetSplitData? savedAnalysis,
 		IReadOnlyList<ImageSurface>? frameSurfaces,
-		IReadOnlyList<SpritesheetFrameSplit>? existingFrames)
-		: base (hostWindow, setSubmitSensitive, source, info, outputAttempts, analyze, saveAnalysis, savedAnalysis, frameSurfaces, existingFrames)
+		IReadOnlyList<SpritesheetFrameSplit>? existingFrames,
+		bool allowAiAnalysis)
+		: base (hostWindow, setSubmitSensitive, source, info, outputAttempts, analyze, saveAnalysis, savedAnalysis, frameSurfaces, existingFrames, allowAiAnalysis)
 	{
 	}
 

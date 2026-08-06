@@ -8,6 +8,10 @@
 - Apply the `ponytail` rule: reuse existing helpers and platform APIs, avoid speculative abstractions and dependencies, and ship the smallest complete change with a focused check.
 - Keep `doc/api.md` current. Every new or changed API endpoint, request, response, auth requirement, or default API base URL must be documented in the same change.
 - Do not create or write test files.
+- All user-visible text must use `Translations.GetString`, including static and formatted text in menu labels, command labels and tooltips, buttons, dialogs, status text, history text, and errors. Translate the message template before adding dynamic values; user-entered content, document names, file paths, internal IDs, and AI prompt content remain unmodified.
+- Do not use a translated language as the source message key. Use a stable English message key so every locale can translate it through the normal gettext extraction workflow.
+- Internal IDs, metadata keys, file paths, brand names, dynamic user data, and AI prompt content are not UI strings and must not be translated automatically.
+- When adding or changing UI strings, update the gettext extraction inputs and translation catalogs through the project's existing translation workflow.
 
 ## Source Organization and Size
 

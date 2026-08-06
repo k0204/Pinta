@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Threading;
@@ -8,6 +9,8 @@ using System.Threading.Tasks;
 using Pinta.Core;
 
 namespace Pinta.Core.AI;
+
+public readonly record struct ImageFitInfo (Size ContentSize, PointI Offset, double Scale);
 
 public sealed class BackgroundCutoutService
 {
@@ -38,6 +41,7 @@ public sealed class BackgroundCutoutService
 	private static readonly Size[] gpt_image_generation_sizes = [
 		new (1024, 1024), new (2048, 2048),
 		new (1536, 1024), new (1024, 1536),
+		new (1280, 720), new (720, 1280),
 		new (1536, 864), new (864, 1536),
 		new (1280, 960), new (960, 1280),
 		new (1280, 1024), new (1024, 1280),
@@ -59,7 +63,8 @@ public sealed class BackgroundCutoutService
 		Action<string, double>? reportProgress = null,
 		Action<string, byte[]>? saveResult = null,
 		Action<string>? log = null,
-		CancellationToken cancellationToken = default)
+		CancellationToken cancellationToken = default,
+		Size? requestSizeOverride = null)
 		=> GenerateAsync (
 			sourcePng,
 			targetSize,
@@ -67,6 +72,7 @@ public sealed class BackgroundCutoutService
 			Translations.GetString ("white background"),
 			"white-background.png",
 			whitePadding: false,
+			requestSizeOverride,
 			referenceImages,
 			reportProgress,
 			saveResult,
@@ -79,7 +85,8 @@ public sealed class BackgroundCutoutService
 		Action<string, double>? reportProgress = null,
 		Action<string, byte[]>? saveResult = null,
 		Action<string>? log = null,
-		CancellationToken cancellationToken = default)
+		CancellationToken cancellationToken = default,
+		Size? requestSizeOverride = null)
 		=> GenerateAsync (
 			whiteBackgroundPng,
 			targetSize,
@@ -87,6 +94,7 @@ public sealed class BackgroundCutoutService
 			Translations.GetString ("black background"),
 			"black-background.png",
 			whitePadding: true,
+			requestSizeOverride,
 			referenceImages: [],
 			reportProgress,
 			saveResult,
@@ -108,6 +116,32 @@ public sealed class BackgroundCutoutService
 			Translations.GetString ("image"),
 			"generated-image.png",
 			whitePadding: false,
+			requestSizeOverride: null,
+			referenceImages,
+			reportProgress,
+			saveResult,
+			log,
+			cancellationToken);
+
+	public Task<byte[]> GenerateImageFromSourceAsync (
+		byte[] sourcePng,
+		Size targetSize,
+		Size requestSize,
+		bool whitePadding,
+		string prompt,
+		IReadOnlyList<(byte[] Png, string FileName)> referenceImages,
+		Action<string, double>? reportProgress = null,
+		Action<string, byte[]>? saveResult = null,
+		Action<string>? log = null,
+		CancellationToken cancellationToken = default)
+		=> GenerateAsync (
+			sourcePng,
+			targetSize,
+			prompt,
+			Translations.GetString ("split image"),
+			"generated-image.png",
+			whitePadding,
+			requestSize,
 			referenceImages,
 			reportProgress,
 			saveResult,
@@ -117,10 +151,36 @@ public sealed class BackgroundCutoutService
 	public static string GetDefaultBackgroundCleanupPrompt ()
 		=> ReadPromptConfig ().WhiteBackgroundPrompt;
 
-	public static IReadOnlyList<Size> GetImageGenerationSizes (string imageService)
-		=> imageService == AiRequestSettings.AgnesService
-			? agnes_image_sizes
-			: gpt_image_generation_sizes;
+	public static IReadOnlyList<Size> GetImageGenerationSizes (
+		string imageService,
+		string? provider = null)
+	{
+		if (!string.IsNullOrWhiteSpace (provider) &&
+			PintaCore.AiProviders.FindImageProvider (provider) is AiProviderInfo info) {
+			IReadOnlyList<string>? configuredValues = info.ImageSizes is { Count: > 0 }
+				? info.ImageSizes
+				: info.ImageResolutions;
+			if (configuredValues is { Count: > 0 }) {
+				List<Size> configured = configuredValues
+					.Select (value => TryParseSize (value))
+					.Where (size => size is not null)
+					.Select (size => size!.Value)
+					.Distinct ()
+					.ToList ();
+				if (configured.Count > 0)
+					return configured;
+			}
+		}
+
+		return imageService switch {
+			AiRequestSettings.AgnesService => agnes_image_sizes,
+			AiRequestSettings.NanoBananaService => NanoBananaImageConfig.GetImageGenerationSizes (),
+			_ => gpt_image_generation_sizes,
+		};
+	}
+
+	public static int GetImageGenerationCost (string provider)
+		=> PintaCore.AiProviders.FindImageProvider (provider)?.ImageCost ?? 0;
 
 	public static string? GetGptImageSizeError (Size size)
 	{
@@ -148,7 +208,8 @@ public sealed class BackgroundCutoutService
 		Action<string, double>? reportProgress = null,
 		Action<string, byte[]>? saveResult = null,
 		Action<string>? log = null,
-		CancellationToken cancellationToken = default)
+		CancellationToken cancellationToken = default,
+		Size? requestSizeOverride = null)
 	{
 		string name = Translations.GetString ("transparent cutout");
 		string size = FormatSize (targetSize);
@@ -165,7 +226,7 @@ public sealed class BackgroundCutoutService
 			throw new InvalidOperationException ("Baidu response did not include a foreground image.");
 
 		saveResult?.Invoke ("transparent-cutout.raw.png", rawResult!);
-		byte[] normalized = NormalizePngSize (rawResult!, targetSize, targetSize, PointI.Zero, name, log);
+		byte[] normalized = NormalizePngSize (rawResult!, targetSize, targetSize, PointI.Zero, false, name, log);
 		saveResult?.Invoke ("transparent-cutout.png", normalized);
 		return normalized;
 	}
@@ -177,6 +238,7 @@ public sealed class BackgroundCutoutService
 		string name,
 		string fileName,
 		bool whitePadding,
+		Size? requestSizeOverride,
 		IReadOnlyList<(byte[] Png, string FileName)> referenceImages,
 		Action<string, double>? reportProgress,
 		Action<string, byte[]>? saveResult,
@@ -186,12 +248,15 @@ public sealed class BackgroundCutoutService
 		string imageService = AiRequestSettings.GetImageService (PintaCore.Settings);
 		if (sourcePng is null && imageService == AiRequestSettings.GptImageService && GetGptImageSizeError (targetSize) is string sizeError)
 			throw new InvalidOperationException (sizeError);
-		Size requestSize = sourcePng is null ? targetSize : GetImageRequestSize (imageService, targetSize);
+		Size requestSize = sourcePng is null
+			? targetSize
+			: requestSizeOverride ?? GetImageRequestSize (imageService, targetSize);
+		if (imageService == AiRequestSettings.GptImageService && GetGptImageSizeError (requestSize) is string requestSizeError)
+			throw new InvalidOperationException (requestSizeError);
 		string size = FormatSize (requestSize);
 		PointI contentOffset = PointI.Zero;
-		string provider = imageService == AiRequestSettings.AgnesService
-			? AiRequestSettings.AgnesService
-			: AiRequestSettings.GetGptProvider (PintaCore.Settings);
+		bool sourceResized = false;
+		string provider = AiRequestSettings.GetImageProvider (PintaCore.Settings);
 		KeyValuePair<string, string>[] fields = [
 			new ("size", size),
 			new ("provider", provider),
@@ -201,12 +266,12 @@ public sealed class BackgroundCutoutService
 		int sourceCount = sourcePng is null ? 0 : 1;
 		(byte[] Data, string FormName, string FileName)[] files = new (byte[], string, string)[sourceCount + referenceImages.Count];
 		if (sourcePng is not null)
-			files[0] = (PadPng (sourcePng, requestSize, whitePadding, out contentOffset), "reference_files", "pinta.png");
+			files[0] = (FitPng (sourcePng, requestSize, whitePadding, out contentOffset, out sourceResized), "reference_files", "pinta.png");
 		for (int i = 0; i < referenceImages.Count; i++)
 			files[sourceCount + i] = (referenceImages[i].Png, "reference_files", referenceImages[i].FileName);
 
 		Log (log, $"AI image start: service={imageService}, name={name}, target_size={FormatSize (targetSize)}, request_size={size}, content_offset={contentOffset.X},{contentOffset.Y}, images={files.Length}");
-		reportProgress?.Invoke ($"Generating {name} ({size})...", 0.25);
+		reportProgress?.Invoke (Translations.GetString ("Generating {0} ({1})...", name, size), 0.25);
 		using JsonDocument json = await jobs.RunImageAsync (
 			fields,
 			files,
@@ -227,7 +292,7 @@ public sealed class BackgroundCutoutService
 		Log (log, $"AI image response: name={name}, returned_size={FormatSize (GetPngSize (rawResult))}, returned_bytes={rawResult.Length}, form_size={ReadStringProperty (root, "size")}");
 		saveResult?.Invoke (GetRawResultFileName (fileName), rawResult);
 		reportProgress?.Invoke (Translations.GetString ("Normalizing AI image..."), 0.7);
-		byte[] normalized = NormalizePngSize (rawResult, targetSize, requestSize, contentOffset, name, log);
+		byte[] normalized = NormalizePngSize (rawResult, targetSize, requestSize, contentOffset, sourceResized, name, log);
 		saveResult?.Invoke (fileName, normalized);
 		return normalized;
 	}
@@ -263,16 +328,42 @@ public sealed class BackgroundCutoutService
 		if (imageSize.Width <= 0 || imageSize.Height <= 0)
 			return new (1024, 1024);
 
-		return imageService == AiRequestSettings.AgnesService
-			? GetAgnesImageRequestSize (imageSize)
-			: GetGptImageRequestSize (imageSize);
+		return imageService switch {
+			AiRequestSettings.AgnesService => GetAgnesImageRequestSize (imageSize),
+			AiRequestSettings.NanoBananaService => GetNanoBananaImageRequestSize (imageSize),
+			_ => GetGptImageRequestSize (imageSize),
+		};
+	}
+
+	private static Size? TryParseSize (string value)
+	{
+		string[] parts = value.Split ('x', StringSplitOptions.TrimEntries);
+		return parts.Length == 2
+			&& int.TryParse (parts[0], out int width)
+			&& int.TryParse (parts[1], out int height)
+			&& width > 0
+			&& height > 0
+			? new Size (width, height)
+			: null;
 	}
 
 	private static Size GetAgnesImageRequestSize (Size imageSize)
+		=> GetConfiguredImageRequestSize (imageSize, agnes_image_sizes, "Agnes");
+
+	private static Size GetNanoBananaImageRequestSize (Size imageSize)
+		=> GetConfiguredImageRequestSize (
+			imageSize,
+			NanoBananaImageConfig.GetImageGenerationSizes (),
+			"Nano Banana");
+
+	private static Size GetConfiguredImageRequestSize (
+		Size imageSize,
+		IReadOnlyList<Size> configuredSizes,
+		string serviceName)
 	{
 		Size? closest = null;
 		double closestDistance = double.MaxValue;
-		foreach (Size candidate in agnes_image_sizes) {
+		foreach (Size candidate in configuredSizes) {
 			if (candidate.Width < imageSize.Width || candidate.Height < imageSize.Height)
 				continue;
 
@@ -284,7 +375,7 @@ public sealed class BackgroundCutoutService
 			}
 		}
 
-		return closest ?? throw new InvalidOperationException ("Image is larger than every supported Agnes image size.");
+		return closest ?? throw new InvalidOperationException ($"Image is larger than every supported {serviceName} image size.");
 	}
 
 	private static Size GetGptImageRequestSize (Size imageSize)
@@ -314,14 +405,34 @@ public sealed class BackgroundCutoutService
 	private static int RoundUp (int value, int multiple)
 		=> checked((value + multiple - 1) / multiple * multiple);
 
-	private static byte[] PadPng (byte[] png, Size requestSize, bool whitePadding, out PointI contentOffset)
+	public static ImageFitInfo GetImageFitInfo (Size sourceSize, Size requestSize)
+	{
+		double scale = Math.Min (
+			requestSize.Width / (double) sourceSize.Width,
+			requestSize.Height / (double) sourceSize.Height);
+		int contentWidth = Math.Max (1, (int) Math.Round (sourceSize.Width * scale));
+		int contentHeight = Math.Max (1, (int) Math.Round (sourceSize.Height * scale));
+		return new (
+			new Size (contentWidth, contentHeight),
+			new PointI ((requestSize.Width - contentWidth) / 2, (requestSize.Height - contentHeight) / 2),
+			scale);
+	}
+
+	public static byte[] FitPng (
+		byte[] png,
+		Size requestSize,
+		bool whitePadding,
+		out PointI contentOffset,
+		out bool sourceResized)
 	{
 		using GdkPixbuf.Pixbuf pixbuf = LoadPixbuf (png);
-		if (pixbuf.Width > requestSize.Width || pixbuf.Height > requestSize.Height)
-			throw new InvalidOperationException ("Image is larger than the selected request size.");
-
-		contentOffset = new ((requestSize.Width - pixbuf.Width) / 2, (requestSize.Height - pixbuf.Height) / 2);
-		if (pixbuf.Width == requestSize.Width && pixbuf.Height == requestSize.Height)
+		ImageFitInfo fit = GetImageFitInfo (new Size (pixbuf.Width, pixbuf.Height), requestSize);
+		int contentWidth = fit.ContentSize.Width;
+		int contentHeight = fit.ContentSize.Height;
+		sourceResized = fit.ContentSize != new Size (pixbuf.Width, pixbuf.Height);
+		contentOffset = fit.Offset;
+		if (!sourceResized && contentOffset == PointI.Zero &&
+			pixbuf.Width == requestSize.Width && pixbuf.Height == requestSize.Height)
 			return png;
 
 		using Cairo.ImageSurface surface = CairoExtensions.CreateImageSurface (Cairo.Format.Argb32, requestSize.Width, requestSize.Height);
@@ -332,8 +443,14 @@ public sealed class BackgroundCutoutService
 		} else {
 			surface.Clear ();
 		}
-		using (Cairo.Context context = new (surface))
-			context.DrawPixbuf (pixbuf, contentOffset.X, contentOffset.Y);
+		using (Cairo.ImageSurface content = CairoExtensions.CreateImageSurface (Cairo.Format.Argb32, contentWidth, contentHeight)) {
+			using Cairo.Context contentContext = new (content);
+			contentContext.Scale (contentWidth / (double) pixbuf.Width, contentHeight / (double) pixbuf.Height);
+			contentContext.DrawPixbuf (pixbuf, PointD.Zero);
+			using Cairo.Context context = new (surface);
+			context.SetSourceSurface (content, contentOffset.X, contentOffset.Y);
+			context.Paint ();
+		}
 		using GdkPixbuf.Pixbuf padded = surface.ToPixbuf ();
 		return padded.SaveToBuffer ("png");
 	}
@@ -343,6 +460,7 @@ public sealed class BackgroundCutoutService
 		Size targetSize,
 		Size requestSize,
 		PointI contentOffset,
+		bool sourceResized,
 		string name,
 		Action<string>? log)
 	{
@@ -352,14 +470,26 @@ public sealed class BackgroundCutoutService
 			Log (log, $"AI image normalize: name={name}, action=none, size={FormatSize (returnedSize)}, bytes={png.Length}");
 			return png;
 		}
-		if (returnedSize == requestSize && targetSize.Width <= returnedSize.Width && targetSize.Height <= returnedSize.Height) {
+		if (returnedSize == requestSize) {
+			int cropWidth = returnedSize.Width;
+			int cropHeight = returnedSize.Height;
+			double targetAspect = targetSize.Width / (double) targetSize.Height;
+			double returnedAspect = returnedSize.Width / (double) returnedSize.Height;
+			if (returnedAspect > targetAspect)
+				cropWidth = Math.Max (1, (int) Math.Round (returnedSize.Height * targetAspect));
+			else if (returnedAspect < targetAspect)
+				cropHeight = Math.Max (1, (int) Math.Round (returnedSize.Width / targetAspect));
+			int cropX = (returnedSize.Width - cropWidth) / 2;
+			int cropY = (returnedSize.Height - cropHeight) / 2;
 			using Cairo.ImageSurface surface = CairoExtensions.CreateImageSurface (Cairo.Format.Argb32, targetSize.Width, targetSize.Height);
 			surface.Clear ();
-			using (Cairo.Context context = new (surface))
-				context.DrawPixbuf (pixbuf, -contentOffset.X, -contentOffset.Y);
+			using (Cairo.Context context = new (surface)) {
+				context.Scale (targetSize.Width / (double) cropWidth, targetSize.Height / (double) cropHeight);
+				context.DrawPixbuf (pixbuf, -cropX, -cropY);
+			}
 			using GdkPixbuf.Pixbuf cropped = surface.ToPixbuf ();
 			byte[] croppedResult = cropped.SaveToBuffer ("png");
-			Log (log, $"AI image normalize: name={name}, action=center-crop, from={FormatSize (returnedSize)}, to={FormatSize (targetSize)}, offset={contentOffset.X},{contentOffset.Y}, raw_bytes={png.Length}, normalized_bytes={croppedResult.Length}");
+			Log (log, $"AI image normalize: name={name}, action=center-crop-scale, from={FormatSize (returnedSize)}, to={FormatSize (targetSize)}, offset={cropX},{cropY}, source_resized={sourceResized}, raw_bytes={png.Length}, normalized_bytes={croppedResult.Length}");
 			return croppedResult;
 		}
 

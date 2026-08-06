@@ -44,26 +44,28 @@ public sealed class EffectsActions
 	public void AddEffect (string category, Command action)
 	{
 		var effects_menu = chrome.EffectsMenu;
+		string localizedCategory = Translations.GetString (category);
 
-		if (!Menus.ContainsKey (category)) {
+		if (!Menus.ContainsKey (localizedCategory)) {
 			var category_menu = Gio.Menu.New ();
-			effects_menu.AppendMenuItemSorted (Gio.MenuItem.NewSubmenu (category, category_menu));
-			Menus.Add (category, category_menu);
+			effects_menu.AppendMenuItemSorted (Gio.MenuItem.NewSubmenu (localizedCategory, category_menu));
+			Menus.Add (localizedCategory, category_menu);
 		}
 
 		Actions.Add (action);
 
-		Gio.Menu m = Menus[category];
+		Gio.Menu m = Menus[localizedCategory];
 		m.AppendMenuItemSorted (action.CreateMenuItem ());
 	}
 
 	// TODO: Remove menu category if empty
 	internal void RemoveEffect (string category, Command action)
 	{
-		if (!Menus.ContainsKey (category))
+		string localizedCategory = Translations.GetString (category);
+		if (!Menus.ContainsKey (localizedCategory))
 			return;
 
-		var menu = Menus[category];
+		var menu = Menus[localizedCategory];
 		menu.Remove (action);
 	}
 	#endregion

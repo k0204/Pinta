@@ -67,6 +67,28 @@ msgstr "关于 Pinta"
 msgid "Add New Layer"
 msgstr "添加新图层"
 
+#: ../Pinta.Core/Actions/LayerActions.cs:98
+#: ../Pinta.Core/Actions/LayerActions.cs:549
+msgid "Add New Group"
+msgstr "添加新组"
+
+#: ../Pinta.Core/Actions/LayerActions.cs:101
+msgid "AI Image Generation"
+msgstr "AI 图像生成"
+
+#: ../Pinta.Core/Actions/LayerActions.cs:198
+#: ../Pinta.Gui.Widgets/Widgets/Layers/LayersListViewItemWidget.cs:208
+msgid "Choose an image API and operation"
+msgstr "选择图像 API 和操作"
+
+#: ../Pinta.Core/Actions/LayerActions.cs:194
+msgid "Cutout"
+msgstr "抠图"
+
+#: ../Pinta.Core/Actions/LayerActions.cs:104
+msgid "Generate an image with AI"
+msgstr "使用 AI 生成图像"
+
 #: ../Pinta.Effects/Effects/AddNoiseEffect.cs:24
 msgid "Add Noise"
 msgstr "增加噪点"
@@ -622,6 +644,23 @@ msgstr "图层 {1} 无法导入图层 {0}"
 msgid "Could not open file: {0}"
 msgstr "无法打开文件：{0}"
 
+#: ../Pinta.Core/Actions/LayerActions.cs:122
+msgid "Create Multi-Direction Animation"
+msgstr "创建多方向动画"
+
+#: ../Pinta.Core/Actions/LayerActions.cs:123
+msgid "Create a multi-direction animation from the selected layer"
+msgstr "根据选定图层创建多方向动画"
+
+#: ../Pinta.Core/Actions/LayerActions.cs:134
+#: ../Pinta.Core/Actions/LayerActions.SingleDirection.cs:52
+msgid "Create Single-Direction Animation"
+msgstr "创建单方向动画"
+
+#: ../Pinta.Core/Actions/LayerActions.cs:135
+msgid "Create a single-direction animation from the selected layer"
+msgstr "根据选定图层创建单方向动画"
+
 #: ../Pinta.Effects/Effects/AddNoiseEffect.cs:175
 msgid "Coverage"
 msgstr "覆盖范围"
@@ -784,6 +823,14 @@ msgstr "椭圆形选择"
 #: ../Pinta.Effects/Effects/EmbossEffect.cs:26
 msgid "Emboss"
 msgstr "浮雕效果"
+
+#: ../Pinta.Core/Actions/LayerActions.cs:140
+msgid "Edit Animation Frames"
+msgstr "编辑动画帧"
+
+#: ../Pinta.Core/Actions/LayerActions.cs:141
+msgid "Edit the selected animation layer"
+msgstr "编辑选定的动画图层"
 
 #: ../Pinta/Main.cs:67
 msgid "Enable additional logging or behavior changes for debugging"
@@ -989,6 +1036,36 @@ msgstr "插件库"
 msgid "Gaussian Blur"
 msgstr "高斯模糊"
 
+#: ../Pinta.Core/Effects/BaseEffect.cs:76
+msgid "General"
+msgstr "常规"
+
+#: ../Pinta.Core/Actions/LayerActions.cs:110
+#: ../Pinta.Core/Actions/LayerActions.Spritesheet.cs:65
+msgid "Generate Spritesheet"
+msgstr "生成精灵图"
+
+#: ../Pinta.Core/Actions/LayerActions.cs:111
+msgid "Generate a direction sheet or action spritesheet with AI"
+msgstr "使用 AI 生成方向表或动作精灵图"
+
+#: ../Pinta.Core/Actions/LayerActions.cs:116
+#: ../Pinta.Core/Actions/LayerActions.SingleDirection.cs:128
+msgid "Generate Single-Direction Animation"
+msgstr "生成单方向动画"
+
+#: ../Pinta.Core/Actions/LayerActions.cs:117
+msgid "Generate a single-direction animation with AI"
+msgstr "使用 AI 生成单方向动画"
+
+#: ../Pinta/Pads/LayersPad.cs:71
+msgid "Generate Action Animation"
+msgstr "生成动作动画"
+
+#: ../Pinta/Pads/LayersPad.cs:76
+msgid "Generate a single-direction animation with action prompts"
+msgstr "使用动作提示生成单方向动画"
+
 #: ../Pinta.Tools/Tools/FloodTool.cs:132
 msgid "Global"
 msgstr "整个区域"
@@ -1021,6 +1098,10 @@ msgstr "绿色"
 msgid "Grid"
 msgstr "网格"
 
+#: ../Pinta.Core/Actions/LayerActions.cs:545
+msgid "Group"
+msgstr "组"
+
 #: ../Pinta.Core/Algorithms/PixelOps/UserBlendOps.cs:41
 msgid "Hard Light"
 msgstr "强光"
@@ -1034,6 +1115,7 @@ msgstr "重"
 #: ../Pinta/Dialogs/NewImageDialog.cs:328
 #: ../Pinta/Dialogs/ResizeCanvasDialog.cs:81
 #: ../Pinta/Dialogs/ResizeImageDialog.cs:126
+#: ../Pinta.Core/Actions/LayerActions.ImageSize.cs:39
 msgid "Height:"
 msgstr "高度："
 
@@ -1493,6 +1575,15 @@ msgstr "曼德勃罗分形"
 msgid "Martian Lava"
 msgstr ""
 
+#: ../Pinta.Core/Actions/LayerActions.cs:128
+#: ../Pinta.Core/Actions/LayerActions.ImageSplit.cs:50
+msgid "Split Image"
+msgstr "拆分图像"
+
+#: ../Pinta.Core/Actions/LayerActions.cs:129
+msgid "Split the selected image into child layers"
+msgstr "将选定图像拆分为子图层"
+
 #: ../Pinta.Tools/Brushes/SplatterBrush.cs:65
 msgid "Maximum Size"
 msgstr "最大尺寸"
@@ -1514,6 +1605,11 @@ msgstr "彩蛋栏"
 #: ../Pinta.Core/Actions/LayerActions.cs:333
 msgid "Merge Layer Down"
 msgstr "向下合并图层"
+
+#: ../Pinta.Core/Actions/LayerActions.cs:173
+#: ../Pinta.Core/Actions/LayerActions.cs:478
+msgid "Merge Selected Layers"
+msgstr "合并选定图层"
 
 #: ../Pinta.Tools/Brushes/SplatterBrush.cs:56
 msgid "Minimum Size"
@@ -2193,6 +2289,10 @@ msgstr "调整图像大小"
 msgid "Resize Image..."
 msgstr "调整图像大小..."
 
+#: ../Pinta.Core/Actions/LayerActions.cs:215
+msgid "Resize Layer..."
+msgstr "调整图层大小..."
+
 #: ../Pinta/Actions/Edit/ResizePaletteAction.cs:69
 msgid "Resize Palette"
 msgstr "调整调色板大小"
@@ -2316,6 +2416,18 @@ msgstr "另存为..."
 msgid "Save Image File"
 msgstr "保存图像文件"
 
+#: ../Pinta.Core/Actions/LayerActions.cs:185
+msgid "Save Layer Image..."
+msgstr "保存图层图像..."
+
+#: ../Pinta.Core/Actions/LayerActions.cs:186
+msgid "Save the selected layer and its visible child layers as an image"
+msgstr "将选定图层及其可见子图层保存为图像"
+
+#: ../Pinta.Core/Actions/LayerActions.Export.cs:37
+msgid "Save Layer Image"
+msgstr "保存图层图像"
+
 #: ../Pinta.Core/Actions/EditActions.cs:518
 msgid "Save Palette File"
 msgstr "保存调色板文件"
@@ -2360,6 +2472,14 @@ msgstr "次细"
 #: ../Pinta.Effects/Adjustments/SepiaEffect.cs:52
 msgid "Sepia"
 msgstr "复古褐色"
+
+#: ../Pinta.Core/Actions/LayerActions.cs:146
+msgid "Set as Character Anchor"
+msgstr "设为角色锚点"
+
+#: ../Pinta.Core/Actions/LayerActions.Spritesheet.cs:50
+msgid "Set Character Anchor"
+msgstr "设置角色锚点"
 
 #: ../Pinta.Core/Actions/EditActions.cs:188
 msgid "Set Number of Colors"
@@ -2815,6 +2935,7 @@ msgstr "白色"
 #: ../Pinta/Dialogs/NewImageDialog.cs:320
 #: ../Pinta/Dialogs/ResizeCanvasDialog.cs:73
 #: ../Pinta/Dialogs/ResizeImageDialog.cs:123
+#: ../Pinta.Core/Actions/LayerActions.ImageSize.cs:37
 msgid "Width:"
 msgstr "宽度："
 
@@ -2832,6 +2953,14 @@ msgstr "循环"
 #: ../Pinta.Core/Algorithms/PixelOps/UserBlendOps.cs:40
 msgid "Xor"
 msgstr "异或"
+
+#: ../Pinta.Gui.Widgets/Widgets/PointPickerWidget.cs:84
+msgid "X:"
+msgstr "X:"
+
+#: ../Pinta.Gui.Widgets/Widgets/PointPickerWidget.cs:90
+msgid "Y:"
+msgstr "Y:"
 
 #. Translators: {0} is 'Ctrl', or a platform-specific key such as 'Command' on macOS.
 #: ../Pinta.Core/Classes/SelectionModeHandler.cs:48
@@ -3354,6 +3483,84 @@ msgstr "{0}%"
 #~ msgid "Url:"
 #~ msgstr "Url："
 
+msgid "Image Split Preview"
+msgstr "拆分图片预览"
+
+msgid "Confirm and Generate"
+msgstr "确认并生成"
+
+msgid "Image service:"
+msgstr "图片服务："
+
+msgid "Generation cost:"
+msgstr "生成费用："
+
+msgid "{0} credits per image"
+msgstr "每张图片 {0} 积分"
+
+msgid "Cost unavailable"
+msgstr "费用不可用"
+
+msgid "Nano Banana"
+msgstr "Nano Banana"
+
+msgid "Agnes"
+msgstr "Agnes"
+
+msgid "GPT Image"
+msgstr "GPT Image"
+
+msgid "Nano Banana channel:"
+msgstr "Nano Banana 通道："
+
+msgid "GPT provider:"
+msgstr "GPT provider："
+
+msgid "Smaller ({0})"
+msgstr "较小（{0}）"
+
+msgid "Larger ({0})"
+msgstr "较大（{0}）"
+
+msgid "Custom size"
+msgstr "自定义尺寸"
+
+msgid "White padding"
+msgstr "白底补图"
+
+msgid "Original size:"
+msgstr "原图尺寸："
+
+msgid "AI request size:"
+msgstr "AI 请求尺寸："
+
+msgid "Scale:"
+msgstr "缩放比例："
+
+msgid "Padding:"
+msgstr "补图："
+
+msgid "Original image"
+msgstr "原图"
+
+msgid "Adapted image"
+msgstr "适配后图片"
+
+msgid "{0:P1}"
+msgstr "{0:P1}"
+
+msgid "Left {0}, right {1}, top {2}, bottom {3} px"
+msgstr "左 {0}，右 {1}，上 {2}，下 {3} 像素"
+
+msgid "No supported {0} resolution can contain the source image {1}."
+msgstr "没有支持的 {0} 分辨率可以容纳源图 {1}。"
+
+msgid "split image"
+msgstr "拆分图片"
+
+msgid "Transparent padding"
+msgstr "透明补图"
+
 #~ msgid "_Uninstall..."
 #~ msgstr "卸载..."
 
@@ -3404,3 +3611,24 @@ msgstr "保留画笔"
 
 msgid "Erase brush"
 msgstr "排除橡皮擦"
+
+msgid "Resolution:"
+msgstr "分辨率："
+
+msgid "Aspect ratio:"
+msgstr "宽高比："
+
+msgid "1K"
+msgstr "1K"
+
+msgid "2K"
+msgstr "2K"
+
+msgid "4K"
+msgstr "4K"
+
+msgid "Generating {0} ({1})..."
+msgstr "正在生成 {0}（{1}）..."
+
+msgid "Detected resolution: {0}"
+msgstr "检测到的分辨率：{0}"

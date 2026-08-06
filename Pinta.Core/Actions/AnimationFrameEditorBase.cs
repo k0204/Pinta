@@ -16,6 +16,7 @@ internal abstract partial class AnimationFrameEditorBase
 	protected readonly AI.SpritesheetAttemptInfo info;
 	private readonly IReadOnlyList<ImageSurface>? frame_surfaces;
 	private readonly bool editing_existing_frames;
+	private readonly bool allow_ai_analysis;
 	private readonly IReadOnlyList<UserLayer> output_attempts;
 	private readonly Action<SpritesheetSplitData> save_analysis;
 	private readonly Gtk.Window host_window;
@@ -67,7 +68,8 @@ internal abstract partial class AnimationFrameEditorBase
 		Action<SpritesheetSplitData> saveAnalysis,
 		SpritesheetSplitData? savedAnalysis,
 		IReadOnlyList<ImageSurface>? frameSurfaces = null,
-		IReadOnlyList<SpritesheetFrameSplit>? existingFrames = null)
+		IReadOnlyList<SpritesheetFrameSplit>? existingFrames = null,
+		bool allowAiAnalysis = true)
 	{
 		host_window = hostWindow;
 		set_submit_sensitive = setSubmitSensitive;
@@ -77,6 +79,7 @@ internal abstract partial class AnimationFrameEditorBase
 		this.info = info;
 		frame_surfaces = frameSurfaces;
 		editing_existing_frames = frameSurfaces is not null;
+		allow_ai_analysis = allowAiAnalysis;
 		output_attempts = outputAttempts;
 		this.analyze = analyze;
 		save_analysis = saveAnalysis;
@@ -114,14 +117,17 @@ internal abstract partial class AnimationFrameEditorBase
 		redo_position = CreateNavigationButton (Resources.StandardIcons.EditRedo, Translations.GetString ("Redo frame position"));
 		move_root = Gtk.CheckButton.NewWithLabel (Translations.GetString ("Move root anchor"));
 		move_root.SetTooltipText (Translations.GetString ("Shift the root anchor 30 pixels up by default; drag the anchor cross in the preview to adjust it."));
-		previous_frame_reference = Gtk.CheckButton.NewWithLabel ("上一帧参考");
-		previous_frame_reference.SetTooltipText ("勾选后在画布中显示上一帧，仅用于参考，无法操作。");
+		previous_frame_reference = Gtk.CheckButton.NewWithLabel (
+			Translations.GetString ("Previous Frame Reference"));
+		previous_frame_reference.SetTooltipText (Translations.GetString (
+			"Show the previous frame on the canvas for reference only. It cannot be edited."));
 		previous_frame_opacity = Gtk.Scale.NewWithRange (Gtk.Orientation.Horizontal, 0, 100, 1);
 		previous_frame_opacity.SetValue (70);
 		previous_frame_opacity.Digits = 0;
 		previous_frame_opacity.DrawValue = true;
 		previous_frame_opacity.Hexpand = true;
-		previous_frame_opacity.SetTooltipText ("调节上一帧参考图的透明度。");
+		previous_frame_opacity.SetTooltipText (Translations.GetString (
+			"Adjust the opacity of the previous frame reference."));
 		previous_frame_opacity.Sensitive = false;
 		validation_label = Gtk.Label.New (string.Empty);
 		sprite_name_label = Gtk.Label.New (string.Empty);

@@ -12,15 +12,22 @@ public sealed record AiProviderInfo (
 	string Id,
 	string Name,
 	[property: JsonPropertyName ("supports_chat")] bool SupportsChat,
-	[property: JsonPropertyName ("supports_image")] bool SupportsImage);
+	[property: JsonPropertyName ("supports_image")] bool SupportsImage,
+	[property: JsonPropertyName ("image_type")] string? ImageType = null,
+	[property: JsonPropertyName ("channel")] string? Channel = null,
+	[property: JsonPropertyName ("image_sizes")] IReadOnlyList<string>? ImageSizes = null,
+	[property: JsonPropertyName ("image_resolutions")] IReadOnlyList<string>? ImageResolutions = null,
+	[property: JsonPropertyName ("image_cost")] int ImageCost = 0);
 
 public sealed class AiProviderCatalog
 {
 	private const string cache_key = "ai-provider-catalog";
 	private static readonly AiProviderInfo[] defaults = [
-		new (AiRequestSettings.AgnesService, "Agnes", true, true),
-		new (AiRequestSettings.ZzswitchProvider, AiRequestSettings.ZzswitchProvider, true, true),
-		new (AiRequestSettings.LukyfaceProvider, AiRequestSettings.LukyfaceProvider, true, true),
+		new (AiRequestSettings.AgnesService, "Agnes", true, true, AiRequestSettings.AgnesService, AiRequestSettings.AgnesService),
+		new (AiRequestSettings.ZzswitchProvider, AiRequestSettings.ZzswitchProvider, true, true, AiRequestSettings.GptImageService, AiRequestSettings.ZzswitchProvider),
+		new (AiRequestSettings.LukyfaceProvider, AiRequestSettings.LukyfaceProvider, true, true, AiRequestSettings.GptImageService, AiRequestSettings.LukyfaceProvider),
+		new (AiRequestSettings.TokenX24Provider, "TokenX24", false, true, AiRequestSettings.NanoBananaService, AiRequestSettings.TokenX24Provider),
+		new (AiRequestSettings.VisionaryProvider, "Visionary", false, true, AiRequestSettings.NanoBananaService, AiRequestSettings.VisionaryProvider),
 	];
 
 	private readonly AiAuthService auth;
@@ -31,7 +38,7 @@ public sealed class AiProviderCatalog
 	{
 		this.auth = auth;
 		this.settings = settings;
-		providers = ReadCache (settings) ?? defaults;
+		providers = AddMissingNanoBananaDefaults (ReadCache (settings) ?? defaults);
 	}
 
 	public IReadOnlyList<AiProviderInfo> ChatProviders
@@ -39,6 +46,9 @@ public sealed class AiProviderCatalog
 
 	public IReadOnlyList<AiProviderInfo> ImageProviders
 		=> Filter (provider => provider.SupportsImage);
+
+	public AiProviderInfo? FindImageProvider (string providerId)
+		=> ImageProviders.FirstOrDefault (provider => provider.Id == providerId);
 
 	public async Task RefreshAsync (CancellationToken cancellationToken = default)
 	{
@@ -50,12 +60,21 @@ public sealed class AiProviderCatalog
 		if (loaded.Length == 0 || loaded.Any (item => string.IsNullOrWhiteSpace (item.Id)))
 			throw new InvalidOperationException ("The API server returned an invalid provider catalog.");
 
-		providers = loaded;
+		providers = AddMissingNanoBananaDefaults (loaded);
 		settings.PutSetting (cache_key, JsonSerializer.Serialize (loaded));
 	}
 
 	private IReadOnlyList<AiProviderInfo> Filter (Func<AiProviderInfo, bool> predicate)
 		=> [.. providers.Where (predicate)];
+
+	private static IReadOnlyList<AiProviderInfo> AddMissingNanoBananaDefaults (IReadOnlyList<AiProviderInfo> source)
+	{
+		List<AiProviderInfo> result = [.. source];
+		foreach (AiProviderInfo provider in defaults.Where (item => item.ImageType == AiRequestSettings.NanoBananaService))
+			if (result.All (item => item.Id != provider.Id))
+				result.Add (provider);
+		return result;
+	}
 
 	private static AiProviderInfo[]? ReadCache (ISettingsService settings)
 	{

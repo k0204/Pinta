@@ -64,6 +64,28 @@ msgstr ""
 msgid "Add New Layer"
 msgstr ""
 
+#: ../Pinta.Core/Actions/LayerActions.cs:98
+#: ../Pinta.Core/Actions/LayerActions.cs:549
+msgid "Add New Group"
+msgstr ""
+
+#: ../Pinta.Core/Actions/LayerActions.cs:101
+msgid "AI Image Generation"
+msgstr ""
+
+#: ../Pinta.Core/Actions/LayerActions.cs:104
+msgid "Generate an image with AI"
+msgstr ""
+
+#: ../Pinta.Core/Actions/LayerActions.cs:198
+#: ../Pinta.Gui.Widgets/Widgets/Layers/LayersListViewItemWidget.cs:208
+msgid "Choose an image API and operation"
+msgstr ""
+
+#: ../Pinta.Core/Actions/LayerActions.cs:194
+msgid "Cutout"
+msgstr ""
+
 #: ../Pinta.Effects/Effects/AddNoiseEffect.cs:24
 msgid "Add Noise"
 msgstr ""
@@ -610,6 +632,23 @@ msgstr ""
 msgid "Could not open file: {0}"
 msgstr ""
 
+#: ../Pinta.Core/Actions/LayerActions.cs:122
+msgid "Create Multi-Direction Animation"
+msgstr ""
+
+#: ../Pinta.Core/Actions/LayerActions.cs:123
+msgid "Create a multi-direction animation from the selected layer"
+msgstr ""
+
+#: ../Pinta.Core/Actions/LayerActions.cs:134
+#: ../Pinta.Core/Actions/LayerActions.SingleDirection.cs:52
+msgid "Create Single-Direction Animation"
+msgstr ""
+
+#: ../Pinta.Core/Actions/LayerActions.cs:135
+msgid "Create a single-direction animation from the selected layer"
+msgstr ""
+
 #: ../Pinta.Effects/Effects/AddNoiseEffect.cs:175
 msgid "Coverage"
 msgstr ""
@@ -771,6 +810,14 @@ msgstr ""
 
 #: ../Pinta.Effects/Effects/EmbossEffect.cs:26
 msgid "Emboss"
+msgstr ""
+
+#: ../Pinta.Core/Actions/LayerActions.cs:140
+msgid "Edit Animation Frames"
+msgstr ""
+
+#: ../Pinta.Core/Actions/LayerActions.cs:141
+msgid "Edit the selected animation layer"
 msgstr ""
 
 #: ../Pinta/Main.cs:67
@@ -977,6 +1024,36 @@ msgstr ""
 msgid "Gaussian Blur"
 msgstr ""
 
+#: ../Pinta.Core/Effects/BaseEffect.cs:76
+msgid "General"
+msgstr ""
+
+#: ../Pinta.Core/Actions/LayerActions.cs:110
+#: ../Pinta.Core/Actions/LayerActions.Spritesheet.cs:65
+msgid "Generate Spritesheet"
+msgstr ""
+
+#: ../Pinta.Core/Actions/LayerActions.cs:111
+msgid "Generate a direction sheet or action spritesheet with AI"
+msgstr ""
+
+#: ../Pinta.Core/Actions/LayerActions.cs:116
+#: ../Pinta.Core/Actions/LayerActions.SingleDirection.cs:128
+msgid "Generate Single-Direction Animation"
+msgstr ""
+
+#: ../Pinta.Core/Actions/LayerActions.cs:117
+msgid "Generate a single-direction animation with AI"
+msgstr ""
+
+#: ../Pinta/Pads/LayersPad.cs:71
+msgid "Generate Action Animation"
+msgstr ""
+
+#: ../Pinta/Pads/LayersPad.cs:76
+msgid "Generate a single-direction animation with action prompts"
+msgstr ""
+
 #: ../Pinta.Tools/Tools/FloodTool.cs:132
 msgid "Global"
 msgstr ""
@@ -1009,6 +1086,10 @@ msgstr ""
 msgid "Grid"
 msgstr ""
 
+#: ../Pinta.Core/Actions/LayerActions.cs:545
+msgid "Group"
+msgstr ""
+
 #: ../Pinta.Core/Algorithms/PixelOps/UserBlendOps.cs:41
 msgid "Hard Light"
 msgstr ""
@@ -1022,6 +1103,7 @@ msgstr ""
 #: ../Pinta/Dialogs/NewImageDialog.cs:328
 #: ../Pinta/Dialogs/ResizeCanvasDialog.cs:81
 #: ../Pinta/Dialogs/ResizeImageDialog.cs:126
+#: ../Pinta.Core/Actions/LayerActions.ImageSize.cs:39
 msgid "Height:"
 msgstr ""
 
@@ -1441,6 +1523,15 @@ msgstr ""
 msgid "Martian Lava"
 msgstr ""
 
+#: ../Pinta.Core/Actions/LayerActions.cs:128
+#: ../Pinta.Core/Actions/LayerActions.ImageSplit.cs:50
+msgid "Split Image"
+msgstr ""
+
+#: ../Pinta.Core/Actions/LayerActions.cs:129
+msgid "Split the selected image into child layers"
+msgstr ""
+
 #: ../Pinta.Tools/Brushes/SplatterBrush.cs:65
 msgid "Maximum Size"
 msgstr ""
@@ -1461,6 +1552,11 @@ msgstr ""
 #: ../Pinta.Core/Actions/LayerActions.cs:82
 #: ../Pinta.Core/Actions/LayerActions.cs:333
 msgid "Merge Layer Down"
+msgstr ""
+
+#: ../Pinta.Core/Actions/LayerActions.cs:173
+#: ../Pinta.Core/Actions/LayerActions.cs:478
+msgid "Merge Selected Layers"
 msgstr ""
 
 #: ../Pinta.Tools/Brushes/SplatterBrush.cs:56
@@ -2134,6 +2230,10 @@ msgstr ""
 msgid "Resize Image..."
 msgstr ""
 
+#: ../Pinta.Core/Actions/LayerActions.cs:215
+msgid "Resize Layer..."
+msgstr ""
+
 #: ../Pinta/Actions/Edit/ResizePaletteAction.cs:69
 msgid "Resize Palette"
 msgstr ""
@@ -2257,6 +2357,18 @@ msgstr ""
 msgid "Save Image File"
 msgstr ""
 
+#: ../Pinta.Core/Actions/LayerActions.cs:185
+msgid "Save Layer Image..."
+msgstr ""
+
+#: ../Pinta.Core/Actions/LayerActions.cs:186
+msgid "Save the selected layer and its visible child layers as an image"
+msgstr ""
+
+#: ../Pinta.Core/Actions/LayerActions.Export.cs:37
+msgid "Save Layer Image"
+msgstr ""
+
 #: ../Pinta.Core/Actions/EditActions.cs:518
 msgid "Save Palette File"
 msgstr ""
@@ -2300,6 +2412,14 @@ msgstr ""
 
 #: ../Pinta.Effects/Adjustments/SepiaEffect.cs:52
 msgid "Sepia"
+msgstr ""
+
+#: ../Pinta.Core/Actions/LayerActions.cs:146
+msgid "Set as Character Anchor"
+msgstr ""
+
+#: ../Pinta.Core/Actions/LayerActions.Spritesheet.cs:50
+msgid "Set Character Anchor"
 msgstr ""
 
 #: ../Pinta.Core/Actions/EditActions.cs:188
@@ -2754,6 +2874,7 @@ msgstr ""
 #: ../Pinta/Dialogs/NewImageDialog.cs:320
 #: ../Pinta/Dialogs/ResizeCanvasDialog.cs:73
 #: ../Pinta/Dialogs/ResizeImageDialog.cs:123
+#: ../Pinta.Core/Actions/LayerActions.ImageSize.cs:37
 msgid "Width:"
 msgstr ""
 
@@ -2770,6 +2891,14 @@ msgstr ""
 
 #: ../Pinta.Core/Algorithms/PixelOps/UserBlendOps.cs:40
 msgid "Xor"
+msgstr ""
+
+#: ../Pinta.Gui.Widgets/Widgets/PointPickerWidget.cs:84
+msgid "X:"
+msgstr ""
+
+#: ../Pinta.Gui.Widgets/Widgets/PointPickerWidget.cs:90
+msgid "Y:"
 msgstr ""
 
 #. Translators: {0} is 'Ctrl', or a platform-specific key such as 'Command' on macOS.
@@ -2918,4 +3047,138 @@ msgstr ""
 #: ../Pinta.Core/Actions/ViewActions.cs:377
 #, csharp-format
 msgid "{0}%"
+msgstr ""
+
+#: ../Pinta.Core/Actions/LayerActions.ImageSize.cs:45
+msgid "Resolution:"
+msgstr ""
+
+#: ../Pinta.Core/Actions/LayerActions.ImageSize.cs:47
+msgid "Aspect ratio:"
+msgstr ""
+
+#: ../Pinta.Core/Actions/LayerActions.ImageSize.cs:157
+msgid "1K"
+msgstr ""
+
+#: ../Pinta.Core/Actions/LayerActions.ImageSize.cs:158
+msgid "2K"
+msgstr ""
+
+#: ../Pinta.Core/Actions/LayerActions.ImageSize.cs:159
+msgid "4K"
+msgstr ""
+
+#: ../Pinta.Core/Actions/LayerActions.ImageSize.cs:140
+#, csharp-format
+msgid "Detected resolution: {0}"
+msgstr ""
+
+#: ../Pinta.Core/ai/BackgroundCutoutService.cs:244
+#, csharp-format
+msgid "Generating {0} ({1})..."
+msgstr ""
+
+#: ../Pinta.Core/Actions/LayerActions.ImageSplit.cs:59
+#: ../Pinta.Core/Actions/LayerActions.ImageSplit.cs:229
+#: ../Pinta.Core/Actions/LayerActions.ImageSplit.cs:260
+msgid "Image Split Preview"
+msgstr ""
+
+#: ../Pinta.Core/Actions/LayerActions.ImageSplit.cs:66
+msgid "Confirm and Generate"
+msgstr ""
+
+#: ../Pinta.Core/Actions/LayerActions.ImageSplit.cs:81
+#: ../Pinta.Core/Actions/LayerActions.ImageSplit.cs:349
+msgid "Image service:"
+msgstr ""
+
+#: ../Pinta.Core/Actions/LayerActions.ImageSplit.cs:83
+msgid "Generation cost:"
+msgstr ""
+
+#: ../Pinta.Core/Actions/LayerActions.ImageSplit.cs:86
+#, csharp-format
+msgid "Smaller ({0})"
+msgstr ""
+
+#: ../Pinta.Core/Actions/LayerActions.ImageSplit.cs:89
+#, csharp-format
+msgid "Larger ({0})"
+msgstr ""
+
+#: ../Pinta.Core/Actions/LayerActions.ImageSplit.cs:92
+msgid "Custom size"
+msgstr ""
+
+#: ../Pinta.Core/Actions/LayerActions.ImageSplit.cs:125
+msgid "White padding"
+msgstr ""
+
+#: ../Pinta.Core/Actions/LayerActions.ImageSplit.cs:136
+msgid "Original size:"
+msgstr ""
+
+#: ../Pinta.Core/Actions/LayerActions.ImageSplit.cs:137
+msgid "AI request size:"
+msgstr ""
+
+#: ../Pinta.Core/Actions/LayerActions.ImageSplit.cs:138
+msgid "Scale:"
+msgstr ""
+
+#: ../Pinta.Core/Actions/LayerActions.ImageSplit.cs:139
+msgid "Padding:"
+msgstr ""
+
+#: ../Pinta.Core/Actions/LayerActions.ImageSplit.cs:146
+msgid "Original image"
+msgstr ""
+
+#: ../Pinta.Core/Actions/LayerActions.ImageSplit.cs:146
+msgid "Adapted image"
+msgstr ""
+
+#: ../Pinta.Core/Actions/LayerActions.ImageSplit.cs:197
+#, csharp-format
+msgid "{0:P1}"
+msgstr ""
+
+#: ../Pinta.Core/Actions/LayerActions.ImageSplit.cs:337
+#, csharp-format
+msgid "Left {0}, right {1}, top {2}, bottom {3} px"
+msgstr ""
+
+#: ../Pinta.Core/Actions/LayerActions.ImageSplit.cs:262
+#, csharp-format
+msgid "No supported {0} resolution can contain the source image {1}."
+msgstr ""
+
+#: ../Pinta.Core/ai/BackgroundCutoutService.cs:141
+msgid "split image"
+msgstr ""
+
+#: ../Pinta.Core/Actions/LayerActions.ImageSplit.cs:347
+msgid "Nano Banana"
+msgstr ""
+
+#: ../Pinta.Core/Actions/LayerActions.ImageSplit.cs:348
+msgid "Agnes"
+msgstr ""
+
+#: ../Pinta.Core/Actions/LayerActions.ImageSplit.cs:349
+msgid "GPT Image"
+msgstr ""
+
+#: ../Pinta.Core/Actions/LayerActions.ImageSplit.cs:354
+msgid "Nano Banana channel:"
+msgstr ""
+
+#: ../Pinta.Core/Actions/LayerActions.ImageSplit.cs:355
+msgid "GPT provider:"
+msgstr ""
+
+#: ../Pinta.Core/Actions/LayerActions.ImageSplit.cs:242
+msgid "Transparent padding"
 msgstr ""

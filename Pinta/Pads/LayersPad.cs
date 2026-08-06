@@ -98,8 +98,10 @@ internal sealed class LayersPad : IDockPad
 		prop_section.AppendItem (layer_actions.Properties.CreateMenuItem ());
 
 		hamburger_menu.AppendItem (layer_actions.ImportFromFile.CreateMenuItem ());
+		hamburger_menu.AppendItem (layer_actions.GenerateSpritesheet.CreateMenuItem ());
 		hamburger_menu.AppendItem (layer_actions.GenerateSingleDirectionAnimation.CreateMenuItem ());
-		hamburger_menu.AppendItem (layer_actions.SplitSpritesheet.CreateMenuItem ());
+		hamburger_menu.AppendItem (layer_actions.CreateMultiDirectionAnimation.CreateMenuItem ());
+		hamburger_menu.AppendItem (layer_actions.ImageSplit.CreateMenuItem ());
 		hamburger_menu.AppendItem (layer_actions.CreateSingleDirectionAnimation.CreateMenuItem ());
 		hamburger_menu.AppendItem (layer_actions.EditSpritesheet.CreateMenuItem ());
 		hamburger_menu.AppendItem (layer_actions.SetSpritesheetAnchor.CreateMenuItem ());
@@ -118,7 +120,8 @@ internal sealed class LayersPad : IDockPad
 			layer_actions.GenerateImage.CreateDockToolBarItem (),
 			layer_actions.GenerateSpritesheet.CreateDockToolBarItem (),
 			layer_actions.GenerateSingleDirectionAnimation.CreateDockToolBarItem (),
-			layer_actions.SplitSpritesheet.CreateDockToolBarItem (),
+			layer_actions.CreateMultiDirectionAnimation.CreateDockToolBarItem (),
+			layer_actions.ImageSplit.CreateDockToolBarItem (),
 			layer_actions.CreateSingleDirectionAnimation.CreateDockToolBarItem (),
 			layer_actions.EditSpritesheet.CreateDockToolBarItem (),
 			layer_actions.DeleteLayer.CreateDockToolBarItem (),

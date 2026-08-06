@@ -37,7 +37,8 @@ public sealed partial class LayerActions
 	public Command GenerateImage { get; }
 	public Command GenerateSpritesheet { get; }
 	public Command GenerateSingleDirectionAnimation { get; }
-	public Command SplitSpritesheet { get; }
+	public Command CreateMultiDirectionAnimation { get; }
+	public Command ImageSplit { get; }
 	public Command CreateSingleDirectionAnimation { get; }
 	public Command EditSpritesheet { get; }
 	public Command SetSpritesheetAnchor { get; }
@@ -100,7 +101,7 @@ public sealed partial class LayerActions
 
 		GenerateImage = new Command (
 			"generateimage",
-			Translations.GetString ("AI 生成"),
+			Translations.GetString ("AI Image Generation"),
 			Translations.GetString ("Generate an image with AI"),
 			Resources.Icons.EffectsRenderClouds);
 
@@ -116,10 +117,16 @@ public sealed partial class LayerActions
 			Translations.GetString ("Generate a single-direction animation with AI"),
 			Resources.Icons.LayerDuplicate);
 
-		SplitSpritesheet = new Command (
-			"splitspritesheet",
+		CreateMultiDirectionAnimation = new Command (
+			"createmultidirectionanimation",
 			Translations.GetString ("Create Multi-Direction Animation"),
 			Translations.GetString ("Create a multi-direction animation from the selected layer"),
+			Resources.Icons.ImageCrop);
+
+		ImageSplit = new Command (
+			"imagesplit",
+			Translations.GetString ("Split Image"),
+			Translations.GetString ("Split the selected image into child layers"),
 			Resources.Icons.ImageCrop);
 
 		CreateSingleDirectionAnimation = new Command (
@@ -187,7 +194,7 @@ public sealed partial class LayerActions
 
 		Cutout = new Command (
 			"backgroundcutout",
-			Translations.GetString ("抠图"),
+			Translations.GetString ("Cutout"),
 			Translations.GetString ("Choose an image API and operation"),
 			Resources.Icons.ColorModeTransparency);
 
@@ -262,7 +269,8 @@ public sealed partial class LayerActions
 			GenerateImage,
 			GenerateSpritesheet,
 			GenerateSingleDirectionAnimation,
-			SplitSpritesheet,
+			CreateMultiDirectionAnimation,
+			ImageSplit,
 			CreateSingleDirectionAnimation,
 			EditSpritesheet,
 			SetSpritesheetAnchor,
@@ -294,7 +302,8 @@ public sealed partial class LayerActions
 		GenerateImage.Activated += HandlePintaCoreActionsLayersGenerateImageActivated;
 		GenerateSpritesheet.Activated += HandlePintaCoreActionsLayersGenerateSpritesheetActivated;
 		GenerateSingleDirectionAnimation.Activated += HandleGenerateSingleDirectionAnimationActivated;
-		SplitSpritesheet.Activated += HandlePintaCoreActionsLayersSplitSpritesheetActivated;
+		CreateMultiDirectionAnimation.Activated += HandlePintaCoreActionsLayersSplitSpritesheetActivated;
+		ImageSplit.Activated += HandlePintaCoreActionsLayersImageSplitActivated;
 		CreateSingleDirectionAnimation.Activated += HandleCreateSingleDirectionAnimationActivated;
 		EditSpritesheet.Activated += HandlePintaCoreActionsLayersSplitSpritesheetActivated;
 		SetSpritesheetAnchor.Activated += HandleSetSpritesheetAnchorActivated;
@@ -332,7 +341,7 @@ public sealed partial class LayerActions
 		GenerateSingleDirectionAnimation.Sensitive = hasSelectedLayer
 			&& CanCreateSpritesheetAnimation (activeDoc!.Layers.CurrentUserLayer)
 			&& !cutout_running;
-		SplitSpritesheet.Sensitive = hasSelectedLayer
+		CreateMultiDirectionAnimation.Sensitive = hasSelectedLayer
 			&& CanCreateSpritesheetAnimation (activeDoc!.Layers.CurrentUserLayer)
 			&& !cutout_running;
 		CreateSingleDirectionAnimation.Sensitive = hasSelectedLayer
@@ -345,6 +354,7 @@ public sealed partial class LayerActions
 		SetSpritesheetAnchor.Sensitive = hasSelectedLayer && IsDirectionSheetSource (activeDoc!.Layers.CurrentUserLayer);
 
 		bool currentEditable = hasSelectedLayer && activeDoc!.Layers.CurrentUserLayer.IsEditable;
+		ImageSplit.Sensitive = currentEditable && !cutout_running;
 		bool currentResizable = currentEditable || activeDoc?.Layers.CurrentUserLayer is AnimationOutputLayer;
 		bool canMergeDown = activeDoc?.Layers.CanMoveCurrentLayerDown () ?? false;
 		MergeLayerDown.Sensitive = canMergeDown && currentEditable && activeDoc!.Layers.GetSiblingBelow (activeDoc.Layers.CurrentUserLayer).IsEditable;

@@ -197,7 +197,7 @@ internal abstract partial class AnimationFrameEditorBase
 		Gtk.Box opacity_row = Gtk.Box.New (Gtk.Orientation.Horizontal, 6);
 		opacity_row.MarginStart = 8;
 		opacity_row.MarginEnd = 8;
-		Gtk.Label opacity_label = Gtk.Label.New ("参考透明度:");
+		Gtk.Label opacity_label = Gtk.Label.New (Translations.GetString ("Reference Opacity:"));
 		opacity_label.Halign = Gtk.Align.Start;
 		opacity_row.Append (opacity_label);
 		opacity_row.Append (previous_frame_opacity);
@@ -205,7 +205,7 @@ internal abstract partial class AnimationFrameEditorBase
 		InsetCardChild (move_root);
 		pos_card.Append (move_root);
 		Gtk.Label hint = Gtk.Label.New (Translations.GetString (
-			"拖动预览中的红色锚点，或输入 X/Y 数值。"));
+			"Drag the red anchor in the preview, or enter X/Y values."));
 		hint.Wrap = true;
 		hint.MaxWidthChars = 24;
 		hint.Xalign = 0;
@@ -281,11 +281,17 @@ internal abstract partial class AnimationFrameEditorBase
 		grid_controls.Append (advanced);
 		grid_controls.Append (align_character);
 
-		source_mode_stack.AddTitled (BuildSmartAnalyzeControls (), ai_source_mode,
-			Translations.GetString ("AI analysis"));
+		if (allow_ai_analysis)
+			source_mode_stack.AddTitled (BuildSmartAnalyzeControls (), ai_source_mode,
+				Translations.GetString ("AI analysis"));
 		source_mode_stack.AddTitled (grid_controls, grid_source_mode,
 			Translations.GetString ("Grid"));
 		source_mode_stack.VisibleChildName = grid_source_mode;
+		if (!allow_ai_analysis) {
+			Gtk.Box gridOnlyResult = Gtk.Box.New (Gtk.Orientation.Vertical, 6);
+			gridOnlyResult.Append (source_mode_stack);
+			return gridOnlyResult;
+		}
 
 		// Build custom segmented switcher so labels are always readable
 		Gtk.ToggleButton ai_btn = Gtk.ToggleButton.NewWithLabel (Translations.GetString ("AI analysis"));

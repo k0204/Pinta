@@ -81,13 +81,13 @@ public sealed partial class PointPickerWidget
 
 		// --- X spinner
 
-		Gtk.Label xLabel = Gtk.Label.New ("X:");
+		Gtk.Label xLabel = Gtk.Label.New (Translations.GetString ("X:"));
 		Gtk.SpinButton spinX = CreateSpinButton ();
 		Gtk.Button buttonResetX = CreateResetButton ();
 
 		// --- Y spinner
 
-		Gtk.Label yLabel = Gtk.Label.New ("Y:");
+		Gtk.Label yLabel = Gtk.Label.New (Translations.GetString ("Y:"));
 		Gtk.SpinButton spinY = CreateSpinButton ();
 		Gtk.Button buttonResetY = CreateResetButton ();
 

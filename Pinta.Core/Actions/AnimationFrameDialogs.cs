@@ -34,7 +34,9 @@ internal abstract class AnimationFrameDialogWindow : IDisposable
 			SpritesheetSplitData?,
 			IReadOnlyList<ImageSurface>?,
 			IReadOnlyList<SpritesheetFrameSplit>?,
-			AnimationFrameEditorBase> createEditor)
+			bool,
+			AnimationFrameEditorBase> createEditor,
+		bool allowAiAnalysis = true)
 	{
 		dialog = Gtk.Dialog.New ();
 		dialog.Title = Translations.GetString (editing ? editTitle : createTitle);
@@ -86,7 +88,8 @@ internal abstract class AnimationFrameDialogWindow : IDisposable
 			saveAnalysis,
 			savedAnalysis,
 			frameSurfaces,
-			existingFrames);
+			existingFrames,
+			allowAiAnalysis);
 		dialog.GetContentAreaBox ().Append (editor.Content);
 	}
 
@@ -114,7 +117,8 @@ internal sealed class MultiDirectionAnimationDialog : AnimationFrameDialogWindow
 		SpritesheetSplitData? savedAnalysis,
 		IReadOnlyList<ImageSurface>? frameSurfaces = null,
 		IReadOnlyList<SpritesheetFrameSplit>? existingFrames = null,
-		bool editing = false)
+		bool editing = false,
+		bool allowAiAnalysis = true)
 		: base (
 			parent,
 			source,
@@ -128,7 +132,8 @@ internal sealed class MultiDirectionAnimationDialog : AnimationFrameDialogWindow
 			editing,
 			"Create Multi-Direction Animation",
 			"Edit Multi-Direction Animation",
-			CreateEditor)
+			CreateEditor,
+			allowAiAnalysis)
 	{
 	}
 
@@ -142,8 +147,9 @@ internal sealed class MultiDirectionAnimationDialog : AnimationFrameDialogWindow
 		Action<SpritesheetSplitData> save,
 		SpritesheetSplitData? saved,
 		IReadOnlyList<ImageSurface>? surfaces,
-		IReadOnlyList<SpritesheetFrameSplit>? frames)
-		=> new MultiDirectionAnimationEditor (dialog, submit, source, info, attempts, analyze, save, saved, surfaces, frames);
+		IReadOnlyList<SpritesheetFrameSplit>? frames,
+		bool allowAiAnalysis)
+		=> new MultiDirectionAnimationEditor (dialog, submit, source, info, attempts, analyze, save, saved, surfaces, frames, allowAiAnalysis);
 }
 
 internal sealed class SingleDirectionAnimationDialog : AnimationFrameDialogWindow
@@ -158,7 +164,8 @@ internal sealed class SingleDirectionAnimationDialog : AnimationFrameDialogWindo
 		SpritesheetSplitData? savedAnalysis,
 		IReadOnlyList<ImageSurface>? frameSurfaces = null,
 		IReadOnlyList<SpritesheetFrameSplit>? existingFrames = null,
-		bool editing = false)
+		bool editing = false,
+		bool allowAiAnalysis = true)
 		: base (
 			parent,
 			source,
@@ -172,7 +179,8 @@ internal sealed class SingleDirectionAnimationDialog : AnimationFrameDialogWindo
 			editing,
 			"Create Single-Direction Animation",
 			"Edit Single-Direction Animation",
-			CreateEditor)
+			CreateEditor,
+			allowAiAnalysis)
 	{
 	}
 
@@ -186,6 +194,7 @@ internal sealed class SingleDirectionAnimationDialog : AnimationFrameDialogWindo
 		Action<SpritesheetSplitData> save,
 		SpritesheetSplitData? saved,
 		IReadOnlyList<ImageSurface>? surfaces,
-		IReadOnlyList<SpritesheetFrameSplit>? frames)
-		=> new SingleDirectionAnimationEditor (dialog, submit, source, info, attempts, analyze, save, saved, surfaces, frames);
+		IReadOnlyList<SpritesheetFrameSplit>? frames,
+		bool allowAiAnalysis)
+		=> new SingleDirectionAnimationEditor (dialog, submit, source, info, attempts, analyze, save, saved, surfaces, frames, allowAiAnalysis);
 }

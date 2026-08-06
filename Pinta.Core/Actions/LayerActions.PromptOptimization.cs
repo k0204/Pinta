@@ -51,7 +51,7 @@ public sealed partial class LayerActions
 	private static Gtk.Box CreatePromptSection (Gtk.ScrolledWindow promptScroll)
 	{
 		Gtk.Box section = Gtk.Box.New (Gtk.Orientation.Vertical, 6);
-		section.Append (CreateDialogLabel (Translations.GetString ("提示词")));
+		section.Append (CreateDialogLabel (Translations.GetString ("Prompt")));
 		section.Append (promptScroll);
 		return section;
 	}
@@ -61,11 +61,12 @@ public sealed partial class LayerActions
 		Gtk.ComboBoxText providerCombobox,
 		IReadOnlyList<AI.AiProviderInfo> imageProviders)
 	{
-		string requested = serviceCombobox.Active == 0
-			? AI.AiRequestSettings.AgnesService
-			: providerCombobox.Active >= 0 && providerCombobox.Active < imageProviders.Count
-				? imageProviders[providerCombobox.Active].Id
-				: AI.AiRequestSettings.GetGptProvider (PintaCore.Settings);
+		string requested = serviceCombobox.Active switch {
+			0 => AI.AiRequestSettings.AgnesService,
+			1 when providerCombobox.Active >= 0 && providerCombobox.Active < imageProviders.Count
+				=> imageProviders[providerCombobox.Active].Id,
+			_ => AI.AiRequestSettings.GetGptProvider (PintaCore.Settings),
+		};
 
 		foreach (AI.AiProviderInfo provider in PintaCore.AiProviders.ChatProviders)
 			if (provider.Id == requested)
@@ -126,11 +127,11 @@ public sealed partial class LayerActions
 			englishScroll.HeightRequest = 90;
 			englishScroll.SetChild (englishView);
 
-			optimizeButton = Gtk.Button.NewWithLabel (Translations.GetString ("AI 优化并翻译"));
-			optimizeButton.TooltipText = Translations.GetString ("将提示词优化并翻译为英文");
+			optimizeButton = Gtk.Button.NewWithLabel (Translations.GetString ("Optimize and Translate"));
+			optimizeButton.TooltipText = Translations.GetString ("Optimize the prompt and translate it to English.");
 			optimizeButton.OnClicked += async (_, _) => await OptimizeAsync ();
 
-			Gtk.Label promptLabel = CreateDialogLabel (Translations.GetString ("提示词"));
+			Gtk.Label promptLabel = CreateDialogLabel (Translations.GetString ("Prompt"));
 			promptLabel.Hexpand = true;
 			Gtk.Box promptHeader = Gtk.Box.New (Gtk.Orientation.Horizontal, 8);
 			promptHeader.Append (promptLabel);
@@ -148,7 +149,7 @@ public sealed partial class LayerActions
 				section.Append (historyRow);
 			section.Append (promptHeader);
 			section.Append (promptScroll);
-			section.Append (CreateDialogLabel (Translations.GetString ("英文提示词（发送给绘图 AI）")));
+			section.Append (CreateDialogLabel (Translations.GetString ("English Prompt (sent to image AI)")));
 			section.Append (englishScroll);
 			section.Append (statusLabel);
 			Section = section;
@@ -165,14 +166,14 @@ public sealed partial class LayerActions
 				return null;
 
 			Gtk.ComboBoxText historyCombo = Gtk.ComboBoxText.New ();
-			historyCombo.AppendText (Translations.GetString ("选择提示词历史记录"));
+			historyCombo.AppendText (Translations.GetString ("Select Prompt History"));
 			foreach (AI.AiPromptHistoryItem item in history)
 				historyCombo.AppendText (FormatPromptHistoryLabel (item));
 			historyCombo.Active = 0;
 			historyCombo.Hexpand = true;
 			historyCombo.OnChanged += (_, _) => RestoreHistory (historyCombo, history);
 
-			Gtk.Label historyLabel = CreateDialogLabel (Translations.GetString ("提示词历史记录"));
+			Gtk.Label historyLabel = CreateDialogLabel (Translations.GetString ("Prompt History"));
 			historyLabel.Hexpand = true;
 			Gtk.Box historyRow = Gtk.Box.New (Gtk.Orientation.Horizontal, 8);
 			historyRow.Append (historyLabel);
@@ -197,7 +198,7 @@ public sealed partial class LayerActions
 				updatingPrompt = false;
 			}
 			historyCombo.Active = 0;
-			SetStatus (Translations.GetString ("已恢复提示词历史记录。"), error: false);
+			SetStatus (Translations.GetString ("Prompt history restored."), error: false);
 		}
 
 		public string GetPrompt (string originalPrompt)
@@ -221,25 +222,25 @@ public sealed partial class LayerActions
 		{
 			string originalPrompt = ReadText (originalBuffer);
 			if (string.IsNullOrWhiteSpace (originalPrompt)) {
-				SetStatus (Translations.GetString ("请先输入提示词。"), error: true);
+				SetStatus (Translations.GetString ("Enter a prompt first."), error: true);
 				return;
 			}
 
 			optimizeButton.Sensitive = false;
-			SetStatus (Translations.GetString ("正在优化并翻译提示词..."), error: false);
+			SetStatus (Translations.GetString ("Optimizing and translating the prompt..."), error: false);
 			try {
 				AI.AiPromptOptimizationResult result = await service.OptimizeAndTranslateAsync (
 					originalPrompt,
 					getProvider (),
 					getReferenceImages ());
 				if (!string.Equals (originalPrompt, ReadText (originalBuffer), StringComparison.Ordinal)) {
-					SetStatus (Translations.GetString ("提示词已修改，未应用旧的优化结果。"), error: true);
+					SetStatus (Translations.GetString ("The prompt changed, so the old optimization was not applied."), error: true);
 					return;
 				}
 
 				if (string.IsNullOrWhiteSpace (result.ChinesePrompt)
 					|| string.IsNullOrWhiteSpace (result.EnglishPrompt)) {
-					SetStatus (Translations.GetString ("未返回完整的中英文优化提示词，将使用原提示词。"), error: false);
+					SetStatus (Translations.GetString ("The complete bilingual prompt was not returned; the original prompt will be used."), error: false);
 					return;
 				}
 
@@ -252,11 +253,11 @@ public sealed partial class LayerActions
 					updatingPrompt = false;
 				}
 				SetStatus (
-					Translations.GetString ("中英文优化提示词已生成，英文将优先发送给绘图 AI。"),
+					Translations.GetString ("The bilingual prompt is ready; the English version will be sent to the image AI."),
 					error: false);
 			} catch (Exception ex) {
 				Console.Error.WriteLine ($"Pinta: prompt optimization failed: {ex}");
-				SetStatus (Translations.GetString ("提示词优化失败，将使用原提示词。"), error: true);
+				SetStatus (Translations.GetString ("Prompt optimization failed; the original prompt will be used."), error: true);
 			} finally {
 				optimizeButton.Sensitive = true;
 			}
@@ -269,7 +270,7 @@ public sealed partial class LayerActions
 
 			englishPromptIsCurrent = false;
 			statusLabel.RemoveCssClass (AdwaitaStyles.Error);
-			statusLabel.SetText (Translations.GetString ("原文已修改，请点击优化并翻译更新中英文提示词。"));
+			statusLabel.SetText (Translations.GetString ("The original prompt changed; optimize and translate it to update both versions."));
 		}
 
 		private void SetStatus (string text, bool error)

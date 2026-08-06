@@ -73,7 +73,7 @@ public abstract class BaseEffect
 	/// <summary>
 	/// Returns the menu category for an effect. Only affects effects, not adjustments. Default is "General".
 	/// </summary>
-	public virtual string EffectMenuCategory => "General";
+	public virtual string EffectMenuCategory => Translations.GetString ("General");
 
 	/// <summary>
 	/// The user configurable data this effect uses.

@@ -1,0 +1,3602 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-08-06 16:55+0800\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: Pinta.Core/Actions/AddinActions.cs:40
+msgid "Add-in Manager..."
+msgstr ""
+
+#: Pinta.Core/Actions/AnimationFrameDialogs.cs:47
+#: Pinta.Core/Actions/AnimationFrameEditorBase.Guides.cs:401
+#: Pinta.Core/Actions/LayerActions.AiPreview.cs:23
+#: Pinta.Core/Actions/LayerActions.Background.cs:517
+#: Pinta.Core/Actions/LayerActions.Background.cs:676
+#: Pinta.Core/Actions/LayerActions.BorderDetection.cs:43
+#: Pinta.Core/Actions/LayerActions.Resolution.cs:35
+#: Pinta.Core/Actions/LayerActions.SingleDirection.cs:186
+#: Pinta.Core/Extensions/Gtk/GtkExtensions.Widget.cs:215
+#: Pinta.Core/Extensions/Gtk/GtkExtensions.Widget.cs:217
+#: Pinta/Actions/Edit/PasteAction.cs:234
+#: Pinta/Actions/File/CloseDocumentAction.cs:83
+#: Pinta/Actions/File/SaveDocumentImplementationAction.cs:330
+#: Pinta/Dialogs/AiAccountDialog.cs:51
+#: Pinta/Dialogs/KeyboardShortcutsDialog.cs:285
+#: Pinta/Dialogs/KeyboardShortcutsDialog.cs:299
+#: Pinta/Dialogs/ProgressDialog.cs:74
+msgid "_Cancel"
+msgstr ""
+
+#: Pinta.Core/Actions/AnimationFrameDialogs.cs:49
+#: Pinta.Core/Actions/EditActions.cs:534 Pinta.Core/Actions/FileActions.cs:88
+#: Pinta.Core/Actions/LayerActions.Export.cs:40
+#: Pinta/Actions/File/SaveDocumentImplementationAction.cs:100
+msgid "Save"
+msgstr ""
+
+#: Pinta.Core/Actions/AnimationFrameDialogs.cs:54
+msgid "Maximize dialog"
+msgstr ""
+
+#: Pinta.Core/Actions/AnimationFrameEditorBase.Analysis.cs:21
+msgid "Analyzing sprite bounds..."
+msgstr ""
+
+#: Pinta.Core/Actions/AnimationFrameEditorBase.Analysis.cs:25
+#, csharp-format
+msgid "Smart analysis found {0} sprites."
+msgstr ""
+
+#: Pinta.Core/Actions/AnimationFrameEditorBase.Analysis.cs:28
+#, csharp-format
+msgid "Smart analysis failed: {0}"
+msgstr ""
+
+#: Pinta.Core/Actions/AnimationFrameEditorBase.cs:97
+msgid "Detect and align character registration"
+msgstr ""
+
+#: Pinta.Core/Actions/AnimationFrameEditorBase.cs:114
+msgid "Previous frame"
+msgstr ""
+
+#: Pinta.Core/Actions/AnimationFrameEditorBase.cs:115
+msgid "Next frame"
+msgstr ""
+
+#: Pinta.Core/Actions/AnimationFrameEditorBase.cs:116
+msgid "Undo frame position"
+msgstr ""
+
+#: Pinta.Core/Actions/AnimationFrameEditorBase.cs:117
+msgid "Redo frame position"
+msgstr ""
+
+#: Pinta.Core/Actions/AnimationFrameEditorBase.cs:118
+msgid "Move root anchor"
+msgstr ""
+
+#: Pinta.Core/Actions/AnimationFrameEditorBase.cs:119
+msgid ""
+"Shift the root anchor 30 pixels up by default; drag the anchor cross in the "
+"preview to adjust it."
+msgstr ""
+
+#: Pinta.Core/Actions/AnimationFrameEditorBase.cs:121
+msgid "Previous Frame Reference"
+msgstr ""
+
+#: Pinta.Core/Actions/AnimationFrameEditorBase.cs:123
+msgid ""
+"Show the previous frame on the canvas for reference only. It cannot be "
+"edited."
+msgstr ""
+
+#: Pinta.Core/Actions/AnimationFrameEditorBase.cs:130
+msgid "Adjust the opacity of the previous frame reference."
+msgstr ""
+
+#: Pinta.Core/Actions/AnimationFrameEditorBase.cs:463
+msgid "Run AI analysis to detect sprites."
+msgstr ""
+
+#: Pinta.Core/Actions/AnimationFrameEditorBase.cs:465
+msgid ""
+"The output canvas must match the frames already in the selected attempt."
+msgstr ""
+
+#: Pinta.Core/Actions/AnimationFrameEditorBase.cs:467
+#, csharp-format
+msgid "{0} sprites will be created."
+msgstr ""
+
+#: Pinta.Core/Actions/AnimationFrameEditorBase.cs:468
+msgid ""
+"The grid exceeds the source image, contains more than 256 cells, or the "
+"output canvases are too large."
+msgstr ""
+
+#: Pinta.Core/Actions/AnimationFrameEditorBase.Guides.cs:398
+msgid "Guide position"
+msgstr ""
+
+#: Pinta.Core/Actions/AnimationFrameEditorBase.Guides.cs:402
+#: Pinta.Core/Extensions/Gtk/GtkExtensions.Widget.cs:214
+#: Pinta.Core/Extensions/Gtk/GtkExtensions.Widget.cs:218
+#: Pinta.Gui.Addins/InstallDialog.cs:220 Pinta/Dialogs/ErrorDialog.cs:45
+#: Pinta/Dialogs/ErrorDialog.cs:75
+msgid "_OK"
+msgstr ""
+
+#: Pinta.Core/Actions/AnimationFrameEditorBase.Guides.cs:406
+msgid "Position:"
+msgstr ""
+
+#: Pinta.Core/Actions/AnimationFrameEditorBase.Layout.cs:80
+msgid "Source extraction"
+msgstr ""
+
+#: Pinta.Core/Actions/AnimationFrameEditorBase.Layout.cs:94
+msgid "Source preview"
+msgstr ""
+
+#: Pinta.Core/Actions/AnimationFrameEditorBase.Layout.cs:115
+msgid "Frames"
+msgstr ""
+
+#: Pinta.Core/Actions/AnimationFrameEditorBase.Layout.cs:160
+msgid "Output canvas"
+msgstr ""
+
+#: Pinta.Core/Actions/AnimationFrameEditorBase.Layout.cs:162
+#: Pinta.Core/Actions/LayerActions.ImageSize.cs:32
+#: Pinta/Dialogs/CanvasGridSettingsDialog.cs:95
+#: Pinta/Dialogs/CanvasGridSettingsDialog.cs:105
+#: Pinta/Dialogs/NewImageDialog.cs:340 Pinta/Dialogs/ResizeCanvasDialog.cs:80
+#: Pinta/Dialogs/ResizeImageDialog.cs:123
+#: Pinta/Dialogs/ResizeLayerDialog.cs:125
+msgid "Width:"
+msgstr ""
+
+#: Pinta.Core/Actions/AnimationFrameEditorBase.Layout.cs:163
+#: Pinta.Core/Actions/LayerActions.ImageSize.cs:34
+#: Pinta/Dialogs/CanvasGridSettingsDialog.cs:99
+#: Pinta/Dialogs/NewImageDialog.cs:348 Pinta/Dialogs/ResizeCanvasDialog.cs:87
+#: Pinta/Dialogs/ResizeImageDialog.cs:126
+#: Pinta/Dialogs/ResizeLayerDialog.cs:128
+msgid "Height:"
+msgstr ""
+
+#: Pinta.Core/Actions/AnimationFrameEditorBase.Layout.cs:170
+msgid "Output attempt"
+msgstr ""
+
+#: Pinta.Core/Actions/AnimationFrameEditorBase.Layout.cs:181
+msgid "Position"
+msgstr ""
+
+#: Pinta.Core/Actions/AnimationFrameEditorBase.Layout.cs:187
+msgid "X:"
+msgstr ""
+
+#: Pinta.Core/Actions/AnimationFrameEditorBase.Layout.cs:189
+msgid "Y:"
+msgstr ""
+
+#: Pinta.Core/Actions/AnimationFrameEditorBase.Layout.cs:200
+msgid "Reference Opacity:"
+msgstr ""
+
+#: Pinta.Core/Actions/AnimationFrameEditorBase.Layout.cs:208
+msgid "Drag the red anchor in the preview, or enter X/Y values."
+msgstr ""
+
+#: Pinta.Core/Actions/AnimationFrameEditorBase.Layout.cs:268
+msgid "Columns:"
+msgstr ""
+
+#: Pinta.Core/Actions/AnimationFrameEditorBase.Layout.cs:269
+msgid "Rows:"
+msgstr ""
+
+#: Pinta.Core/Actions/AnimationFrameEditorBase.Layout.cs:270
+msgid "Cell width:"
+msgstr ""
+
+#: Pinta.Core/Actions/AnimationFrameEditorBase.Layout.cs:271
+msgid "Cell height:"
+msgstr ""
+
+#: Pinta.Core/Actions/AnimationFrameEditorBase.Layout.cs:274
+msgid "Offsets and gaps"
+msgstr ""
+
+#: Pinta.Core/Actions/AnimationFrameEditorBase.Layout.cs:276
+msgid "Left offset:"
+msgstr ""
+
+#: Pinta.Core/Actions/AnimationFrameEditorBase.Layout.cs:277
+msgid "Top offset:"
+msgstr ""
+
+#: Pinta.Core/Actions/AnimationFrameEditorBase.Layout.cs:278
+msgid "Horizontal gap:"
+msgstr ""
+
+#: Pinta.Core/Actions/AnimationFrameEditorBase.Layout.cs:279
+msgid "Vertical gap:"
+msgstr ""
+
+#: Pinta.Core/Actions/AnimationFrameEditorBase.Layout.cs:286
+#: Pinta.Core/Actions/AnimationFrameEditorBase.Layout.cs:297
+msgid "AI analysis"
+msgstr ""
+
+#: Pinta.Core/Actions/AnimationFrameEditorBase.Layout.cs:288
+#: Pinta.Core/Actions/AnimationFrameEditorBase.Layout.cs:304
+#: Pinta.Tools/Brushes/GridBrush.cs:36
+msgid "Grid"
+msgstr ""
+
+#: Pinta.Core/Actions/AnimationFrameEditorBase.Layout.cs:336
+msgid "Analysis provider:"
+msgstr ""
+
+#: Pinta.Core/Actions/AnimationFrameEditorBase.Layout.cs:345
+msgid "Auto analyze"
+msgstr ""
+
+#: Pinta.Core/Actions/AnimationFrameEditorBase.Layout.cs:346
+msgid "Use AI to detect sprite bounds and foot anchors"
+msgstr ""
+
+#: Pinta.Core/Actions/AnimationFrameEditorBase.Layout.cs:431
+msgid "Resize left panel"
+msgstr ""
+
+#: Pinta.Core/Actions/AnimationFrameEditorBase.Layout.cs:459
+#: Pinta.Core/Actions/AnimationFrameEditorBase.Layout.cs:525
+msgid "Collapse left panel"
+msgstr ""
+
+#: Pinta.Core/Actions/AnimationFrameEditorBase.Output.cs:13
+msgid "Current attempt"
+msgstr ""
+
+#: Pinta.Core/Actions/AnimationFrameEditorBase.Output.cs:15
+#, csharp-format
+msgid "Add directions to {0}"
+msgstr ""
+
+#: Pinta.Core/Actions/AppActions.cs:45
+msgid "About"
+msgstr ""
+
+#: Pinta.Core/Actions/AppActions.cs:50
+msgid "AI Account..."
+msgstr ""
+
+#: Pinta.Core/Actions/AppActions.cs:51
+msgid "Login or register for AI features"
+msgstr ""
+
+#: Pinta.Core/Actions/AppActions.cs:55
+#: Pinta/Dialogs/KeyboardShortcutsDialog.cs:38
+msgid "Keyboard Shortcuts"
+msgstr ""
+
+#: Pinta.Core/Actions/AppActions.cs:61
+msgid "Quit"
+msgstr ""
+
+#: Pinta.Core/Actions/EditActions.cs:72
+msgid "Undo"
+msgstr ""
+
+#: Pinta.Core/Actions/EditActions.cs:79
+msgid "Redo"
+msgstr ""
+
+#: Pinta.Core/Actions/EditActions.cs:86 Pinta.Core/Actions/EditActions.cs:379
+msgid "Cut"
+msgstr ""
+
+#: Pinta.Core/Actions/EditActions.cs:93
+msgid "Copy"
+msgstr ""
+
+#: Pinta.Core/Actions/EditActions.cs:100
+msgid "Copy Merged"
+msgstr ""
+
+#: Pinta.Core/Actions/EditActions.cs:107
+#: Pinta.Core/HistoryItems/PasteHistoryItem.cs:38
+#: Pinta/Actions/Edit/PasteAction.cs:143
+msgid "Paste"
+msgstr ""
+
+#: Pinta.Core/Actions/EditActions.cs:114 Pinta/Actions/Edit/PasteAction.cs:142
+msgid "Paste Into New Layer"
+msgstr ""
+
+#: Pinta.Core/Actions/EditActions.cs:122
+msgid "Paste Into New Image"
+msgstr ""
+
+#: Pinta.Core/Actions/EditActions.cs:129 Pinta.Core/Actions/EditActions.cs:380
+msgid "Erase Selection"
+msgstr ""
+
+#: Pinta.Core/Actions/EditActions.cs:136 Pinta.Core/Actions/EditActions.cs:330
+msgid "Fill Selection"
+msgstr ""
+
+#: Pinta.Core/Actions/EditActions.cs:143 Pinta.Core/Actions/EditActions.cs:620
+msgid "Invert Selection"
+msgstr ""
+
+#: Pinta.Core/Actions/EditActions.cs:150
+#: Pinta/Actions/Edit/OffsetSelectionAction.cs:79
+#: Pinta/Dialogs/OffsetSelectionDialog.cs:52
+msgid "Offset Selection"
+msgstr ""
+
+#: Pinta.Core/Actions/EditActions.cs:157 Pinta.Core/Actions/EditActions.cs:346
+msgid "Select All"
+msgstr ""
+
+#: Pinta.Core/Actions/EditActions.cs:164
+msgid "Deselect All"
+msgstr ""
+
+#: Pinta.Core/Actions/EditActions.cs:171 Pinta.Core/Actions/FileActions.cs:73
+msgid "Open..."
+msgstr ""
+
+#: Pinta.Core/Actions/EditActions.cs:177 Pinta.Core/Actions/FileActions.cs:95
+msgid "Save As..."
+msgstr ""
+
+#: Pinta.Core/Actions/EditActions.cs:183
+msgid "Reset to Default"
+msgstr ""
+
+#: Pinta.Core/Actions/EditActions.cs:189
+msgid "Set Number of Colors"
+msgstr ""
+
+#: Pinta.Core/Actions/EditActions.cs:237
+msgid "Palette"
+msgstr ""
+
+#: Pinta.Core/Actions/EditActions.cs:394
+msgid "Deselect"
+msgstr ""
+
+#: Pinta.Core/Actions/EditActions.cs:500
+msgid "Open Palette File"
+msgstr ""
+
+#: Pinta.Core/Actions/EditActions.cs:523
+msgid "Unsupported palette format"
+msgstr ""
+
+#: Pinta.Core/Actions/EditActions.cs:531
+msgid "Save Palette File"
+msgstr ""
+
+#: Pinta.Core/Actions/EditActions.cs:535
+#: Pinta.Core/Actions/LayerActions.Export.cs:41
+#: Pinta.Gui.Addins/InstallDialog.cs:126
+#: Pinta.Gui.Widgets/Widgets/ColorPickerDialog.cs:498
+#: Pinta.Tools/Tools/DetectBorderTool.cs:149
+#: Pinta/Actions/File/SaveDocumentImplementationAction.cs:101
+msgid "Cancel"
+msgstr ""
+
+#: Pinta.Core/Actions/EditActions.cs:581
+msgid "Palette files"
+msgstr ""
+
+#: Pinta.Core/Actions/EditActions.cs:598
+#: Pinta.Gui.Addins/AddinManagerDialog.cs:302
+#: Pinta/Actions/File/OpenDocumentAction.cs:116
+msgid "All files"
+msgstr ""
+
+#: Pinta.Core/Actions/FileActions.cs:59
+msgid "New..."
+msgstr ""
+
+#: Pinta.Core/Actions/FileActions.cs:63
+msgid "New"
+msgstr ""
+
+#: Pinta.Core/Actions/FileActions.cs:67
+msgid "New Screenshot..."
+msgstr ""
+
+#: Pinta.Core/Actions/FileActions.cs:77
+msgid "Open"
+msgstr ""
+
+#: Pinta.Core/Actions/FileActions.cs:81 Pinta.Docking/Dock.cs:876
+#: Pinta.Gui.Addins/InstallDialog.cs:343
+msgid "Close"
+msgstr ""
+
+#: Pinta.Core/Actions/FileActions.cs:102
+msgid "Print"
+msgstr ""
+
+#: Pinta.Core/Actions/HelpActions.cs:46
+msgid "Contents"
+msgstr ""
+
+#: Pinta.Core/Actions/HelpActions.cs:53
+msgid "Pinta Website"
+msgstr ""
+
+#: Pinta.Core/Actions/HelpActions.cs:59
+msgid "File a Bug"
+msgstr ""
+
+#: Pinta.Core/Actions/HelpActions.cs:65
+msgid "Translate This Application"
+msgstr ""
+
+#: Pinta.Core/Actions/ImageActions.cs:57 Pinta.Core/Actions/ImageActions.cs:322
+msgid "Crop to Selection"
+msgstr ""
+
+#: Pinta.Core/Actions/ImageActions.cs:63
+msgid "Auto Crop"
+msgstr ""
+
+#: Pinta.Core/Actions/ImageActions.cs:69
+msgid "Resize Image..."
+msgstr ""
+
+#: Pinta.Core/Actions/ImageActions.cs:76
+msgid "Resize Canvas..."
+msgstr ""
+
+#: Pinta.Core/Actions/ImageActions.cs:83 Pinta.Core/Actions/LayerActions.cs:203
+msgid "Flip Horizontal"
+msgstr ""
+
+#: Pinta.Core/Actions/ImageActions.cs:89 Pinta.Core/Actions/LayerActions.cs:209
+msgid "Flip Vertical"
+msgstr ""
+
+#: Pinta.Core/Actions/ImageActions.cs:95
+#: Pinta.Core/HistoryItems/InvertHistoryItem.cs:59
+msgid "Rotate 90° Clockwise"
+msgstr ""
+
+#: Pinta.Core/Actions/ImageActions.cs:101
+#: Pinta.Core/HistoryItems/InvertHistoryItem.cs:63
+msgid "Rotate 90° Counter-Clockwise"
+msgstr ""
+
+#: Pinta.Core/Actions/ImageActions.cs:107
+#: Pinta.Core/HistoryItems/InvertHistoryItem.cs:47
+msgid "Rotate 180°"
+msgstr ""
+
+#: Pinta.Core/Actions/ImageActions.cs:113
+#: Pinta.Core/Actions/ImageActions.cs:241
+#: Pinta/Actions/File/SaveDocumentImplementationAction.cs:331
+msgid "Flatten"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.AiPreview.cs:18
+msgid "Review Generated Image"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.AiPreview.cs:24
+msgid "Confirm"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.AiPreview.cs:37
+msgid "Previous generated image"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.AiPreview.cs:38
+msgid "Next generated image"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.AiPreview.cs:76
+#, csharp-format
+msgid "Generated image {0} of {1}"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.AiPreview.cs:107
+msgid "No original image"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Background.cs:83
+msgid "Preparing image request..."
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Background.cs:116
+#: Pinta.Core/Actions/LayerActions.Background.cs:145
+#: Pinta.Core/Actions/LayerActions.Background.cs:250
+#: Pinta.Core/Actions/LayerActions.Background.cs:369
+#: Pinta.Core/Actions/LayerActions.Background.cs:411
+msgid "Image generation canceled."
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Background.cs:121
+msgid "Creating generated image layer..."
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Background.cs:139
+#: Pinta.Core/Actions/LayerActions.Background.cs:265
+msgid "Refreshing balance..."
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Background.cs:142
+msgid "Image generation complete."
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Background.cs:149
+msgid "Image Generation Failed"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Background.cs:150
+#: Pinta.Core/Actions/LayerActions.Background.cs:276
+msgid ""
+"Check the selected images, API server logs, balance, and login status, then "
+"try again."
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Background.cs:194
+msgid "background cleanup"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Background.cs:206
+#: Pinta.Core/Actions/LayerActions.Background.cs:231
+#: Pinta.Core/Actions/LayerActions.Background.cs:260
+#: Pinta.Core/Actions/LayerActions.Background.cs:667
+msgid "Background Cleanup"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Background.cs:207
+#: Pinta.Core/Actions/LayerActions.Background.cs:212
+#: Pinta.Core/Actions/LayerActions.Background.cs:324
+#: Pinta.Core/Actions/LayerActions.Background.cs:329
+msgid "Preparing image..."
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Background.cs:247
+#: Pinta.Core/Actions/LayerActions.Background.cs:256
+#: Pinta.Core/Actions/LayerActions.Background.cs:1096
+msgid "White Background"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Background.cs:255
+msgid "Creating white background layer..."
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Background.cs:268
+msgid "Background cleanup complete."
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Background.cs:271
+msgid "Background cleanup canceled."
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Background.cs:275
+msgid "Background Cleanup Failed"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Background.cs:311
+msgid "cutout"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Background.cs:323
+#: Pinta.Core/Actions/LayerActions.Background.cs:352
+#: Pinta.Core/Actions/LayerActions.Background.cs:384
+#: Pinta.Core/Actions/LayerActions.Background.cs:396
+#: Pinta.Core/Actions/LayerActions.Background.cs:565
+#: Pinta.Core/Actions/LayerActions.cs:197
+#: Pinta.Gui.Widgets/Widgets/Layers/LayersListViewItemWidget.cs:206
+msgid "Cutout"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Background.cs:334
+#: Pinta.Core/Actions/LayerActions.Background.cs:366
+#: Pinta.Core/Actions/LayerActions.Background.cs:408
+msgid "Transparent Cutout"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Background.cs:350
+#: Pinta.Core/ai/BackgroundCutoutService.cs:185
+msgid "Requesting Baidu intelligent cutout..."
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Background.cs:374
+msgid "Creating transparent layer..."
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Background.cs:415
+msgid "Creating black and transparent layers..."
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Background.cs:416
+#: Pinta.Core/Actions/LayerActions.Background.cs:420
+msgid "Black Background"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Background.cs:434
+msgid "Cutout complete."
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Background.cs:437
+msgid "Cutout canceled."
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Background.cs:441
+msgid "Cutout Failed"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Background.cs:442
+msgid ""
+"Check the selected API, server logs, balance, and image, then try again."
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Background.cs:518
+msgid "_Retry"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Background.cs:529
+msgid "AI Request Settings"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Background.cs:535
+#: Pinta.Core/Actions/LayerActions.Background.cs:699
+msgid "Agnes"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Background.cs:536
+#: Pinta.Core/Actions/LayerActions.Background.cs:700
+msgid "GPT Image"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Background.cs:537
+#: Pinta.Core/Actions/LayerActions.Background.cs:701
+msgid "Nano Banana"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Background.cs:538
+msgid "Baidu"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Background.cs:549
+#: Pinta.Core/Actions/LayerActions.Background.cs:585
+#: Pinta.Core/Actions/LayerActions.Background.cs:714
+#: Pinta.Core/Actions/LayerActions.Background.cs:728
+msgid "GPT provider:"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Background.cs:557
+#: Pinta.Core/Actions/LayerActions.Background.cs:757
+msgid "Image service:"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Background.cs:561
+#: Pinta.Core/Actions/LayerActions.Background.cs:763
+msgid "Generation cost:"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Background.cs:564
+msgid "Generate White Background"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Background.cs:584
+#: Pinta.Core/Actions/LayerActions.Background.cs:727
+msgid "Nano Banana channel:"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Background.cs:597
+#, csharp-format
+msgid "{0} credits per cutout"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Background.cs:599
+#: Pinta.Core/Actions/LayerActions.Background.cs:750
+#: Pinta.Core/Actions/LayerActions.Resolution.cs:20
+#, csharp-format
+msgid "{0} credits per image"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Background.cs:600
+#: Pinta.Core/Actions/LayerActions.Background.cs:751
+#: Pinta.Core/Actions/LayerActions.Resolution.cs:21
+msgid "Cost unavailable"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Background.cs:668
+#: Pinta.Core/Actions/LayerActions.Background.cs:1101
+#: Pinta.Core/Actions/LayerActions.cs:110
+#: Pinta.Core/Actions/LayerActions.Spritesheet.cs:65
+msgid "Generate Spritesheet"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Background.cs:669
+#: Pinta.Core/Actions/LayerActions.Background.cs:1100
+msgid "Single-Direction Animation"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Background.cs:670
+#: Pinta.Core/Actions/LayerActions.Background.cs:1102
+#: Pinta.Core/Actions/LayerActions.cs:104
+msgid "AI Image Generation"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Background.cs:679
+msgid "Clean Up Background"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Background.cs:680
+msgid "Generate"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Background.cs:761
+msgid "Image size:"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Background.cs:788
+#: Pinta.Core/Actions/LayerActions.Background.cs:889
+#: Pinta.Core/Actions/LayerActions.GenerationType.cs:15
+msgid "Direction Sheet"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Background.cs:790
+msgid "Action Sequence"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Background.cs:801
+msgid "Describe the custom action"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Background.cs:803
+msgid "Custom action:"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Background.cs:808
+msgid "Frames:"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Background.cs:810
+msgid "White (#FFFFFF)"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Background.cs:812
+msgid "8 fixed directions"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Background.cs:814
+msgid "Directions:"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Background.cs:826
+msgid "Generation type:"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Background.cs:828
+msgid "Action:"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Background.cs:835
+#: Pinta/Dialogs/NewImageDialog.cs:322
+msgid "Background:"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Background.cs:841
+#: Pinta.Core/Actions/LayerActions.SingleDirection.cs:206
+msgid "Action generation prompt"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Background.cs:869
+msgid "Select a valid image size."
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Background.cs:929
+msgid "Current generation type:"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Background.cs:986
+#: Pinta.Core/Actions/LayerActions.Background.cs:1008
+msgid "No files selected"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Background.cs:989
+msgid "Choose Image Files..."
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Background.cs:996
+msgid "Choose Reference Images"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Background.cs:1042
+msgid "Current Layer"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Background.cs:1048
+msgid "Other Reference Layers"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Background.cs:1051
+msgid "Reference Image Files"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Background.cs:1094
+msgid "Spritesheet"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Background.cs:1097
+#: Pinta.Core/Actions/LayerActions.GenerationType.cs:20
+msgid "AI Generated Image"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.BorderDetection.cs:22
+#: Pinta.Core/Actions/LayerActions.BorderDetection.cs:32
+#: Pinta.Core/Actions/LayerActions.BorderDetection.cs:39
+#: Pinta.Core/Actions/LayerActions.BorderDetection.cs:71
+#: Pinta.Core/Actions/LayerActions.cs:191
+#: Pinta.Tools/Tools/DetectBorderTool.cs:22
+msgid "Detect Border"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.BorderDetection.cs:23
+msgid "Select an area before detecting the border."
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.BorderDetection.cs:33
+msgid "The selected area is empty."
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.BorderDetection.cs:40
+msgid "Detect the border in the selected area?"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.BorderDetection.cs:44
+msgid "_Detect"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.BorderDetection.cs:54
+msgid "Detecting border..."
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.BorderDetection.cs:73
+#: Pinta.Core/Actions/LayerActions.BorderDetection.cs:77
+msgid "Detected Border"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.BorderDetection.cs:81
+#: Pinta.Core/Actions/LayerActions.BorderDetection.cs:87
+msgid "Cutout Mask"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.BorderDetection.cs:91
+#: Pinta.Core/Actions/LayerActions.BorderDetection.cs:96
+msgid "Border Control"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.BorderDetection.cs:107
+msgid "Detect Border Failed"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.BorderDetection.cs:108
+msgid ""
+"Check the API server, Baidu credentials, balance, and login status, then try "
+"again."
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.cs:91 Pinta.Core/Actions/LayerActions.cs:534
+#: Pinta/Actions/Edit/PasteAction.cs:175
+msgid "Add New Layer"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.cs:98 Pinta.Core/Actions/LayerActions.cs:549
+msgid "Add New Group"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.cs:105
+msgid "Generate an image with AI"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.cs:111
+msgid "Generate a direction sheet or action spritesheet with AI"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.cs:116
+#: Pinta.Core/Actions/LayerActions.SingleDirection.cs:128
+msgid "Generate Single-Direction Animation"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.cs:117
+msgid "Generate a single-direction animation with AI"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.cs:122
+msgid "Create Multi-Direction Animation"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.cs:123
+msgid "Create a multi-direction animation from the selected layer"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.cs:128
+#: Pinta.Core/Actions/LayerActions.ImageSplit.cs:50
+msgid "Split Image"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.cs:129
+msgid "Split the selected image into child layers"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.cs:134
+#: Pinta.Core/Actions/LayerActions.SingleDirection.cs:52
+msgid "Create Single-Direction Animation"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.cs:135
+msgid "Create a single-direction animation from the selected layer"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.cs:140
+msgid "Edit Animation Frames"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.cs:141
+msgid "Edit the selected animation layer"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.cs:146
+msgid "Set as Character Anchor"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.cs:147
+msgid "Use this approved direction sheet as the default character reference"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.cs:152
+#: Pinta.Core/Actions/LayerActions.Deletion.cs:25
+msgid "Delete Layer"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.cs:159
+#: Pinta.Core/Actions/LayerActions.cs:519
+msgid "Duplicate Layer"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.cs:166
+#: Pinta.Core/Actions/LayerActions.cs:477
+msgid "Merge Layer Down"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.cs:173
+#: Pinta.Core/Actions/LayerActions.cs:478
+msgid "Merge Selected Layers"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.cs:179
+msgid "Import from File..."
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.cs:185
+msgid "Save Layer Image..."
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.cs:186
+msgid "Save the selected layer and its visible child layers as an image"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.cs:192
+msgid "Detect border and create a new layer"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.cs:198
+#: Pinta.Gui.Widgets/Widgets/Layers/LayersListViewItemWidget.cs:208
+msgid "Choose an image API and operation"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.cs:215
+msgid "Resize Layer..."
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.cs:221
+msgid "Rotate / Zoom Layer..."
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.cs:227
+#: Pinta.Core/Actions/LayerActions.cs:415
+msgid "Move Layer Up"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.cs:233
+#: Pinta.Core/Actions/LayerActions.cs:433
+msgid "Move Layer Down"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.cs:239
+msgid "Layer Properties..."
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.cs:246
+#: Pinta.Core/HistoryItems/UpdateLayerReferenceHistoryItem.cs:14
+msgid "Unlock Referenced Layer"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.cs:545
+msgid "Group"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Export.cs:37
+msgid "Save Layer Image"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Export.cs:45
+msgid "PNG image (*.png)"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Export.cs:55
+msgid "Saving Layer Image"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Export.cs:75
+#: Pinta/Actions/File/SaveDocumentImplementationAction.cs:258
+#: Pinta/Actions/File/SaveDocumentImplementationAction.cs:273
+msgid "Failed to save image"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.GenerationType.cs:13
+msgid "White Background Image"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.GenerationType.cs:17
+msgid "Action Spritesheet"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.GenerationType.cs:19
+msgid "Sequence Frames"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.ImageSize.cs:79
+msgid "Custom..."
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.ImageSplit.cs:55
+#, csharp-format
+msgid "Sprite {0}"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Import.cs:44
+msgid "Image files"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Import.cs:62
+msgid "Open Image File"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Import.cs:91
+msgid "Import From File"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.PromptOptimization.cs:54
+#: Pinta.Core/Actions/LayerActions.PromptOptimization.cs:134
+msgid "Prompt"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.PromptOptimization.cs:130
+msgid "Optimize and Translate"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.PromptOptimization.cs:131
+msgid "Optimize the prompt and translate it to English."
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.PromptOptimization.cs:152
+msgid "English Prompt (sent to image AI)"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.PromptOptimization.cs:169
+msgid "Select Prompt History"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.PromptOptimization.cs:176
+msgid "Prompt History"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.PromptOptimization.cs:201
+msgid "Prompt history restored."
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.PromptOptimization.cs:225
+msgid "Enter a prompt first."
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.PromptOptimization.cs:230
+msgid "Optimizing and translating the prompt..."
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.PromptOptimization.cs:237
+msgid "The prompt changed, so the old optimization was not applied."
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.PromptOptimization.cs:243
+msgid ""
+"The complete bilingual prompt was not returned; the original prompt will be "
+"used."
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.PromptOptimization.cs:256
+msgid ""
+"The bilingual prompt is ready; the English version will be sent to the image "
+"AI."
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.PromptOptimization.cs:260
+msgid "Prompt optimization failed; the original prompt will be used."
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.PromptOptimization.cs:273
+msgid ""
+"The original prompt changed; optimize and translate it to update both "
+"versions."
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Resolution.cs:28
+msgid "Choose Image Resolution"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Resolution.cs:36
+msgid "Use Smaller Resolution"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Resolution.cs:37
+msgid "Use Larger Resolution"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.SingleDirection.cs:181
+msgid "Confirm Generated Sequence"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.SingleDirection.cs:188
+msgid "Continue to Frame Extraction"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.SingleDirection.cs:197
+msgid ""
+"Review the generated sequence image. Continue only if it is ready for frame "
+"analysis and cropping."
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.SingleDirection.cs:368
+msgid "Edit Single-Direction Animation"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Spritesheet.cs:37
+msgid "Spritesheet Prompt Configuration Error"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Spritesheet.cs:38
+msgid "Check the files in config/spritesheet-prompts and try again."
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Spritesheet.cs:50
+msgid "Set Character Anchor"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Spritesheet.cs:105
+#: Pinta.Gui.Widgets/Widgets/Layers/LayersListView.cs:433
+#: Pinta.Tools/Tools/MoveLayerTool.cs:45
+msgid "Move Layer"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.SpritesheetSplit.cs:170
+#: Pinta.Core/Actions/LayerActions.SpritesheetSplit.cs:267
+#: Pinta.Core/Actions/LayerActions.SpritesheetSplit.cs:323
+msgid "Create Animation Frames"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.SpritesheetSplit.cs:276
+msgid "Analyze Spritesheet"
+msgstr ""
+
+#: Pinta.Core/Actions/MultiDirectionAnimationEditor.cs:43
+#: Pinta.Core/Actions/SingleDirectionAnimationEditor.cs:35
+#, csharp-format
+msgid "Cell {0} (extra)"
+msgstr ""
+
+#: Pinta.Core/Actions/ViewActions.cs:76
+msgid "Zoom In"
+msgstr ""
+
+#: Pinta.Core/Actions/ViewActions.cs:83
+msgid "Zoom Out"
+msgstr ""
+
+#: Pinta.Core/Actions/ViewActions.cs:90
+msgid "Best Fit"
+msgstr ""
+
+#: Pinta.Core/Actions/ViewActions.cs:97
+msgid "Zoom to Selection"
+msgstr ""
+
+#: Pinta.Core/Actions/ViewActions.cs:103
+msgid "Normal Size"
+msgstr ""
+
+#: Pinta.Core/Actions/ViewActions.cs:110
+msgid "Toolbar"
+msgstr ""
+
+#: Pinta.Core/Actions/ViewActions.cs:116
+msgid "Image Tabs"
+msgstr ""
+
+#: Pinta.Core/Actions/ViewActions.cs:122
+msgid "Tool Windows"
+msgstr ""
+
+#: Pinta.Core/Actions/ViewActions.cs:129
+#: Pinta/Dialogs/KeyboardShortcutsDialog.cs:414 Pinta/Pads/LayersPad.cs:87
+msgid "Layers"
+msgstr ""
+
+#: Pinta.Core/Actions/ViewActions.cs:135 Pinta/Pads/HistoryPad.cs:49
+msgid "History"
+msgstr ""
+
+#: Pinta.Core/Actions/ViewActions.cs:141 Pinta/Pads/ResourcesPad.cs:40
+msgid "Resources"
+msgstr ""
+
+#: Pinta.Core/Actions/ViewActions.cs:147
+msgid "Reset Panel Layout"
+msgstr ""
+
+#: Pinta.Core/Actions/ViewActions.cs:153
+msgid "Canvas Grid..."
+msgstr ""
+
+#: Pinta.Core/Actions/ViewActions.cs:159
+msgid "Menu Bar"
+msgstr ""
+
+#: Pinta.Core/Actions/ViewActions.cs:165
+msgid "Status Bar"
+msgstr ""
+
+#: Pinta.Core/Actions/ViewActions.cs:171
+msgid "Tool Box"
+msgstr ""
+
+#: Pinta.Core/Actions/ViewActions.cs:177
+msgid "Rulers"
+msgstr ""
+
+#: Pinta.Core/Actions/ViewActions.cs:193
+msgid "Fullscreen"
+msgstr ""
+
+#: Pinta.Core/Actions/ViewActions.cs:239 Pinta.Core/Actions/ViewActions.cs:435
+#: Pinta.Core/Classes/DocumentWorkspace.cs:371
+#: Pinta.Core/Classes/DocumentWorkspace.cs:380
+#: Pinta/Dialogs/KeyboardShortcutsDialog.cs:417
+msgid "Window"
+msgstr ""
+
+#: Pinta.Core/Actions/ViewActions.cs:257
+msgid "Pixels"
+msgstr ""
+
+#: Pinta.Core/Actions/ViewActions.cs:258
+msgid "Inches"
+msgstr ""
+
+#: Pinta.Core/Actions/ViewActions.cs:259
+msgid "Centimeters"
+msgstr ""
+
+#: Pinta.Core/Actions/ViewActions.cs:262
+msgid "Ruler Units"
+msgstr ""
+
+#: Pinta.Core/Actions/ViewActions.cs:278
+msgid "Show/Hide"
+msgstr ""
+
+#: Pinta.Core/Actions/ViewActions.cs:282
+msgid "Default"
+msgstr ""
+
+#: Pinta.Core/Actions/ViewActions.cs:284 Pinta.Tools/Tools/TextTool.cs:266
+msgid "Light"
+msgstr ""
+
+#: Pinta.Core/Actions/ViewActions.cs:286
+msgid "Dark"
+msgstr ""
+
+#: Pinta.Core/Actions/ViewActions.cs:289
+msgid "Color Scheme"
+msgstr ""
+
+#: Pinta.Core/Actions/ViewActions.cs:416
+#, csharp-format
+msgid "{0}%"
+msgstr ""
+
+#: Pinta.Core/Actions/WindowActions.cs:44
+msgid "Save All"
+msgstr ""
+
+#: Pinta.Core/Actions/WindowActions.cs:51
+msgid "Close All"
+msgstr ""
+
+#: Pinta.Core/ai/AiAuthService.cs:53 Pinta.Core/ai/AiAuthService.cs:62
+msgid "AI: Not logged in"
+msgstr ""
+
+#: Pinta.Core/ai/BackgroundCutoutService.cs:69
+msgid "white background"
+msgstr ""
+
+#: Pinta.Core/ai/BackgroundCutoutService.cs:91
+msgid "black background"
+msgstr ""
+
+#: Pinta.Core/ai/BackgroundCutoutService.cs:113
+msgid "image"
+msgstr ""
+
+#: Pinta.Core/ai/BackgroundCutoutService.cs:156
+msgid "Width and height must be positive whole numbers."
+msgstr ""
+
+#: Pinta.Core/ai/BackgroundCutoutService.cs:158
+#, csharp-format
+msgid "Width and height must be divisible by {0}."
+msgstr ""
+
+#: Pinta.Core/ai/BackgroundCutoutService.cs:162
+#, csharp-format
+msgid "Total pixels must be between {0:N0} and {1:N0}."
+msgstr ""
+
+#: Pinta.Core/ai/BackgroundCutoutService.cs:166
+#, csharp-format
+msgid "The longest edge cannot exceed {0:N0} pixels."
+msgstr ""
+
+#: Pinta.Core/ai/BackgroundCutoutService.cs:168
+#, csharp-format
+msgid "Aspect ratio cannot exceed {0}:1."
+msgstr ""
+
+#: Pinta.Core/ai/BackgroundCutoutService.cs:182
+msgid "transparent cutout"
+msgstr ""
+
+#: Pinta.Core/ai/BackgroundCutoutService.cs:260
+msgid "Normalizing AI image..."
+msgstr ""
+
+#: Pinta.Core/Algorithms/PixelOps/UserBlendOps.cs:31
+#: Pinta.Tools/Brushes/PlainBrush.cs:41 Pinta.Tools/Tools/EraserTool.cs:336
+#: Pinta.Tools/Tools/TextTool.cs:182 Pinta.Tools/Tools/TextTool.cs:284
+#: Pinta.Tools/Tools/TextTool.cs:404
+msgid "Normal"
+msgstr ""
+
+#: Pinta.Core/Algorithms/PixelOps/UserBlendOps.cs:32
+msgid "Multiply"
+msgstr ""
+
+#: Pinta.Core/Algorithms/PixelOps/UserBlendOps.cs:33
+msgid "Color Burn"
+msgstr ""
+
+#: Pinta.Core/Algorithms/PixelOps/UserBlendOps.cs:34
+msgid "Color Dodge"
+msgstr ""
+
+#: Pinta.Core/Algorithms/PixelOps/UserBlendOps.cs:35
+msgid "Overlay"
+msgstr ""
+
+#: Pinta.Core/Algorithms/PixelOps/UserBlendOps.cs:36
+msgid "Difference"
+msgstr ""
+
+#: Pinta.Core/Algorithms/PixelOps/UserBlendOps.cs:37
+msgid "Lighten"
+msgstr ""
+
+#: Pinta.Core/Algorithms/PixelOps/UserBlendOps.cs:38
+msgid "Darken"
+msgstr ""
+
+#: Pinta.Core/Algorithms/PixelOps/UserBlendOps.cs:39
+msgid "Screen"
+msgstr ""
+
+#: Pinta.Core/Algorithms/PixelOps/UserBlendOps.cs:40
+msgid "Xor"
+msgstr ""
+
+#: Pinta.Core/Algorithms/PixelOps/UserBlendOps.cs:41
+msgid "Hard Light"
+msgstr ""
+
+#: Pinta.Core/Algorithms/PixelOps/UserBlendOps.cs:42
+msgid "Soft Light"
+msgstr ""
+
+#: Pinta.Core/Algorithms/PixelOps/UserBlendOps.cs:43
+#: Pinta.Effects/Effects/DitheringEffect.cs:23
+#: Pinta.Gui.Widgets/Widgets/StatusBarColorPaletteWidget.cs:323
+msgid "Color"
+msgstr ""
+
+#: Pinta.Core/Algorithms/PixelOps/UserBlendOps.cs:44
+#: Pinta.Effects/Dialogs/Effects.CurvesDialog.cs:174
+msgid "Luminosity"
+msgstr ""
+
+#: Pinta.Core/Algorithms/PixelOps/UserBlendOps.cs:45
+#: Pinta.Gui.Widgets/Widgets/ColorPickerSlider.cs:348
+msgid "Hue"
+msgstr ""
+
+#: Pinta.Core/Algorithms/PixelOps/UserBlendOps.cs:46
+msgid "Saturation"
+msgstr ""
+
+#: Pinta.Core/Classes/BaseTool.cs:344
+msgid "Normal Blending"
+msgstr ""
+
+#: Pinta.Core/Classes/BaseTool.cs:345
+msgid "Overwrite"
+msgstr ""
+
+#: Pinta.Core/Classes/BaseTool.cs:361
+msgid "Antialiasing On"
+msgstr ""
+
+#: Pinta.Core/Classes/BaseTool.cs:362
+msgid "Antialiasing Off"
+msgstr ""
+
+#: Pinta.Core/Classes/Document.cs:112
+#, csharp-format
+msgid "Unsaved Image {0}"
+msgstr ""
+
+#: Pinta.Core/Classes/Document.cs:521 Pinta/Dialogs/ResizeCanvasDialog.cs:213
+msgid "Resize Canvas"
+msgstr ""
+
+#: Pinta.Core/Classes/DocumentLayers.cs:134
+#: Pinta.Core/Classes/DocumentLayers.cs:165
+#, csharp-format
+msgid "Layer {0}"
+msgstr ""
+
+#: Pinta.Core/Classes/DocumentLayers.cs:588
+#: Pinta.Core/Classes/DocumentLayers.cs:589
+#: Pinta.Core/Classes/DocumentLayers.cs:623
+#: Pinta.Core/Classes/DocumentLayers.cs:638
+#, csharp-format
+msgid "{0} copy"
+msgstr ""
+
+#: Pinta.Core/Classes/SelectionModeHandler.cs:43
+#: Pinta/Dialogs/KeyboardShortcutsDialog.cs:286
+msgid "Replace"
+msgstr ""
+
+#: Pinta.Core/Classes/SelectionModeHandler.cs:45
+#, csharp-format
+msgid "Union (+) ({0} + Left Click)"
+msgstr ""
+
+#: Pinta.Core/Classes/SelectionModeHandler.cs:46
+msgid "Exclude (-) (Right Click)"
+msgstr ""
+
+#: Pinta.Core/Classes/SelectionModeHandler.cs:48
+#, csharp-format
+msgid "Xor ({0} + Right Click)"
+msgstr ""
+
+#: Pinta.Core/Classes/SelectionModeHandler.cs:50
+#, csharp-format
+msgid "Intersect ({0} + Left Click)"
+msgstr ""
+
+#: Pinta.Core/Classes/SelectionModeHandler.cs:56
+msgid " Selection Mode: "
+msgstr ""
+
+#: Pinta.Core/Enumerations/ResamplingMode.cs:22
+msgid "Bilinear"
+msgstr ""
+
+#: Pinta.Core/Enumerations/ResamplingMode.cs:23
+msgid "Nearest Neighbor"
+msgstr ""
+
+#: Pinta.Core/Extensions/Gtk/GtkExtensions.Widget.cs:106
+#: Pinta.Gui.Widgets/Widgets/ColorPickerDialog.cs:368
+#: Pinta.Gui.Widgets/Widgets/StatusBarColorPaletteWidget.cs:352
+#: Pinta.Gui.Widgets/Widgets/ToolBoxWidget.cs:130
+msgid "Shortcut key"
+msgstr ""
+
+#: Pinta.Core/Extensions/Gtk/GtkExtensions.Widget.cs:107
+msgid "Shortcut keys"
+msgstr ""
+
+#: Pinta.Core/Extensions/OtherExtensions.cs:166
+#: Pinta.Core/Managers/WorkspaceManager.cs:439
+#: Pinta.Core/Managers/WorkspaceManager.cs:451
+#, csharp-format
+msgid "Could not open file: {0}"
+msgstr ""
+
+#: Pinta.Core/Extensions/OtherExtensions.cs:167
+msgid "Pinta supports the following palette formats:"
+msgstr ""
+
+#: Pinta.Core/HistoryItems/FinishPixelsHistoryItem.cs:41
+msgid "Finish Pixels"
+msgstr ""
+
+#: Pinta.Core/HistoryItems/InvertHistoryItem.cs:51
+msgid "Flip Image Horizontal"
+msgstr ""
+
+#: Pinta.Core/HistoryItems/InvertHistoryItem.cs:55
+msgid "Flip Image Vertical"
+msgstr ""
+
+#: Pinta.Core/HistoryItems/InvertHistoryItem.cs:76
+msgid "Flip Layer Horizontal"
+msgstr ""
+
+#: Pinta.Core/HistoryItems/InvertHistoryItem.cs:80
+msgid "Flip Layer Vertical"
+msgstr ""
+
+#: Pinta.Core/HistoryItems/ResizeHistoryItem.cs:39
+#: Pinta/Dialogs/ResizeImageDialog.cs:154
+msgid "Resize Image"
+msgstr ""
+
+#: Pinta.Core/ImageFormats/FormatDescriptor.cs:122
+#, csharp-format
+msgid "{0} image ({1})"
+msgstr ""
+
+#: Pinta.Core/ImageFormats/OraFormat.cs:166
+#, csharp-format
+msgid "Could not import layer \"{0}\" from {1}"
+msgstr ""
+
+#: Pinta.Core/ImageFormats/OraFormat.cs:167
+msgid "Error"
+msgstr ""
+
+#: Pinta.Core/Managers/EffectsManager.cs:78
+#: Pinta.Core/Managers/EffectsManager.cs:116
+msgid "..."
+msgstr ""
+
+#: Pinta.Core/Managers/LivePreviewManager.cs:111
+msgid "Rendering Effect"
+msgstr ""
+
+#: Pinta.Core/Managers/ToolManager.cs:409
+msgid "Tool"
+msgstr ""
+
+#: Pinta.Core/Managers/WorkspaceManager.cs:129
+msgid "Background"
+msgstr ""
+
+#: Pinta.Core/Managers/WorkspaceManager.cs:139
+#: Pinta/Dialogs/NewImageDialog.cs:194
+msgid "New Image"
+msgstr ""
+
+#: Pinta.Core/Managers/WorkspaceManager.cs:357
+msgid "Unsupported file format"
+msgstr ""
+
+#: Pinta.Core/Managers/WorkspaceManager.cs:362
+msgid "Open Image"
+msgstr ""
+
+#: Pinta.Core/Managers/WorkspaceManager.cs:452
+msgid "Pinta supports the following file formats:"
+msgstr ""
+
+#: Pinta.Core/Managers/WorkspaceManager.cs:471
+msgid "Failed to open image"
+msgstr ""
+
+#: Pinta.Core/Managers/WorkspaceManager.cs:474
+#, csharp-format
+msgid "You do not have access to '{0}'."
+msgstr ""
+
+#: Pinta.Core/PaletteFormats/PaletteDescriptor.cs:63
+#, csharp-format
+msgid "{0} palette ({1})"
+msgstr ""
+
+#: Pinta.Docking/Dock.cs:526
+msgid "Pinta Tool Window"
+msgstr ""
+
+#: Pinta.Docking/Dock.cs:871
+msgid "Dock Left"
+msgstr ""
+
+#: Pinta.Docking/Dock.cs:872
+msgid "Dock Right"
+msgstr ""
+
+#: Pinta.Docking/Dock.cs:873
+msgid "Dock Top"
+msgstr ""
+
+#: Pinta.Docking/Dock.cs:874
+msgid "Dock Bottom"
+msgstr ""
+
+#: Pinta.Docking/Dock.cs:875
+msgid "Float"
+msgstr ""
+
+#: Pinta.Effects/Adjustments/AutoLevelEffect.cs:24
+msgid "Auto Level"
+msgstr ""
+
+#: Pinta.Effects/Adjustments/BlackAndWhiteEffect.cs:29
+msgid "Black and White"
+msgstr ""
+
+#: Pinta.Effects/Adjustments/BrightnessContrastEffect.cs:28
+msgid "Brightness / Contrast"
+msgstr ""
+
+#: Pinta.Effects/Adjustments/CurvesEffect.cs:27
+#: Pinta.Effects/Dialogs/Effects.CurvesDialog.cs:137
+msgid "Curves"
+msgstr ""
+
+#: Pinta.Effects/Adjustments/HueSaturationEffect.cs:23
+msgid "Hue / Saturation"
+msgstr ""
+
+#: Pinta.Effects/Adjustments/InvertColorsEffect.cs:29
+msgid "Invert Colors"
+msgstr ""
+
+#: Pinta.Effects/Adjustments/LevelsEffect.cs:23
+msgid "Levels"
+msgstr ""
+
+#: Pinta.Effects/Adjustments/PosterizeEffect.cs:25
+#: Pinta.Effects/Dialogs/Effects.PosterizeDialog.cs:54
+msgid "Posterize"
+msgstr ""
+
+#: Pinta.Effects/Adjustments/SepiaEffect.cs:52
+msgid "Sepia"
+msgstr ""
+
+#: Pinta.Effects/Dialogs/Effects.AlignmentDialog.cs:33
+msgid "Top Left"
+msgstr ""
+
+#: Pinta.Effects/Dialogs/Effects.AlignmentDialog.cs:34
+msgid "Top Center"
+msgstr ""
+
+#: Pinta.Effects/Dialogs/Effects.AlignmentDialog.cs:35
+msgid "Top Right"
+msgstr ""
+
+#: Pinta.Effects/Dialogs/Effects.AlignmentDialog.cs:36
+msgid "Center Left"
+msgstr ""
+
+#: Pinta.Effects/Dialogs/Effects.AlignmentDialog.cs:37
+msgid "Center"
+msgstr ""
+
+#: Pinta.Effects/Dialogs/Effects.AlignmentDialog.cs:38
+msgid "Center Right"
+msgstr ""
+
+#: Pinta.Effects/Dialogs/Effects.AlignmentDialog.cs:39
+msgid "Bottom Left"
+msgstr ""
+
+#: Pinta.Effects/Dialogs/Effects.AlignmentDialog.cs:40
+msgid "Bottom Center"
+msgstr ""
+
+#: Pinta.Effects/Dialogs/Effects.AlignmentDialog.cs:41
+msgid "Bottom Right"
+msgstr ""
+
+#: Pinta.Effects/Dialogs/Effects.AlignmentDialog.cs:76
+#: Pinta.Effects/Effects/AlignObjectEffect.cs:12
+msgid "Align Object"
+msgstr ""
+
+#: Pinta.Effects/Dialogs/Effects.CurvesDialog.cs:89
+msgid "Red  "
+msgstr ""
+
+#: Pinta.Effects/Dialogs/Effects.CurvesDialog.cs:90
+#: Pinta.Effects/Dialogs/Effects.LevelsDialog.cs:117
+#: Pinta.Effects/Dialogs/Effects.PosterizeDialog.cs:63
+#: Pinta.Gui.Widgets/Widgets/ColorPickerSlider.cs:353
+msgid "Green"
+msgstr ""
+
+#: Pinta.Effects/Dialogs/Effects.CurvesDialog.cs:91
+msgid "Blue "
+msgstr ""
+
+#: Pinta.Effects/Dialogs/Effects.CurvesDialog.cs:95
+msgid "Tip: Right-click to remove control points."
+msgstr ""
+
+#: Pinta.Effects/Dialogs/Effects.CurvesDialog.cs:105
+msgid "Transfer Map"
+msgstr ""
+
+#: Pinta.Effects/Dialogs/Effects.CurvesDialog.cs:173
+msgid "RGB"
+msgstr ""
+
+#: Pinta.Effects/Dialogs/Effects.CurvesDialog.cs:205
+#: Pinta.Effects/Dialogs/Effects.LevelsDialog.cs:272
+#: Pinta.Gui.Widgets/Widgets/ColorPickerDialog.cs:481
+msgid "Reset"
+msgstr ""
+
+#: Pinta.Effects/Dialogs/Effects.LevelsDialog.cs:113
+#: Pinta.Effects/Dialogs/Effects.PosterizeDialog.cs:62
+#: Pinta.Gui.Widgets/Widgets/ColorPickerSlider.cs:352
+msgid "Red"
+msgstr ""
+
+#: Pinta.Effects/Dialogs/Effects.LevelsDialog.cs:121
+#: Pinta.Effects/Dialogs/Effects.PosterizeDialog.cs:64
+#: Pinta.Gui.Widgets/Widgets/ColorPickerSlider.cs:354
+msgid "Blue"
+msgstr ""
+
+#: Pinta.Effects/Dialogs/Effects.LevelsDialog.cs:261
+msgid "Levels Adjustment"
+msgstr ""
+
+#: Pinta.Effects/Dialogs/Effects.LevelsDialog.cs:269
+msgid "Auto"
+msgstr ""
+
+#: Pinta.Effects/Dialogs/Effects.LevelsDialog.cs:283
+msgid "Input Histogram"
+msgstr ""
+
+#: Pinta.Effects/Dialogs/Effects.LevelsDialog.cs:284
+msgid "Input"
+msgstr ""
+
+#: Pinta.Effects/Dialogs/Effects.LevelsDialog.cs:285
+msgid "Output"
+msgstr ""
+
+#: Pinta.Effects/Dialogs/Effects.LevelsDialog.cs:286
+msgid "Output Histogram"
+msgstr ""
+
+#: Pinta.Effects/Dialogs/Effects.LevelsDialog.cs:664
+#: Pinta.Gui.Widgets/Dialogs/SimpleEffectDialog.cs:363
+msgid "Choose Color"
+msgstr ""
+
+#: Pinta.Effects/Dialogs/Effects.PosterizeDialog.cs:92
+msgid "Linked"
+msgstr ""
+
+#: Pinta.Effects/Effects/AddNoiseEffect.cs:24
+msgid "Add Noise"
+msgstr ""
+
+#: Pinta.Effects/Effects/AddNoiseEffect.cs:28
+#: Pinta.Effects/Effects/MedianEffect.cs:27
+#: Pinta.Effects/Effects/ReduceNoiseEffect.cs:32
+msgid "Noise"
+msgstr ""
+
+#: Pinta.Effects/Effects/AlignObjectEffect.cs:14
+#: Pinta.Effects/Effects/FeatherEffect.cs:22
+#: Pinta.Effects/Effects/OutlineObjectEffect.cs:22
+msgid "Object"
+msgstr ""
+
+#: Pinta.Effects/Effects/BulgeEffect.cs:23
+msgid "Bulge"
+msgstr ""
+
+#: Pinta.Effects/Effects/BulgeEffect.cs:27
+#: Pinta.Effects/Effects/DentsEffect.cs:52
+#: Pinta.Effects/Effects/FrostedGlassEffect.cs:27
+#: Pinta.Effects/Effects/PixelateEffect.cs:29
+#: Pinta.Effects/Effects/PolarInversionEffect.cs:32
+#: Pinta.Effects/Effects/TileEffect.cs:34
+#: Pinta.Effects/Effects/TwistEffect.cs:33
+msgid "Distort"
+msgstr ""
+
+#: Pinta.Effects/Effects/CellsEffect.cs:19
+msgid "Cells"
+msgstr ""
+
+#: Pinta.Effects/Effects/CellsEffect.cs:25
+#: Pinta.Effects/Effects/CloudsEffect.cs:32
+#: Pinta.Effects/Effects/JuliaFractalEffect.cs:32
+#: Pinta.Effects/Effects/MandelbrotFractalEffect.cs:32
+#: Pinta.Effects/Effects/VoronoiDiagramEffect.cs:27
+msgid "Render"
+msgstr ""
+
+#: Pinta.Effects/Effects/CloudsEffect.cs:26
+msgid "Clouds"
+msgstr ""
+
+#: Pinta.Effects/Effects/DentsEffect.cs:49
+msgid "Dents"
+msgstr ""
+
+#: Pinta.Effects/Effects/DitheringEffect.cs:14
+msgid "Dithering"
+msgstr ""
+
+#: Pinta.Effects/Effects/EdgeDetectEffect.cs:26
+msgid "Edge Detect"
+msgstr ""
+
+#: Pinta.Effects/Effects/EdgeDetectEffect.cs:32
+#: Pinta.Effects/Effects/EmbossEffect.cs:32
+#: Pinta.Effects/Effects/OutlineEdgeEffect.cs:27
+#: Pinta.Effects/Effects/ReliefEffect.cs:33
+msgid "Stylize"
+msgstr ""
+
+#: Pinta.Effects/Effects/EmbossEffect.cs:26
+msgid "Emboss"
+msgstr ""
+
+#: Pinta.Effects/Effects/FeatherEffect.cs:18
+msgid "Feather Object"
+msgstr ""
+
+#: Pinta.Core/Effects/BaseEffect.cs:76
+msgid "General"
+msgstr ""
+
+#: Pinta.Effects/Effects/FragmentEffect.cs:27
+msgid "Fragment"
+msgstr ""
+
+#: Pinta.Effects/Effects/FragmentEffect.cs:33
+#: Pinta.Effects/Effects/GaussianBlurEffect.cs:28
+#: Pinta.Effects/Effects/MotionBlurEffect.cs:33
+#: Pinta.Effects/Effects/RadialBlurEffect.cs:27
+#: Pinta.Effects/Effects/UnfocusEffect.cs:27
+#: Pinta.Effects/Effects/ZoomBlurEffect.cs:32
+msgid "Blurs"
+msgstr ""
+
+#: Pinta.Effects/Effects/FrostedGlassEffect.cs:23
+msgid "Frosted Glass"
+msgstr ""
+
+#: Pinta.Effects/Effects/GaussianBlurEffect.cs:24
+msgid "Gaussian Blur"
+msgstr ""
+
+#: Pinta.Effects/Effects/GlowEffect.cs:26
+msgid "Glow"
+msgstr ""
+
+#: Pinta.Effects/Effects/GlowEffect.cs:30
+#: Pinta.Effects/Effects/RedEyeRemoveEffect.cs:27
+#: Pinta.Effects/Effects/SharpenEffect.cs:27
+#: Pinta.Effects/Effects/SoftenPortraitEffect.cs:58
+#: Pinta.Effects/Effects/VignetteEffect.cs:52
+msgid "Photo"
+msgstr ""
+
+#: Pinta.Effects/Effects/InkSketchEffect.cs:35
+msgid "Ink Sketch"
+msgstr ""
+
+#: Pinta.Effects/Effects/InkSketchEffect.cs:41
+#: Pinta.Effects/Effects/OilPaintingEffect.cs:32
+#: Pinta.Effects/Effects/PencilSketchEffect.cs:33
+msgid "Artistic"
+msgstr ""
+
+#: Pinta.Effects/Effects/JuliaFractalEffect.cs:26
+msgid "Julia Fractal"
+msgstr ""
+
+#: Pinta.Effects/Effects/MandelbrotFractalEffect.cs:26
+msgid "Mandelbrot Fractal"
+msgstr ""
+
+#: Pinta.Effects/Effects/MedianEffect.cs:23
+msgid "Median"
+msgstr ""
+
+#: Pinta.Effects/Effects/MotionBlurEffect.cs:27
+msgid "Motion Blur"
+msgstr ""
+
+#: Pinta.Effects/Effects/OilPaintingEffect.cs:26
+msgid "Oil Painting"
+msgstr ""
+
+#: Pinta.Effects/Effects/OutlineEdgeEffect.cs:23
+msgid "Outline Edge"
+msgstr ""
+
+#: Pinta.Effects/Effects/OutlineObjectEffect.cs:18
+msgid "Outline Object"
+msgstr ""
+
+#: Pinta.Effects/Effects/PencilSketchEffect.cs:29
+msgid "Pencil Sketch"
+msgstr ""
+
+#: Pinta.Effects/Effects/PixelateEffect.cs:23
+msgid "Pixelate"
+msgstr ""
+
+#: Pinta.Effects/Effects/PolarInversionEffect.cs:26
+msgid "Polar Inversion"
+msgstr ""
+
+#: Pinta.Effects/Effects/RadialBlurEffect.cs:23
+msgid "Radial Blur"
+msgstr ""
+
+#: Pinta.Effects/Effects/RedEyeRemoveEffect.cs:23
+msgid "Red Eye Removal"
+msgstr ""
+
+#: Pinta.Effects/Effects/ReduceNoiseEffect.cs:26
+msgid "Reduce Noise"
+msgstr ""
+
+#: Pinta.Effects/Effects/ReliefEffect.cs:40
+msgid "Relief"
+msgstr ""
+
+#: Pinta.Effects/Effects/SharpenEffect.cs:23
+msgid "Sharpen"
+msgstr ""
+
+#: Pinta.Effects/Effects/SoftenPortraitEffect.cs:54
+msgid "Soften Portrait"
+msgstr ""
+
+#: Pinta.Effects/Effects/TileEffect.cs:28
+msgid "Tile Reflection"
+msgstr ""
+
+#: Pinta.Effects/Effects/TwistEffect.cs:27
+msgid "Twist"
+msgstr ""
+
+#: Pinta.Effects/Effects/UnfocusEffect.cs:23
+msgid "Unfocus"
+msgstr ""
+
+#: Pinta.Effects/Effects/VignetteEffect.cs:49
+msgid "Vignette"
+msgstr ""
+
+#: Pinta.Effects/Effects/VoronoiDiagramEffect.cs:21
+msgid "Voronoi Diagram"
+msgstr ""
+
+#: Pinta.Effects/Effects/ZoomBlurEffect.cs:26
+msgid "Zoom Blur"
+msgstr ""
+
+#: Pinta.Gui.Addins/AddinInfoView.cs:183
+msgid "More Information..."
+msgstr ""
+
+#: Pinta.Gui.Addins/AddinInfoView.cs:191
+msgid "Install..."
+msgstr ""
+
+#: Pinta.Gui.Addins/AddinInfoView.cs:200
+msgid "Update..."
+msgstr ""
+
+#: Pinta.Gui.Addins/AddinInfoView.cs:209
+msgid "Uninstall..."
+msgstr ""
+
+#: Pinta.Gui.Addins/AddinInfoView.cs:238
+#, csharp-format
+msgid "Version: {0}"
+msgstr ""
+
+#: Pinta.Gui.Addins/AddinInfoView.cs:245
+#, csharp-format
+msgid "Download size: {0}"
+msgstr ""
+
+#: Pinta.Gui.Addins/AddinInfoView.cs:251
+#, csharp-format
+msgid "Available in repository: {0}"
+msgstr ""
+
+#: Pinta.Gui.Addins/AddinListView.cs:60
+msgid "No Items Found"
+msgstr ""
+
+#: Pinta.Gui.Addins/AddinManagerDialog.cs:103
+msgid "Gallery"
+msgstr ""
+
+#: Pinta.Gui.Addins/AddinManagerDialog.cs:104
+msgid "Installed"
+msgstr ""
+
+#: Pinta.Gui.Addins/AddinManagerDialog.cs:105
+msgid "Updates"
+msgstr ""
+
+#: Pinta.Gui.Addins/AddinManagerDialog.cs:119
+msgid "Refresh"
+msgstr ""
+
+#: Pinta.Gui.Addins/AddinManagerDialog.cs:127
+msgid "Install from file..."
+msgstr ""
+
+#: Pinta.Gui.Addins/AddinManagerDialog.cs:268
+msgid "Install Extension Package"
+msgstr ""
+
+#: Pinta.Gui.Addins/AddinManagerDialog.cs:294
+msgid "Extension packages"
+msgstr ""
+
+#: Pinta.Gui.Addins/InstallDialog.cs:62
+msgid ""
+"The selected extension packages can't be installed because there are "
+"dependency conflicts."
+msgstr ""
+
+#: Pinta.Gui.Addins/InstallDialog.cs:76
+msgid "The following packages will be installed:"
+msgstr ""
+
+#: Pinta.Gui.Addins/InstallDialog.cs:82
+msgid "The following packages need to be uninstalled:"
+msgstr ""
+
+#: Pinta.Gui.Addins/InstallDialog.cs:89
+msgid "The following dependencies could not be resolved:"
+msgstr ""
+
+#: Pinta.Gui.Addins/InstallDialog.cs:129 Pinta.Gui.Addins/InstallDialog.cs:263
+msgid "Install"
+msgstr ""
+
+#: Pinta.Gui.Addins/InstallDialog.cs:215
+msgid "Failed to load extension package"
+msgstr ""
+
+#: Pinta.Gui.Addins/InstallDialog.cs:216
+msgid "The file may be an invalid or corrupt extension package"
+msgstr ""
+
+#: Pinta.Gui.Addins/InstallDialog.cs:232 Pinta.Gui.Addins/InstallDialog.cs:233
+msgid "Uninstall"
+msgstr ""
+
+#: Pinta.Gui.Addins/InstallDialog.cs:245
+msgid "The following packages will be uninstalled:"
+msgstr ""
+
+#: Pinta.Gui.Addins/InstallDialog.cs:257
+msgid ""
+"There are other extension packages that depend on the previous ones which "
+"will also be uninstalled:"
+msgstr ""
+
+#: Pinta.Gui.Addins/InstallDialog.cs:284
+msgid " (in user directory)"
+msgstr ""
+
+#: Pinta.Gui.Addins/InstallDialog.cs:368
+msgid "The installation failed!"
+msgstr ""
+
+#: Pinta.Gui.Addins/InstallDialog.cs:369
+msgid "The installation has completed with warnings."
+msgstr ""
+
+#: Pinta.Gui.Addins/InstallDialog.cs:375
+msgid "The uninstallation failed!"
+msgstr ""
+
+#: Pinta.Gui.Addins/InstallDialog.cs:376
+msgid "The uninstallation has completed with warnings."
+msgstr ""
+
+#: Pinta.Gui.Widgets/Dialogs/SimpleEffectDialog.cs:649
+msgid "Reseed"
+msgstr ""
+
+#: Pinta.Gui.Widgets/Widgets/Canvas/CanvasWindow.cs:221
+#: Pinta/Pads/ResourcesPad.cs:164
+msgid "Import Referenced Image"
+msgstr ""
+
+#: Pinta.Gui.Widgets/Widgets/ColorPickerDialog.cs:193
+msgid "Show Value"
+msgstr ""
+
+#: Pinta.Gui.Widgets/Widgets/ColorPickerDialog.cs:195
+msgid "If enabled, the Value component is applied to the color wheel."
+msgstr ""
+
+#: Pinta.Gui.Widgets/Widgets/ColorPickerDialog.cs:200
+msgid "Sat & Value"
+msgstr ""
+
+#: Pinta.Gui.Widgets/Widgets/ColorPickerDialog.cs:210
+msgid "Hue & Sat"
+msgstr ""
+
+#: Pinta.Gui.Widgets/Widgets/ColorPickerDialog.cs:304
+msgid "Hex"
+msgstr ""
+
+#: Pinta.Gui.Widgets/Widgets/ColorPickerDialog.cs:367
+#: Pinta.Gui.Widgets/Widgets/StatusBarColorPaletteWidget.cs:351
+msgid "Click to switch between primary and secondary color."
+msgstr ""
+
+#: Pinta.Gui.Widgets/Widgets/ColorPickerDialog.cs:493
+msgid "OK"
+msgstr ""
+
+#: Pinta.Gui.Widgets/Widgets/ColorPickerDialog.cs:601
+#: Pinta.Gui.Widgets/Widgets/StatusBarColorPaletteWidget.cs:344
+msgid "Click to select primary color."
+msgstr ""
+
+#: Pinta.Gui.Widgets/Widgets/ColorPickerDialog.cs:606
+#: Pinta.Gui.Widgets/Widgets/StatusBarColorPaletteWidget.cs:348
+msgid "Click to select secondary color."
+msgstr ""
+
+#: Pinta.Gui.Widgets/Widgets/ColorPickerSlider.cs:350
+msgid "Sat"
+msgstr ""
+
+#: Pinta.Gui.Widgets/Widgets/ColorPickerSlider.cs:351
+msgid "Value"
+msgstr ""
+
+#: Pinta.Gui.Widgets/Widgets/ColorPickerSlider.cs:355
+msgid "Alpha"
+msgstr ""
+
+#: Pinta.Gui.Widgets/Widgets/Layers/LayerPreviewWindow.cs:102
+msgid "Maximize Preview"
+msgstr ""
+
+#: Pinta.Gui.Widgets/Widgets/Layers/LayersListViewItemWidget.cs:107
+#: Pinta.Gui.Widgets/Widgets/Layers/LayersListViewItemWidget.cs:541
+#: Pinta/Actions/Layers/LayerPropertiesAction.cs:115
+msgid "Show Layer"
+msgstr ""
+
+#: Pinta.Gui.Widgets/Widgets/Layers/LayersListViewItemWidget.cs:107
+#: Pinta.Gui.Widgets/Widgets/Layers/LayersListViewItemWidget.cs:540
+#: Pinta/Actions/Layers/LayerPropertiesAction.cs:115
+msgid "Hide Layer"
+msgstr ""
+
+#: Pinta.Gui.Widgets/Widgets/Layers/LayersListViewItemWidget.cs:534
+msgid "Referenced image is missing"
+msgstr ""
+
+#: Pinta.Gui.Widgets/Widgets/Layers/LayersListViewItemWidget.cs:534
+msgid "Referenced layer is locked"
+msgstr ""
+
+#: Pinta.Gui.Widgets/Widgets/Layers/LayersListViewItemWidget.Renaming.cs:101
+#: Pinta/Actions/Layers/LayerPropertiesAction.cs:109
+msgid "Rename Layer"
+msgstr ""
+
+#: Pinta.Gui.Widgets/Widgets/StatusBarColorPaletteWidget.cs:164
+msgid "Choose Palette Color"
+msgstr ""
+
+#: Pinta.Gui.Widgets/Widgets/StatusBarColorPaletteWidget.cs:331
+#, csharp-format
+msgid ""
+"Left click to set primary color. Right click to set secondary color. Middle "
+"click or press {0} and left click to choose palette color."
+msgstr ""
+
+#: Pinta.Gui.Widgets/Widgets/StatusBarColorPaletteWidget.cs:339
+msgid "Left click to set primary color. Right click to set secondary color."
+msgstr ""
+
+#: Pinta.Gui.Widgets/Widgets/StatusBarColorPaletteWidget.cs:356
+msgid "Click to reset primary and secondary color."
+msgstr ""
+
+#: Pinta.Gui.Widgets/Widgets/StatusBarColorPaletteWidget.cs:380
+msgid "Choose Colors"
+msgstr ""
+
+#: Pinta.Tools/Brushes/CircleBrush.cs:36
+msgid "Circles"
+msgstr ""
+
+#: Pinta.Tools/Brushes/SlashBrush.cs:36
+msgid "Slash"
+msgstr ""
+
+#: Pinta.Tools/Brushes/SlashBrush.cs:53
+#: Pinta.Tools/Editable/EditEngines/ArrowedEditEngine.cs:310
+#: Pinta/Dialogs/CanvasGridSettingsDialog.cs:72
+msgid "Angle"
+msgstr ""
+
+#: Pinta.Tools/Brushes/SplatterBrush.cs:37
+msgid "Splatter"
+msgstr ""
+
+#: Pinta.Tools/Brushes/SplatterBrush.cs:56
+msgid "Minimum Size"
+msgstr ""
+
+#: Pinta.Tools/Brushes/SplatterBrush.cs:65
+msgid "Maximum Size"
+msgstr ""
+
+#: Pinta.Tools/Brushes/SquaresBrush.cs:35
+msgid "Squares"
+msgstr ""
+
+#: Pinta.Tools/Dashes/DashPatternBox.cs:59
+msgid "Dash"
+msgstr ""
+
+#: Pinta.Tools/Editable/EditEngines/ArrowedEditEngine.cs:262
+msgid "Arrow"
+msgstr ""
+
+#: Pinta.Tools/Editable/EditEngines/ArrowedEditEngine.cs:289
+msgid "Size"
+msgstr ""
+
+#: Pinta.Tools/Editable/EditEngines/ArrowedEditEngine.cs:331
+msgid "Length"
+msgstr ""
+
+#: Pinta.Tools/Editable/EditEngines/BaseEditEngine.cs:265
+msgid "Shape Type"
+msgstr ""
+
+#: Pinta.Tools/Editable/EditEngines/BaseEditEngine.cs:274
+msgid "Open Line/Curve Series"
+msgstr ""
+
+#: Pinta.Tools/Editable/EditEngines/BaseEditEngine.cs:275
+msgid "Closed Line/Curve Series"
+msgstr ""
+
+#: Pinta.Tools/Editable/EditEngines/BaseEditEngine.cs:276
+#: Pinta.Tools/Editable/EditEngines/EllipseEditEngine.cs:36
+#: Pinta.Tools/Tools/EllipseTool.cs:43
+msgid "Ellipse"
+msgstr ""
+
+#: Pinta.Tools/Editable/EditEngines/BaseEditEngine.cs:277
+msgid "Rounded Line Series"
+msgstr ""
+
+#: Pinta.Tools/Editable/EditEngines/BaseEditEngine.cs:300
+msgid "Changed Shape Type"
+msgstr ""
+
+#: Pinta.Tools/Editable/EditEngines/BaseEditEngine.cs:327
+#: Pinta.Tools/Tools/FreeformShapeTool.cs:219
+msgid "Fill Style"
+msgstr ""
+
+#: Pinta.Tools/Editable/EditEngines/BaseEditEngine.cs:336
+#: Pinta.Tools/Tools/FreeformShapeTool.cs:225
+msgid "Outline Shape"
+msgstr ""
+
+#: Pinta.Tools/Editable/EditEngines/BaseEditEngine.cs:337
+#: Pinta.Tools/Tools/FreeformShapeTool.cs:226
+msgid "Fill Shape"
+msgstr ""
+
+#: Pinta.Tools/Editable/EditEngines/BaseEditEngine.cs:338
+#: Pinta.Tools/Tools/FreeformShapeTool.cs:227
+msgid "Fill and Outline Shape"
+msgstr ""
+
+#: Pinta.Tools/Editable/EditEngines/BaseEditEngine.cs:353
+#: Pinta.Tools/Tools/TextTool.cs:420
+msgid "Outline width"
+msgstr ""
+
+#: Pinta.Tools/Editable/EditEngines/BaseEditEngine.cs:370
+msgid "Change outline width."
+msgstr ""
+
+#: Pinta.Tools/Editable/EditEngines/BaseEditEngine.cs:371
+#: Pinta.Tools/Tools/BaseBrushTool.cs:48 Pinta.Tools/Tools/TextTool.cs:239
+msgid "Shortcut keys:"
+msgstr ""
+
+#: Pinta.Tools/Editable/EditEngines/BaseEditEngine.cs:372
+#, csharp-format
+msgid "Press {0} to decrease outline width"
+msgstr ""
+
+#: Pinta.Tools/Editable/EditEngines/BaseEditEngine.cs:373
+#, csharp-format
+msgid "Press {0} to increase outline width"
+msgstr ""
+
+#: Pinta.Tools/Editable/EditEngines/BaseEditEngine.cs:620
+#: Pinta.Tools/Editable/EditEngines/BaseEditEngine.cs:823
+msgid "Point Added"
+msgstr ""
+
+#: Pinta.Tools/Editable/EditEngines/BaseEditEngine.cs:671
+msgid "Point Deleted"
+msgstr ""
+
+#: Pinta.Tools/Editable/EditEngines/BaseEditEngine.cs:690
+msgid "Deleted"
+msgstr ""
+
+#: Pinta.Tools/Editable/EditEngines/BaseEditEngine.cs:852
+msgid "Added"
+msgstr ""
+
+#: Pinta.Tools/Editable/EditEngines/BaseEditEngine.cs:934
+msgid "Modified"
+msgstr ""
+
+#: Pinta.Tools/Editable/EditEngines/BaseEditEngine.cs:1117
+#: Pinta.Tools/Editable/EditEngines/BaseEditEngine.cs:1403
+#: Pinta.Tools/Tools/GradientTool.cs:186
+msgid "Finalized"
+msgstr ""
+
+#: Pinta.Tools/Editable/EditEngines/LineCurveEditEngine.cs:37
+msgid "Open Curve Shape"
+msgstr ""
+
+#: Pinta.Tools/Editable/EditEngines/RectangleEditEngine.cs:37
+msgid "Closed Curve Shape"
+msgstr ""
+
+#: Pinta.Tools/Editable/EditEngines/RoundedLineEditEngine.cs:37
+msgid "Rounded Line Shape"
+msgstr ""
+
+#: Pinta.Tools/Editable/EditEngines/RoundedLineEditEngine.cs:85
+msgid "Radius"
+msgstr ""
+
+#: Pinta.Tools/Tools/BaseBrushTool.cs:47
+msgid "Change brush width."
+msgstr ""
+
+#: Pinta.Tools/Tools/BaseBrushTool.cs:49
+#, csharp-format
+msgid "Press {0} to decrease brush width"
+msgstr ""
+
+#: Pinta.Tools/Tools/BaseBrushTool.cs:50
+#, csharp-format
+msgid "Press {0} to increase brush width"
+msgstr ""
+
+#: Pinta.Tools/Tools/BaseBrushTool.cs:129
+msgid "Brush width"
+msgstr ""
+
+#: Pinta.Tools/Tools/CloneStampTool.cs:60
+msgid "Clone Stamp"
+msgstr ""
+
+#: Pinta.Tools/Tools/CloneStampTool.cs:63
+#, csharp-format
+msgid "{0} + left click to set origin, left click to paint."
+msgstr ""
+
+#: Pinta.Tools/Tools/ColorPickerTool.cs:58
+msgid "Color Picker"
+msgstr ""
+
+#: Pinta.Tools/Tools/ColorPickerTool.cs:60
+msgid ""
+"Left click to set primary color.\n"
+"Right click to set secondary color."
+msgstr ""
+
+#: Pinta.Tools/Tools/ColorPickerTool.cs:208
+msgid "After select"
+msgstr ""
+
+#: Pinta.Tools/Tools/ColorPickerTool.cs:209
+msgid "Sampling"
+msgstr ""
+
+#: Pinta.Tools/Tools/ColorPickerTool.cs:217
+msgid "Do not switch tool"
+msgstr ""
+
+#: Pinta.Tools/Tools/ColorPickerTool.cs:218
+msgid "Switch to previous tool"
+msgstr ""
+
+#: Pinta.Tools/Tools/ColorPickerTool.cs:219
+msgid "Switch to Pencil tool"
+msgstr ""
+
+#: Pinta.Tools/Tools/ColorPickerTool.cs:236
+msgid "Single Pixel"
+msgstr ""
+
+#: Pinta.Tools/Tools/ColorPickerTool.cs:237
+msgid "3 x 3 Region"
+msgstr ""
+
+#: Pinta.Tools/Tools/ColorPickerTool.cs:238
+msgid "5 x 5 Region"
+msgstr ""
+
+#: Pinta.Tools/Tools/ColorPickerTool.cs:239
+msgid "7 x 7 Region"
+msgstr ""
+
+#: Pinta.Tools/Tools/ColorPickerTool.cs:240
+msgid "9 x 9 Region"
+msgstr ""
+
+#: Pinta.Tools/Tools/ColorPickerTool.cs:254
+msgid "Layer"
+msgstr ""
+
+#: Pinta.Tools/Tools/ColorPickerTool.cs:255
+#: Pinta/Dialogs/KeyboardShortcutsDialog.cs:413 Pinta/MainWindow.cs:535
+msgid "Image"
+msgstr ""
+
+#: Pinta.Tools/Tools/DetectBorderTool.cs:25
+msgid ""
+"Select an area, then use the keep brush or erase brush to guide border "
+"detection."
+msgstr ""
+
+#: Pinta.Tools/Tools/DetectBorderTool.cs:148
+msgid "Recognize"
+msgstr ""
+
+#: Pinta.Tools/Tools/DetectBorderTool.Mask.cs:31
+msgid "Rectangle selection"
+msgstr ""
+
+#: Pinta.Tools/Tools/DetectBorderTool.Mask.cs:32
+msgid "Keep brush"
+msgstr ""
+
+#: Pinta.Tools/Tools/DetectBorderTool.Mask.cs:33
+msgid "Erase brush"
+msgstr ""
+
+#: Pinta.Tools/Tools/EllipseSelectTool.cs:39
+msgid "Ellipse Select"
+msgstr ""
+
+#: Pinta.Tools/Tools/EllipseSelectTool.cs:41
+msgid ""
+"Click and drag to draw an elliptical selection.\n"
+"Hold Shift to constrain to a circle."
+msgstr ""
+
+#: Pinta.Tools/Tools/EraserTool.cs:62
+msgid "Eraser"
+msgstr ""
+
+#: Pinta.Tools/Tools/EraserTool.cs:68
+msgid ""
+"Left click to erase to transparent, right click to erase to secondary color. "
+msgstr ""
+
+#: Pinta.Tools/Tools/EraserTool.cs:332 Pinta.Tools/Tools/PaintBrushTool.cs:228
+msgid "Type"
+msgstr ""
+
+#: Pinta.Tools/Tools/EraserTool.cs:336
+msgid "Smooth"
+msgstr ""
+
+#: Pinta.Tools/Tools/FloodTool.cs:121
+msgid "Flood Mode"
+msgstr ""
+
+#: Pinta.Tools/Tools/FloodTool.cs:122 Pinta.Tools/Tools/RecolorTool.cs:196
+msgid "Tolerance"
+msgstr ""
+
+#: Pinta.Tools/Tools/FloodTool.cs:131
+msgid "Contiguous"
+msgstr ""
+
+#: Pinta.Tools/Tools/FloodTool.cs:132
+msgid "Global"
+msgstr ""
+
+#: Pinta.Tools/Tools/FreeformShapeTool.cs:48
+msgid "Freeform Shape"
+msgstr ""
+
+#: Pinta.Tools/Tools/FreeformShapeTool.cs:50
+#: Pinta.Tools/Tools/PaintBrushTool.cs:81
+msgid ""
+"Left click to draw with primary color, right click to draw with secondary "
+"color."
+msgstr ""
+
+#: Pinta.Tools/Tools/GradientTool.cs:60 Pinta.Tools/Tools/GradientTool.cs:288
+msgid "Gradient"
+msgstr ""
+
+#: Pinta.Tools/Tools/GradientTool.cs:62
+msgid ""
+"Click and drag to draw gradient from primary to secondary color.\n"
+"Right click to reverse.\n"
+"Click on a control point and drag to move it."
+msgstr ""
+
+#: Pinta.Tools/Tools/GradientTool.cs:127
+msgid "Gradient Created"
+msgstr ""
+
+#: Pinta.Tools/Tools/GradientTool.cs:128
+msgid "Gradient Modified"
+msgstr ""
+
+#: Pinta.Tools/Tools/GradientTool.cs:294
+msgid "Linear Gradient"
+msgstr ""
+
+#: Pinta.Tools/Tools/GradientTool.cs:295
+msgid "Linear Reflected Gradient"
+msgstr ""
+
+#: Pinta.Tools/Tools/GradientTool.cs:296
+msgid "Linear Diamond Gradient"
+msgstr ""
+
+#: Pinta.Tools/Tools/GradientTool.cs:297
+msgid "Radial Gradient"
+msgstr ""
+
+#: Pinta.Tools/Tools/GradientTool.cs:298
+msgid "Conical Gradient"
+msgstr ""
+
+#: Pinta.Tools/Tools/GradientTool.cs:322
+msgid "Mode"
+msgstr ""
+
+#: Pinta.Tools/Tools/GradientTool.cs:328
+msgid "Color Mode"
+msgstr ""
+
+#: Pinta.Tools/Tools/GradientTool.cs:329
+msgid "Transparency Mode"
+msgstr ""
+
+#: Pinta.Tools/Tools/LassoSelectTool.cs:55
+msgid "Lasso Select"
+msgstr ""
+
+#: Pinta.Tools/Tools/LassoSelectTool.cs:57
+msgid ""
+"In Freeform mode, click and drag to draw the outline for a selection area.\n"
+"\n"
+"In Polygon mode, click and drag to add a new point to the selection.\n"
+"Press Enter to finish the selection.\n"
+"Press Backspace to delete the last point."
+msgstr ""
+
+#: Pinta.Tools/Tools/LassoSelectTool.cs:213
+msgid "Lasso Mode"
+msgstr ""
+
+#: Pinta.Tools/Tools/LassoSelectTool.cs:220
+msgid "Freeform"
+msgstr ""
+
+#: Pinta.Tools/Tools/LassoSelectTool.cs:221
+msgid "Polygon"
+msgstr ""
+
+#: Pinta.Tools/Tools/LineCurveTool.cs:42
+msgid "Line/Curve"
+msgstr ""
+
+#: Pinta.Tools/Tools/MagicWandTool.cs:54
+msgid "Magic Wand Select"
+msgstr ""
+
+#: Pinta.Tools/Tools/MagicWandTool.cs:57
+msgid ""
+"Click to select region of similar color.\n"
+"Hold shift to use Global mode."
+msgstr ""
+
+#: Pinta.Tools/Tools/MoveLayerTool.cs:49
+#, csharp-format
+msgid ""
+"Left click and drag to move the layer.\n"
+"Use arrow keys to move the layer by a single pixel.\n"
+"Hold {0} while using arrow keys to move ten pixels."
+msgstr ""
+
+#: Pinta.Tools/Tools/MoveLayerTool.cs:61
+msgid "Auto-select layer"
+msgstr ""
+
+#: Pinta.Tools/Tools/PaintBrushTool.cs:79
+msgid "Paintbrush"
+msgstr ""
+
+#: Pinta.Tools/Tools/PaintBucketTool.cs:44
+msgid "Paint Bucket"
+msgstr ""
+
+#: Pinta.Tools/Tools/PaintBucketTool.cs:47
+msgid ""
+"Left click to fill a region with the primary color, right click to fill with "
+"the secondary color.\n"
+"Hold Shift to use Global mode."
+msgstr ""
+
+#: Pinta.Tools/Tools/PanTool.cs:41
+msgid "Pan"
+msgstr ""
+
+#: Pinta.Tools/Tools/PanTool.cs:43
+msgid "Click and drag to navigate image."
+msgstr ""
+
+#: Pinta.Tools/Tools/PencilTool.cs:48
+msgid "Pencil"
+msgstr ""
+
+#: Pinta.Tools/Tools/PencilTool.cs:51
+msgid ""
+"Left click to draw freeform one-pixel wide lines with the primary color.\n"
+"Right click to use the secondary color."
+msgstr ""
+
+#: Pinta.Tools/Tools/RecolorTool.cs:55
+msgid "Recolor"
+msgstr ""
+
+#: Pinta.Tools/Tools/RecolorTool.cs:58
+msgid ""
+"Left click to replace the secondary color with the primary color.\n"
+"Right click to reverse."
+msgstr ""
+
+#: Pinta.Tools/Tools/RectangleSelectTool.cs:39
+msgid "Rectangle Select"
+msgstr ""
+
+#: Pinta.Tools/Tools/RectangleSelectTool.cs:42
+msgid ""
+"Click and drag to draw a rectangular selection.\n"
+"Hold Shift to constrain to a square."
+msgstr ""
+
+#: Pinta.Tools/Tools/RectangleTool.cs:42
+msgid "Rectangle"
+msgstr ""
+
+#: Pinta.Tools/Tools/RoundedRectangleTool.cs:43
+msgid "Rounded Rectangle"
+msgstr ""
+
+#: Pinta.Tools/Tools/ShapeTool.cs:50
+#, csharp-format
+msgid ""
+"Left click to draw a shape with the primary color.\n"
+"Left click on a shape to add a control point.\n"
+"Left click on a control point and drag to move it.\n"
+"Right click on a control point and drag to change its tension.\n"
+"Hold Shift to snap to angles.\n"
+"Use arrow keys to move the selected control point.\n"
+"Press {0} + left/right arrows to select control points by order.\n"
+"Press Delete to delete the selected control point.\n"
+"Press Space to add a new control point at the mouse position.\n"
+"Hold {0} while pressing Space to create the control point at the exact same "
+"position.\n"
+"Hold {0} while left clicking on a control point to create a new shape at the "
+"exact same position.\n"
+"Press Enter to finalize the shape."
+msgstr ""
+
+#: Pinta.Tools/Tools/TextTool.cs:80
+msgid "Text"
+msgstr ""
+
+#: Pinta.Tools/Tools/TextTool.cs:83
+msgid "Text - Finalize"
+msgstr ""
+
+#: Pinta.Tools/Tools/TextTool.cs:95
+msgid ""
+"Left click to place cursor, then type desired text. Text color is primary "
+"color."
+msgstr ""
+
+#: Pinta.Tools/Tools/TextTool.cs:149
+msgid "Font"
+msgstr ""
+
+#: Pinta.Tools/Tools/TextTool.cs:188
+msgid "Small Caps"
+msgstr ""
+
+#: Pinta.Tools/Tools/TextTool.cs:194
+msgid "All Small Caps"
+msgstr ""
+
+#: Pinta.Tools/Tools/TextTool.cs:200
+msgid "Petite Caps"
+msgstr ""
+
+#: Pinta.Tools/Tools/TextTool.cs:206
+msgid "All Petite Caps"
+msgstr ""
+
+#: Pinta.Tools/Tools/TextTool.cs:212
+msgid "Unicase"
+msgstr ""
+
+#: Pinta.Tools/Tools/TextTool.cs:218
+msgid "Title Caps"
+msgstr ""
+
+#: Pinta.Tools/Tools/TextTool.cs:237
+msgid "Change font size. Shortcut keys: [ ]"
+msgstr ""
+
+#: Pinta.Tools/Tools/TextTool.cs:238
+msgid "Change font size."
+msgstr ""
+
+#: Pinta.Tools/Tools/TextTool.cs:240
+#, csharp-format
+msgid "Press {0} to decrease font size"
+msgstr ""
+
+#: Pinta.Tools/Tools/TextTool.cs:241
+#, csharp-format
+msgid "Press {0} to increase font size"
+msgstr ""
+
+#: Pinta.Tools/Tools/TextTool.cs:254
+msgid "Thin"
+msgstr ""
+
+#: Pinta.Tools/Tools/TextTool.cs:260
+msgid "Ultralight"
+msgstr ""
+
+#: Pinta.Tools/Tools/TextTool.cs:272
+msgid "Semilight"
+msgstr ""
+
+#: Pinta.Tools/Tools/TextTool.cs:278
+msgid "Book"
+msgstr ""
+
+#: Pinta.Tools/Tools/TextTool.cs:290
+msgid "Medium"
+msgstr ""
+
+#: Pinta.Tools/Tools/TextTool.cs:296
+msgid "Semibold"
+msgstr ""
+
+#: Pinta.Tools/Tools/TextTool.cs:302
+msgid "Bold"
+msgstr ""
+
+#: Pinta.Tools/Tools/TextTool.cs:308
+msgid "Ultrabold"
+msgstr ""
+
+#: Pinta.Tools/Tools/TextTool.cs:314
+msgid "Heavy"
+msgstr ""
+
+#: Pinta.Tools/Tools/TextTool.cs:320
+msgid "Ultraheavy"
+msgstr ""
+
+#: Pinta.Tools/Tools/TextTool.cs:334
+msgid "Italic"
+msgstr ""
+
+#: Pinta.Tools/Tools/TextTool.cs:345
+msgid "Underline"
+msgstr ""
+
+#: Pinta.Tools/Tools/TextTool.cs:360
+msgid "Left Align"
+msgstr ""
+
+#: Pinta.Tools/Tools/TextTool.cs:371
+msgid "Center Align"
+msgstr ""
+
+#: Pinta.Tools/Tools/TextTool.cs:382
+msgid "Right Align"
+msgstr ""
+
+#: Pinta.Tools/Tools/TextTool.cs:395
+msgid "Text Style"
+msgstr ""
+
+#: Pinta.Tools/Tools/TextTool.cs:405
+msgid "Normal and Outline"
+msgstr ""
+
+#: Pinta.Tools/Tools/TextTool.cs:406
+msgid "Outline"
+msgstr ""
+
+#: Pinta.Tools/Tools/TextTool.cs:407
+msgid "Fill Background"
+msgstr ""
+
+#: Pinta.Tools/Tools/TextTool.cs:446
+msgid "Miter Join"
+msgstr ""
+
+#: Pinta.Tools/Tools/TextTool.cs:452
+msgid "Round Join"
+msgstr ""
+
+#: Pinta.Tools/Tools/TextTool.cs:458
+msgid "Bevel Join"
+msgstr ""
+
+#: Pinta.Tools/Tools/ZoomTool.cs:57
+msgid "Zoom"
+msgstr ""
+
+#: Pinta.Tools/Tools/ZoomTool.cs:60
+msgid ""
+"Left click to zoom in.\n"
+"Right click to zoom out.\n"
+"Click and drag to zoom in selection."
+msgstr ""
+
+#: Pinta/Actions/Edit/PasteAction.cs:218
+msgid "Image cannot be pasted"
+msgstr ""
+
+#: Pinta/Actions/Edit/PasteAction.cs:219
+msgid "The clipboard does not contain an image."
+msgstr ""
+
+#: Pinta/Actions/Edit/PasteAction.cs:225
+msgid "Image larger than canvas"
+msgstr ""
+
+#: Pinta/Actions/Edit/PasteAction.cs:226
+msgid ""
+"The image being pasted is larger than the canvas. What would you like to do "
+"to the canvas size?"
+msgstr ""
+
+#: Pinta/Actions/Edit/PasteAction.cs:236
+msgid "Preserve"
+msgstr ""
+
+#: Pinta/Actions/Edit/PasteAction.cs:238
+msgid "Expand"
+msgstr ""
+
+#: Pinta/Actions/Edit/ResizePaletteAction.cs:69
+msgid "Resize Palette"
+msgstr ""
+
+#: Pinta/Actions/Edit/ResizePaletteAction.cs:71
+msgid "New palette size:"
+msgstr ""
+
+#: Pinta/Actions/File/CloseDocumentAction.cs:72
+#, csharp-format
+msgid "Save changes to image \"{0}\" before closing?"
+msgstr ""
+
+#: Pinta/Actions/File/CloseDocumentAction.cs:75
+msgid "If you don't save, all changes will be permanently lost."
+msgstr ""
+
+#: Pinta/Actions/File/CloseDocumentAction.cs:84
+msgid "_Discard"
+msgstr ""
+
+#: Pinta/Actions/File/CloseDocumentAction.cs:85
+msgid "_Save"
+msgstr ""
+
+#: Pinta/Actions/File/NewScreenshotAction.cs:85
+#: Pinta/Actions/File/NewScreenshotAction.cs:110
+msgid "Failed to take screenshot"
+msgstr ""
+
+#: Pinta/Actions/File/NewScreenshotAction.cs:86
+msgid "Failed to access XDG Desktop Portals"
+msgstr ""
+
+#: Pinta/Actions/File/OpenDocumentAction.cs:75
+msgid "Open Pinta Document or Image"
+msgstr ""
+
+#: Pinta/Actions/File/OpenDocumentAction.cs:107
+msgid "Pinta documents"
+msgstr ""
+
+#: Pinta/Actions/File/OpenDocumentAction.cs:125
+msgid "Supported files"
+msgstr ""
+
+#: Pinta/Actions/File/SaveDocumentImplementationAction.cs:96
+msgid "Save Pinta Document"
+msgstr ""
+
+#: Pinta/Actions/File/SaveDocumentImplementationAction.cs:97
+msgid "Save Image File"
+msgstr ""
+
+#: Pinta/Actions/File/SaveDocumentImplementationAction.cs:229
+msgid "Pinta does not support saving images in this file format."
+msgstr ""
+
+#: Pinta/Actions/File/SaveDocumentImplementationAction.cs:249
+msgid "Image too large"
+msgstr ""
+
+#: Pinta/Actions/File/SaveDocumentImplementationAction.cs:250
+msgid "ICO files can not be larger than 255 x 255 pixels."
+msgstr ""
+
+#: Pinta/Actions/File/SaveDocumentImplementationAction.cs:261
+#, csharp-format
+msgid ""
+"You do not have access to modify '{0}'. The file or folder may be read-only."
+msgstr ""
+
+#: Pinta/Actions/File/SaveDocumentImplementationAction.cs:303
+msgid "Saving Document"
+msgstr ""
+
+#: Pinta/Actions/File/SaveDocumentImplementationAction.cs:326
+msgid "This format does not support layers. Flatten image?"
+msgstr ""
+
+#: Pinta/Actions/File/SaveDocumentImplementationAction.cs:327
+msgid "Flattening the image will merge all layers into a single layer."
+msgstr ""
+
+#: Pinta/Actions/Help/AboutDialogAction.cs:64
+msgid "About Pinta"
+msgstr ""
+
+#: Pinta/Actions/Help/AboutDialogAction.cs:65 Pinta/Main.cs:71
+#: Pinta/MainWindow.cs:81
+msgid "Pinta"
+msgstr ""
+
+#: Pinta/Actions/Help/AboutDialogAction.cs:69
+msgid "Easily create and edit images"
+msgstr ""
+
+#: Pinta/Actions/Help/AboutDialogAction.cs:73
+msgid "translator-credits"
+msgstr ""
+
+#: Pinta/Actions/Help/AboutDialogAction.cs:81
+msgid "Copyright"
+msgstr ""
+
+#: Pinta/Actions/Help/AboutDialogAction.cs:82
+msgid "by Pinta contributors"
+msgstr ""
+
+#: Pinta/Actions/Help/AboutDialogAction.cs:90
+msgid "License"
+msgstr ""
+
+#: Pinta/Actions/Help/AboutDialogAction.cs:91
+msgid "Released under the MIT X11 License."
+msgstr ""
+
+#: Pinta/Actions/Help/AboutDialogAction.cs:94
+msgid "Based on the work of Paint.NET:"
+msgstr ""
+
+#: Pinta/Actions/Help/AboutDialogAction.cs:98
+msgid "Using some icons from:"
+msgstr ""
+
+#: Pinta/Actions/Help/AiAccountAction.cs:42
+#: Pinta/Actions/Help/AiAccountAction.cs:78
+#: Pinta/Actions/Help/AiAccountAction.cs:113
+#: Pinta/Actions/Help/AiAccountAction.cs:121
+#: Pinta/Actions/Help/AiAccountAction.cs:129
+#: Pinta/Dialogs/AiAccountDialog.cs:46
+msgid "AI Account"
+msgstr ""
+
+#: Pinta/Actions/Help/AiAccountAction.cs:50
+#: Pinta/Actions/Help/AiAccountAction.cs:85
+msgid "AI Account Failed"
+msgstr ""
+
+#: Pinta/Actions/Help/AiAccountAction.cs:98
+msgid "Incorrect email or password."
+msgstr ""
+
+#: Pinta/Actions/Help/AiAccountAction.cs:101
+msgid "Email already registered."
+msgstr ""
+
+#: Pinta/Actions/Help/AiAccountAction.cs:103
+msgid "Check the API server, email, and password, then try again."
+msgstr ""
+
+#: Pinta/Actions/Help/AiAccountAction.cs:114
+msgid "Enter the API server, email, and password."
+msgstr ""
+
+#: Pinta/Actions/Help/AiAccountAction.cs:122
+msgid "Enter a valid email address."
+msgstr ""
+
+#: Pinta/Actions/Help/AiAccountAction.cs:130
+msgid "Password must be at least 8 characters."
+msgstr ""
+
+#: Pinta/Actions/Layers/LayerPropertiesAction.cs:103
+#: Pinta/Pads/LayersPad.cs:163
+msgid "Layer Opacity"
+msgstr ""
+
+#: Pinta/Actions/Layers/LayerPropertiesAction.cs:121
+#: Pinta/Dialogs/LayerPropertiesDialog.cs:120
+msgid "Layer Properties"
+msgstr ""
+
+#: Pinta/Actions/Layers/ResizeLayerAction.cs:132
+#: Pinta/Actions/Layers/ResizeLayerAction.cs:152
+#: Pinta/Actions/Layers/ResizeLayerAction.cs:163
+#: Pinta/Dialogs/ResizeLayerDialog.cs:155
+msgid "Resize Layer"
+msgstr ""
+
+#: Pinta/Actions/Layers/RotateZoomLayerAction.cs:72
+#: Pinta/Actions/Layers/RotateZoomLayerAction.cs:140
+msgid "Rotate / Zoom Layer"
+msgstr ""
+
+#: Pinta/Actions/View/MenuBarToggledAction.cs:39
+msgid "Restart Pinta"
+msgstr ""
+
+#: Pinta/Actions/View/MenuBarToggledAction.cs:40
+msgid "Please restart Pinta for the changes to take effect."
+msgstr ""
+
+#: Pinta/AddinSetupService.cs:62
+msgid "Pinta Community Addins - Platform-Specific"
+msgstr ""
+
+#: Pinta/AddinSetupService.cs:66
+msgid "Pinta Community Addins - Cross-Platform"
+msgstr ""
+
+#: Pinta/Dialogs/AiAccountDialog.cs:39
+msgid "API Server:"
+msgstr ""
+
+#: Pinta/Dialogs/AiAccountDialog.cs:41
+msgid "Email:"
+msgstr ""
+
+#: Pinta/Dialogs/AiAccountDialog.cs:43
+msgid "Password:"
+msgstr ""
+
+#: Pinta/Dialogs/AiAccountDialog.cs:52
+msgid "_Register"
+msgstr ""
+
+#: Pinta/Dialogs/AiAccountDialog.cs:53
+msgid "_Login"
+msgstr ""
+
+#: Pinta/Dialogs/CanvasGridSettingsDialog.cs:54
+msgid "Show Grid"
+msgstr ""
+
+#: Pinta/Dialogs/CanvasGridSettingsDialog.cs:75
+msgid "Show Axonometric Grid"
+msgstr ""
+
+#: Pinta/Dialogs/CanvasGridSettingsDialog.cs:97
+#: Pinta/Dialogs/CanvasGridSettingsDialog.cs:101
+#: Pinta/Dialogs/CanvasGridSettingsDialog.cs:107
+#: Pinta/Dialogs/NewImageDialog.cs:288 Pinta/Dialogs/ResizeCanvasDialog.cs:106
+#: Pinta/Dialogs/ResizeCanvasDialog.cs:110
+#: Pinta/Dialogs/ResizeImageDialog.cs:135
+#: Pinta/Dialogs/ResizeImageDialog.cs:139
+#: Pinta/Dialogs/ResizeLayerDialog.cs:137
+#: Pinta/Dialogs/ResizeLayerDialog.cs:141
+msgid "pixels"
+msgstr ""
+
+#: Pinta/Dialogs/CanvasGridSettingsDialog.cs:122
+msgid "Canvas Grid Settings"
+msgstr ""
+
+#: Pinta/Dialogs/ErrorDialog.cs:67
+msgid "Details"
+msgstr ""
+
+#: Pinta/Dialogs/ErrorDialog.cs:73
+msgid "Report Bug..."
+msgstr ""
+
+#: Pinta/Dialogs/JpegCompressionDialog.cs:40
+msgid "Quality: "
+msgstr ""
+
+#: Pinta/Dialogs/JpegCompressionDialog.cs:48
+msgid "JPEG Quality"
+msgstr ""
+
+#: Pinta/Dialogs/KeyboardShortcutsDialog.cs:45
+#: Pinta/Dialogs/KeyboardShortcutsDialog.cs:300
+msgid "Reset All"
+msgstr ""
+
+#: Pinta/Dialogs/KeyboardShortcutsDialog.cs:50
+msgid "Commands"
+msgstr ""
+
+#: Pinta/Dialogs/KeyboardShortcutsDialog.cs:51
+#: Pinta/Dialogs/KeyboardShortcutsDialog.cs:397 Pinta/MainWindow.cs:622
+msgid "Tools"
+msgstr ""
+
+#: Pinta/Dialogs/KeyboardShortcutsDialog.cs:77
+msgid "Search shortcuts"
+msgstr ""
+
+#: Pinta/Dialogs/KeyboardShortcutsDialog.cs:141
+msgid "No shortcuts found"
+msgstr ""
+
+#: Pinta/Dialogs/KeyboardShortcutsDialog.cs:171
+msgid "Clear Shortcut"
+msgstr ""
+
+#: Pinta/Dialogs/KeyboardShortcutsDialog.cs:179
+msgid "Reset Shortcut"
+msgstr ""
+
+#: Pinta/Dialogs/KeyboardShortcutsDialog.cs:196
+msgid "Press shortcut"
+msgstr ""
+
+#: Pinta/Dialogs/KeyboardShortcutsDialog.cs:217
+msgid "This modifier key is not supported."
+msgstr ""
+
+#: Pinta/Dialogs/KeyboardShortcutsDialog.cs:223
+msgid "Tool shortcuts cannot use modifier keys."
+msgstr ""
+
+#: Pinta/Dialogs/KeyboardShortcutsDialog.cs:228
+msgid "This key is reserved for canvas controls."
+msgstr ""
+
+#: Pinta/Dialogs/KeyboardShortcutsDialog.cs:283
+msgid "Shortcut already in use"
+msgstr ""
+
+#: Pinta/Dialogs/KeyboardShortcutsDialog.cs:284
+#, csharp-format
+msgid "{0} is assigned to {1}."
+msgstr ""
+
+#: Pinta/Dialogs/KeyboardShortcutsDialog.cs:297
+msgid "Reset all shortcuts?"
+msgstr ""
+
+#: Pinta/Dialogs/KeyboardShortcutsDialog.cs:298
+msgid "All custom keyboard shortcuts will be removed."
+msgstr ""
+
+#: Pinta/Dialogs/KeyboardShortcutsDialog.cs:320
+msgid "None"
+msgstr ""
+
+#: Pinta/Dialogs/KeyboardShortcutsDialog.cs:382
+msgid "Other"
+msgstr ""
+
+#: Pinta/Dialogs/KeyboardShortcutsDialog.cs:409
+msgid "Application"
+msgstr ""
+
+#: Pinta/Dialogs/KeyboardShortcutsDialog.cs:410
+msgid "File"
+msgstr ""
+
+#: Pinta/Dialogs/KeyboardShortcutsDialog.cs:411
+msgid "Edit"
+msgstr ""
+
+#: Pinta/Dialogs/KeyboardShortcutsDialog.cs:412 Pinta/MainWindow.cs:540
+msgid "View"
+msgstr ""
+
+#: Pinta/Dialogs/KeyboardShortcutsDialog.cs:415 Pinta/MainWindow.cs:530
+msgid "Adjustments"
+msgstr ""
+
+#: Pinta/Dialogs/KeyboardShortcutsDialog.cs:416 Pinta/MainWindow.cs:525
+msgid "Effects"
+msgstr ""
+
+#: Pinta/Dialogs/KeyboardShortcutsDialog.cs:418
+msgid "Help"
+msgstr ""
+
+#: Pinta/Dialogs/KeyboardShortcutsDialog.cs:419
+msgid "Add-ins"
+msgstr ""
+
+#: Pinta/Dialogs/LayerPropertiesDialog.cs:62
+msgid "Name:"
+msgstr ""
+
+#: Pinta/Dialogs/LayerPropertiesDialog.cs:71
+msgid "Visible"
+msgstr ""
+
+#: Pinta/Dialogs/LayerPropertiesDialog.cs:74
+msgid "Blend Mode"
+msgstr ""
+
+#: Pinta/Dialogs/LayerPropertiesDialog.cs:86 Pinta/Pads/LayersPad.cs:50
+msgid "Opacity:"
+msgstr ""
+
+#: Pinta/Dialogs/NewImageDialog.cs:109
+msgid "White"
+msgstr ""
+
+#: Pinta/Dialogs/NewImageDialog.cs:118
+msgid "Background Color"
+msgstr ""
+
+#: Pinta/Dialogs/NewImageDialog.cs:128
+msgid "Transparent"
+msgstr ""
+
+#: Pinta/Dialogs/NewImageDialog.cs:169
+msgid "Preview"
+msgstr ""
+
+#: Pinta/Dialogs/NewImageDialog.cs:311
+msgid "Portrait"
+msgstr ""
+
+#: Pinta/Dialogs/NewImageDialog.cs:315
+msgid "Landscape"
+msgstr ""
+
+#: Pinta/Dialogs/NewImageDialog.cs:331
+msgid "Orientation:"
+msgstr ""
+
+#: Pinta/Dialogs/NewImageDialog.cs:356
+msgid "Preset:"
+msgstr ""
+
+#: Pinta/Dialogs/NewImageDialog.cs:373 Pinta/Dialogs/NewImageDialog.cs:430
+#: Pinta/Dialogs/NewImageDialog.cs:449 Pinta/Dialogs/NewImageDialog.cs:545
+msgid "Clipboard"
+msgstr ""
+
+#: Pinta/Dialogs/NewImageDialog.cs:375 Pinta/Dialogs/NewImageDialog.cs:430
+#: Pinta/Dialogs/NewImageDialog.cs:451 Pinta/Dialogs/NewImageDialog.cs:545
+msgid "Custom"
+msgstr ""
+
+#: Pinta/Dialogs/OffsetSelectionDialog.cs:60
+msgid "Offset"
+msgstr ""
+
+#: Pinta/Dialogs/ResizeCanvasDialog.cs:97 Pinta/Dialogs/ResizeImageDialog.cs:80
+msgid "Reset to image size"
+msgstr ""
+
+#: Pinta/Dialogs/ResizeCanvasDialog.cs:112
+#: Pinta/Dialogs/ResizeImageDialog.cs:75 Pinta/Dialogs/ResizeLayerDialog.cs:76
+msgid "Maintain aspect ratio"
+msgstr ""
+
+#: Pinta/Dialogs/ResizeCanvasDialog.cs:114
+#: Pinta/Dialogs/ResizeImageDialog.cs:83 Pinta/Dialogs/ResizeLayerDialog.cs:86
+msgid "By percentage:"
+msgstr ""
+
+#: Pinta/Dialogs/ResizeCanvasDialog.cs:121
+#: Pinta/Dialogs/ResizeImageDialog.cs:90 Pinta/Dialogs/ResizeLayerDialog.cs:93
+msgid "By absolute size:"
+msgstr ""
+
+#: Pinta/Dialogs/ResizeCanvasDialog.cs:154
+msgid "Anchor:"
+msgstr ""
+
+#: Pinta/Dialogs/ResizeImageDialog.cs:141
+#: Pinta/Dialogs/ResizeLayerDialog.cs:144
+msgid "Resampling:"
+msgstr ""
+
+#: Pinta/Dialogs/ResizeLayerDialog.cs:77
+msgid "Use canvas size as original size"
+msgstr ""
+
+#: Pinta/Dialogs/ResizeLayerDialog.cs:83
+msgid "Reset to layer size"
+msgstr ""
+
+#: Pinta/Main.cs:56
+msgid "Number of threads to use for rendering"
+msgstr ""
+
+#: Pinta/Main.cs:62
+msgid "Files to open"
+msgstr ""
+
+#: Pinta/Main.cs:67
+msgid "Enable additional logging or behavior changes for debugging"
+msgstr ""
+
+#: Pinta/MainWindow.cs:389
+#, csharp-format
+msgid "The '{0}' add-in may not be compatible with this version of Pinta"
+msgstr ""
+
+#: Pinta/MainWindow.cs:392
+msgid "Failed to initialize add-in"
+msgstr ""
+
+#: Pinta/MainWindow.cs:470
+msgid "_File"
+msgstr ""
+
+#: Pinta/MainWindow.cs:471
+msgid "_Edit"
+msgstr ""
+
+#: Pinta/MainWindow.cs:473
+msgid "_View"
+msgstr ""
+
+#: Pinta/MainWindow.cs:474
+msgid "_Image"
+msgstr ""
+
+#: Pinta/MainWindow.cs:475
+msgid "_Adjustments"
+msgstr ""
+
+#: Pinta/MainWindow.cs:476
+msgid "Effe_cts"
+msgstr ""
+
+#: Pinta/MainWindow.cs:478
+msgid "A_dd-ins"
+msgstr ""
+
+#: Pinta/MainWindow.cs:479
+msgid "_Window"
+msgstr ""
+
+#: Pinta/MainWindow.cs:480
+msgid "_Help"
+msgstr ""
+
+#: Pinta/MainWindow.cs:520
+msgid "Main Menu"
+msgstr ""
+
+#: Pinta/Pads/CanvasPad.cs:41
+msgid "Canvas"
+msgstr ""
+
+#: Pinta/Pads/LayersPad.cs:71
+msgid "Generate Action Animation"
+msgstr ""
+
+#: Pinta/Pads/LayersPad.cs:76
+msgid "Generate a single-direction animation with action prompts"
+msgstr ""
+
+#: Pinta/Pads/ResourcesPad.cs:18 Pinta/Pads/ResourcesPad.cs:57
+msgid "Choose Resource Root"
+msgstr ""
+
+#: Pinta/Pads/ResourcesPad.cs:22
+msgid "Parent Folder"
+msgstr ""
+
+#: Pinta/Pads/ResourcesPad.cs:25 Pinta/Pads/ResourcesPad.cs:98
+msgid "No resource root selected"
+msgstr ""
+
+#: Pinta/Pads/ResourcesPad.cs:102 Pinta/Pads/ResourcesPad.cs:115
+msgid "Resource folder is unavailable"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.ImageSplit.cs:59
+#: Pinta.Core/Actions/LayerActions.ImageSplit.cs:229
+#: Pinta.Core/Actions/LayerActions.ImageSplit.cs:260
+msgid "Image Split Preview"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.ImageSplit.cs:66
+msgid "Confirm and Generate"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.ImageSplit.cs:86
+#, csharp-format
+msgid "Smaller ({0})"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.ImageSplit.cs:89
+#, csharp-format
+msgid "Larger ({0})"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.ImageSplit.cs:92
+msgid "Custom size"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.ImageSplit.cs:125
+msgid "White padding"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.ImageSplit.cs:136
+msgid "Original size:"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.ImageSplit.cs:137
+msgid "AI request size:"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.ImageSplit.cs:138
+msgid "Scale:"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.ImageSplit.cs:139
+msgid "Padding:"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.ImageSplit.cs:146
+msgid "Original image"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.ImageSplit.cs:146
+msgid "Adapted image"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.ImageSplit.cs:197
+#, csharp-format
+msgid "{0:P1}"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.ImageSplit.cs:337
+#, csharp-format
+msgid "Left {0}, right {1}, top {2}, bottom {3} px"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.ImageSplit.cs:262
+#, csharp-format
+msgid "No supported {0} resolution can contain the source image {1}."
+msgstr ""
+
+#: Pinta.Core/ai/BackgroundCutoutService.cs:141
+msgid "split image"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.ImageSplit.cs:242
+msgid "Transparent padding"
+msgstr ""

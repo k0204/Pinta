@@ -203,7 +203,7 @@ public sealed partial class LayersListViewItemWidget
 		itemLabel.Ellipsize = Pango.EllipsizeMode.End;
 		Gtk.Widget nameEditor = CreateNameEditor (itemLabel);
 
-		Gtk.Button cutoutButton = Gtk.Button.NewWithLabel (Translations.GetString ("抠图"));
+		Gtk.Button cutoutButton = Gtk.Button.NewWithLabel (Translations.GetString ("Cutout"));
 		cutoutButton.Valign = Gtk.Align.Center;
 		cutoutButton.TooltipText = Translations.GetString ("Choose an image API and operation");
 		cutoutButton.OnClicked += (_, _) => {
@@ -450,13 +450,17 @@ public sealed partial class LayersListViewItemWidget
 
 		Gio.Menu operationsSection = Gio.Menu.New ();
                 operationsSection.AppendItem (actions.AddNewGroup.CreateMenuItem ());
+		operationsSection.AppendItem (actions.GenerateImage.CreateMenuItem ());
+		operationsSection.AppendItem (actions.Cutout.CreateMenuItem ());
 		if (item.UserLayer is SingleDirectionAnimationLayer)
 			operationsSection.AppendItem (actions.CreateSingleDirectionAnimation.CreateMenuItem ());
 		else if (item.UserLayer is SpriteSheetLayer)
 			operationsSection.AppendItem (actions.EditSpritesheet.CreateMenuItem ());
 		else {
+			operationsSection.AppendItem (actions.GenerateSpritesheet.CreateMenuItem ());
 			operationsSection.AppendItem (actions.GenerateSingleDirectionAnimation.CreateMenuItem ());
-			operationsSection.AppendItem (actions.SplitSpritesheet.CreateMenuItem ());
+			operationsSection.AppendItem (actions.CreateMultiDirectionAnimation.CreateMenuItem ());
+			operationsSection.AppendItem (actions.ImageSplit.CreateMenuItem ());
 			operationsSection.AppendItem (actions.CreateSingleDirectionAnimation.CreateMenuItem ());
 		}
 		operationsSection.AppendItem (actions.SaveLayerImage.CreateMenuItem ());

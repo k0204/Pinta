@@ -206,7 +206,7 @@ public sealed partial class LayerActions
 		promptBuffer.GetBounds (out Gtk.TextIter start, out Gtk.TextIter end);
 		return new (directionSheet, directionSheet ? "direction-sheet" : catalog.Actions[actionIndex].Id, ids, frames, columns, rows,
 			AI.SpritesheetPromptCatalog.FixedBackgroundId, size, promptBuffer.GetText (start, end, true).Trim (),
-			AI.AiRequestSettings.GetImageService (PintaCore.Settings), AI.AiRequestSettings.GetGptProvider (PintaCore.Settings), 1);
+			AI.AiRequestSettings.GetImageService (PintaCore.Settings), AI.AiRequestSettings.GetImageProvider (PintaCore.Settings), 1);
 	}
 
 	private static AI.SpritesheetAttemptInfo CreateSingleDirectionAttemptInfo (
@@ -222,7 +222,7 @@ public sealed partial class LayerActions
 		return new (false, catalog.Actions[actionIndex].Id, [SingleDirectionAnimationLayer.DefaultDirectionId], frames,
 			columns, rows, AI.SpritesheetPromptCatalog.FixedBackgroundId, size,
 			promptBuffer.GetText (start, end, true).Trim (),
-			AI.AiRequestSettings.GetImageService (PintaCore.Settings), AI.AiRequestSettings.GetGptProvider (PintaCore.Settings), 1);
+			AI.AiRequestSettings.GetImageService (PintaCore.Settings), AI.AiRequestSettings.GetImageProvider (PintaCore.Settings), 1);
 	}
 
 	private static byte[] CreateSurfacePng (Cairo.ImageSurface surface)
