@@ -33,8 +33,9 @@ namespace Pinta.Core;
 public sealed partial class LayerActions
 {
 	public Command AddNewLayer { get; }
-        public Command AddNewGroup { get; }
+	public Command AddNewGroup { get; }
 	public Command GenerateImage { get; }
+	public Command GenerateVideo { get; }
 	public Command GenerateSpritesheet { get; }
 	public Command GenerateSingleDirectionAnimation { get; }
 	public Command CreateMultiDirectionAnimation { get; }
@@ -69,10 +70,12 @@ public sealed partial class LayerActions
 	private readonly EffectsActions effects;
 	private readonly AI.CharacterBorderRecognitionService border_recognition;
 	private readonly AI.BackgroundCutoutService background_cutout;
+	private readonly AI.AiJobService video_jobs;
 	private readonly AI.SpriteSegmentationService sprite_segmentation;
 	private readonly AI.AiPromptOptimizationService prompt_optimization;
 	private bool detect_border_running;
 	private bool cutout_running;
+	private bool video_running;
 	private bool save_layer_running;
 
 	public LayerActions (
@@ -103,6 +106,12 @@ public sealed partial class LayerActions
 			"generateimage",
 			Translations.GetString ("AI Image Generation"),
 			Translations.GetString ("Generate an image with AI"),
+			Resources.Icons.EffectsRenderClouds);
+
+		GenerateVideo = new Command (
+			"generatevideo",
+			Translations.GetString ("Generate Video"),
+			Translations.GetString ("Generate a video from the selected layer with AI"),
 			Resources.Icons.EffectsRenderClouds);
 
 		GenerateSpritesheet = new Command (
@@ -257,6 +266,7 @@ public sealed partial class LayerActions
 		this.effects = effects;
 		border_recognition = new (aiAuth);
 		background_cutout = new (aiAuth);
+		video_jobs = new (aiAuth);
 		sprite_segmentation = new (aiAuth);
 		prompt_optimization = new (aiAuth);
 	}
@@ -265,8 +275,9 @@ public sealed partial class LayerActions
 	{
 		app.AddCommands ([
 			AddNewLayer,
-                        AddNewGroup,
+			AddNewGroup,
 			GenerateImage,
+			GenerateVideo,
 			GenerateSpritesheet,
 			GenerateSingleDirectionAnimation,
 			CreateMultiDirectionAnimation,
@@ -298,8 +309,9 @@ public sealed partial class LayerActions
 	public void RegisterHandlers ()
 	{
 		AddNewLayer.Activated += HandlePintaCoreActionsLayersAddNewLayerActivated;
-                AddNewGroup.Activated += HandlePintaCoreActionsLayersAddNewGroupActivated;
+		AddNewGroup.Activated += HandlePintaCoreActionsLayersAddNewGroupActivated;
 		GenerateImage.Activated += HandlePintaCoreActionsLayersGenerateImageActivated;
+		GenerateVideo.Activated += HandleGenerateVideoActivated;
 		GenerateSpritesheet.Activated += HandlePintaCoreActionsLayersGenerateSpritesheetActivated;
 		GenerateSingleDirectionAnimation.Activated += HandleGenerateSingleDirectionAnimationActivated;
 		CreateMultiDirectionAnimation.Activated += HandlePintaCoreActionsLayersSplitSpritesheetActivated;
@@ -335,8 +347,9 @@ public sealed partial class LayerActions
 		DeleteLayer.Sensitive = hasMultipleLayers;
 		DuplicateLayer.Sensitive = hasSelectedLayer;
 		image.Flatten.Sensitive = hasMultipleLayers && activeDoc?.Layers.HasLockedReferences != true;
-                AddNewGroup.Sensitive = activeDoc != null;
+		AddNewGroup.Sensitive = activeDoc != null;
 		GenerateImage.Sensitive = !cutout_running;
+		GenerateVideo.Sensitive = hasSelectedLayer && !cutout_running && !video_running;
 		GenerateSpritesheet.Sensitive = activeDoc is not null && !cutout_running;
 		GenerateSingleDirectionAnimation.Sensitive = hasSelectedLayer
 			&& CanCreateSpritesheetAnimation (activeDoc!.Layers.CurrentUserLayer)

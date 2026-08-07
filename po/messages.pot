@@ -3225,3 +3225,582 @@ msgstr ""
 #: ../Pinta.Core/Actions/LayerActions.ImageSplitPreview.cs:128
 msgid "Transparent padding"
 msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.cs:113
+#: Pinta.Core/Actions/LayerActions.Video.cs:40
+#: Pinta.Core/Actions/LayerActions.Video.cs:110
+#: Pinta.Core/Actions/LayerActions.Video.cs:122
+msgid "Generate Video"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.cs:114
+msgid "Generate a video from the selected layer with AI"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.cs:156
+msgid "Use this approved direction sheet as the default character reference"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.cs:200
+msgid "Detect Border"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.cs:201
+msgid "Detect border and create a new layer"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.cs:255
+msgid "Unlock Referenced Layer"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Video.cs:46
+#, csharp-format
+msgid "Source layer: {0}"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Video.cs:55
+#: Pinta.Core/Actions/LayerActions.Video.cs:78
+msgid "No files selected"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Video.cs:59
+#: Pinta.Core/Actions/LayerActions.Video.cs:66
+msgid "Choose Reference Images"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Video.cs:90
+msgid "Video prompt:"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Video.cs:94
+msgid "_Generate"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Video.cs:111
+msgid "Enter a video prompt before generating."
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Video.cs:123
+msgid "Preparing video request..."
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Video.cs:132
+msgid "Preparing source layer..."
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Video.cs:136
+msgid "Generating video..."
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Video.cs:144
+msgid "Downloading generated video..."
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Video.cs:153
+#: Pinta.Core/Actions/LayerActions.Video.cs:167
+msgid "Video generation canceled."
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Video.cs:159
+msgid "Saving video..."
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Video.cs:162
+msgid "Refreshing balance..."
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Video.cs:164
+msgid "Video generation complete."
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Video.cs:171
+msgid "Video Generation Failed"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Video.cs:172
+msgid ""
+"Check the selected layer, API server logs, balance, and login status, then "
+"try again."
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Video.cs:203
+msgid "Save Generated Video"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Video.cs:211
+msgid "MP4 video (*.mp4)"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Video.cs:218
+msgid "Generated Video"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Video.cs:240
+msgid "Video response did not include a video URL."
+msgstr ""
+
+#: Pinta.Gui.Widgets/Widgets/Layers/LayersListViewItemWidget.cs:537
+msgid "Referenced image is missing"
+msgstr ""
+
+#: Pinta.Gui.Widgets/Widgets/Layers/LayersListViewItemWidget.cs:537
+msgid "Referenced layer is locked"
+msgstr ""
+
+#: Pinta/MainWindow.cs:625
+msgid "Tools"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportAction.cs:17
+msgid "Video Frame Exporter..."
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportAction.cs:18
+msgid "Preview a video and export selected frames as PNG"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportProcess.cs:42
+msgid "Video metadata is incomplete."
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportProcess.cs:47
+msgid "Could not read video metadata."
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportProcess.cs:108
+msgid "FFmpeg did not export any frames."
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportProcess.cs:129
+msgid "Could not start the video tool."
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportProcess.cs:132
+msgid "FFmpeg and FFprobe are required for frame preview and export."
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportProcess.cs:149
+msgid "The video tool could not process this file."
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportProcess.cs:223
+msgid "Choose an output folder before exporting."
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportProcess.cs:227
+msgid "The filename prefix is not valid."
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportProcess.cs:229
+msgid "Numbering must use between 1 and 8 digits."
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:65
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:126
+msgid "Video Frame Exporter"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:121
+msgid "Close Video Frame Exporter"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:129
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:218
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.Media.cs:111
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.Media.cs:113
+msgid "No video open"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:142
+msgid "Open Video..."
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:157
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:420
+msgid "Open a video to preview frames"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:163
+msgid "Play"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:171
+msgid "00:00.00 / 00:00.00"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:174
+msgid "1x"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:175
+msgid "Playback speed"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:180
+msgid "Mute"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:202
+msgid "Previous frame"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:204
+msgid "Next frame"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:219
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:220
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:221
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:222
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.Media.cs:114
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.Media.cs:115
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.Media.cs:116
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.Media.cs:117
+msgid "Not available"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:223
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:425
+msgid "0 selected"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:225
+msgid "All frames"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:226
+msgid "Selected frames"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:250
+msgid "Select range"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:254
+msgid "Export 0 Frames"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:258
+msgid "Cancel Export"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:265
+msgid "Ready"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:279
+msgid "Source"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:281
+msgid "File"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:282
+msgid "Resolution"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:283
+msgid "Frame rate"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:284
+msgid "Duration"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:285
+msgid "Total frames"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:295
+msgid "Frames"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:297
+msgid "to"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:301
+msgid "Selection"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:304
+msgid "Output folder"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:305
+msgid "Filename prefix"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:306
+msgid "Format"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:306
+msgid "PNG"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:307
+msgid "Numbering digits"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:315
+msgid "Export"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:317
+msgid "Preview states: no video, loading, exporting, unsupported format"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:332
+msgid "Frame preview"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:341
+msgid "Select all"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:342
+msgid "Clear selection"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:404
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.Export.cs:15
+msgid "Choose output folder"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:435
+#, csharp-format
+msgid "Export {0} Frames"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:449
+#, csharp-format
+msgid "{0} x {1}   {2:0.##} fps   {3}"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:451
+#, csharp-format
+msgid "{0} x {1}"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:452
+#, csharp-format
+msgid "{0:0.##} fps"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:467
+#, csharp-format
+msgid "{0:00}:{1:00}.{2:00}"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.Export.cs:37
+msgid "Preparing export..."
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.Export.cs:44
+#, csharp-format
+msgid "Exporting {0} frames..."
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.Export.cs:55
+#, csharp-format
+msgid "Export complete: {0} frames"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.Export.cs:58
+msgid "Export canceled."
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.Export.cs:64
+msgid "Export failed."
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.Media.cs:20
+msgid "Open Video"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.Media.cs:22
+msgid "Video files"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.Media.cs:42
+msgid "Loading video..."
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.Media.cs:55
+msgid "No video frames were found."
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.Media.cs:76
+msgid "Could not open this video."
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.Media.cs:207
+#, csharp-format
+msgid "{0} / {1}"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.Media.cs:213
+msgid "Pause"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.Media.cs:220
+#, csharp-format
+msgid "{0:0.#}x"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.Thumbnails.cs:25
+#, csharp-format
+msgid "Frame {0} at {1}"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.Thumbnails.cs:43
+#, csharp-format
+msgid "F{0}"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.Thumbnails.cs:58
+#, csharp-format
+msgid "{0} selected / {1}"
+msgstr ""
++#: Pinta/Actions/File/OpenDocumentAction.cs:63
+msgid "Open Pinta Project"
+msgstr ""
+
+#: Pinta/Actions/File/SaveDocumentImplementationAction.cs:96
+msgid "Save Pinta Project"
+msgstr ""
+
+#: Pinta/Actions/File/SaveDocumentImplementationAction.cs:303
+msgid "Saving Project"
+msgstr ""
+
+#: Pinta/Actions/File/OpenDocumentAction.cs:76
+msgid "This folder is not a Pinta project."
+msgstr ""
+
+#: Pinta/Actions/File/OpenDocumentAction.cs:77
+msgid "Select a folder ending in .pintaproject."
+msgstr ""
+
+#: Pinta/Actions/File/SaveDocumentImplementationAction.cs:104
+msgid "The Pinta project format is not registered."
+msgstr ""
+
+#: Pinta.Core/ImageFormats/PintaDocumentFormat.cs:68
+msgid "The Pinta project path is a file, not a folder."
+msgstr ""
+
+#: Pinta.Core/ImageFormats/PintaDocumentFormat.cs:101
+msgid "Pinta projects must be stored on a local file system."
+msgstr ""
+
+#: Pinta.Core/ImageFormats/PintaDocumentFormat.cs:116
+msgid "The Pinta project does not contain project.json."
+msgstr ""
+
+#: Pinta.Core/ImageFormats/PintaDocumentFormat.cs:122
+msgid "The Pinta project manifest is empty."
+msgstr ""
+
+#: Pinta.Core/ImageFormats/PintaDocumentFormat.cs:124
+msgid "The Pinta project manifest is not valid JSON."
+msgstr ""
+
+#: Pinta.Core/ImageFormats/PintaDocumentFormat.cs:531
+msgid "The Pinta project resource could not be decoded."
+msgstr ""
+
+#: Pinta.Core/ImageFormats/PintaDocumentFormat.cs:533
+msgid "The Pinta project resource dimensions are invalid."
+msgstr ""
+
+#: Pinta.Core/ImageFormats/PintaDocumentFormat.cs:538
+msgid "The Pinta project resource is not a valid PNG."
+msgstr ""
+
+#: Pinta.Core/ImageFormats/PintaDocumentFormat.cs:545
+msgid "The Pinta project contains an invalid resource path."
+msgstr ""
+
+#: Pinta.Core/ImageFormats/PintaDocumentFormat.cs:570
+msgid "Unsupported Pinta project format or version."
+msgstr ""
+
+#: Pinta.Core/ImageFormats/PintaDocumentFormat.cs:573
+msgid "The Pinta project resource root is invalid."
+msgstr ""
+
+#: Pinta.Core/ImageFormats/PintaDocumentFormat.cs:575
+msgid "The Pinta project dimensions or guides are invalid."
+msgstr ""
+
+#: Pinta.Core/ImageFormats/PintaDocumentFormat.cs:577
+msgid "The Pinta project guides are invalid."
+msgstr ""
+
+#: Pinta.Core/ImageFormats/PintaDocumentFormat.cs:579
+msgid "The Pinta project selection is incomplete."
+msgstr ""
+
+#: Pinta.Core/ImageFormats/PintaDocumentFormat.cs:581
+msgid "The Pinta project content is invalid."
+msgstr ""
+
+#: Pinta.Core/ImageFormats/PintaDocumentFormat.cs:586
+msgid "The Pinta project contains referenced layers but no resource root."
+msgstr ""
+
+#: Pinta.Core/ImageFormats/PintaDocumentFormat.cs:588
+msgid "The selected Pinta project layer does not exist."
+msgstr ""
+
+#: Pinta.Core/ImageFormats/PintaDocumentFormat.cs:603
+msgid "The Pinta project contains an invalid layer."
+msgstr ""
+
+#: Pinta.Core/ImageFormats/PintaDocumentFormat.cs:607
+msgid "The Pinta project contains an invalid layer type."
+msgstr ""
+
+#: Pinta.Core/ImageFormats/PintaDocumentFormat.cs:625
+msgid "The Pinta project group layer is invalid."
+msgstr ""
+
+#: Pinta.Core/ImageFormats/PintaDocumentFormat.cs:635
+msgid "The Pinta project layer resource is invalid."
+msgstr ""
+
+#: Pinta.Core/ImageFormats/PintaDocumentFormat.cs:637
+msgid "The Pinta project reference layer is invalid."
+msgstr ""
+
+#: Pinta.Core/ImageFormats/PintaDocumentFormat.cs:644
+msgid "The Pinta project spritesheet layer is invalid."
+msgstr ""
+
+#: Pinta.Core/ImageFormats/PintaDocumentFormat.cs:650
+msgid "The Pinta project spritesheet animation is invalid."
+msgstr ""
+
+#: Pinta.Core/ImageFormats/PintaDocumentFormat.cs:654
+msgid "The Pinta project spritesheet direction is invalid."
+msgstr ""
+
+#: Pinta.Core/ImageFormats/PintaDocumentFormat.cs:658
+#: Pinta.Core/ImageFormats/PintaDocumentFormat.cs:679
+msgid "The Pinta project contains duplicate animation frames."
+msgstr ""
+
+#: Pinta.Core/ImageFormats/PintaDocumentFormat.cs:669
+msgid "The Pinta project single-direction animation layer is invalid."
+msgstr ""
+
+#: Pinta.Core/ImageFormats/PintaDocumentFormat.cs:675
+msgid "The Pinta project single-direction animation is invalid."
+msgstr ""
+
+#: Pinta.Core/ImageFormats/PintaDocumentFormat.cs:696
+msgid "The Pinta project animation resource is invalid."
+msgstr ""

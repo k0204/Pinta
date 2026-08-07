@@ -36,6 +36,7 @@ Pinta.Core/Actions/LayerActions.SingleDirection.cs
 Pinta.Core/Actions/LayerActions.Spritesheet.cs
 Pinta.Core/Actions/LayerActions.SpritesheetAlignment.cs
 Pinta.Core/Actions/LayerActions.SpritesheetSplit.cs
+Pinta.Core/Actions/LayerActions.Video.cs
 Pinta.Core/Actions/MultiDirectionAnimationEditor.cs
 Pinta.Core/Actions/SingleDirectionAnimationEditor.cs
 Pinta.Core/Actions/ViewActions.cs
@@ -496,5 +497,12 @@ Pinta/Pads/IDockPad.cs
 Pinta/Pads/LayersPad.cs
 Pinta/Pads/ResourcesPad.cs
 Pinta/SettingNames.cs
+Pinta/VideoFrameExport/VideoFrameExportAction.cs
+Pinta/VideoFrameExport/VideoFrameExportModels.cs
+Pinta/VideoFrameExport/VideoFrameExportProcess.cs
+Pinta/VideoFrameExport/VideoFrameExportWindow.cs
+Pinta/VideoFrameExport/VideoFrameExportWindow.Export.cs
+Pinta/VideoFrameExport/VideoFrameExportWindow.Media.cs
+Pinta/VideoFrameExport/VideoFrameExportWindow.Thumbnails.cs
 Pinta/WindowShell.cs
 Pinta/WindowsWindowPlacement.cs

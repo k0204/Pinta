@@ -451,6 +451,7 @@ public sealed partial class LayersListViewItemWidget
 		Gio.Menu operationsSection = Gio.Menu.New ();
                 operationsSection.AppendItem (actions.AddNewGroup.CreateMenuItem ());
 		operationsSection.AppendItem (actions.GenerateImage.CreateMenuItem ());
+		operationsSection.AppendItem (actions.GenerateVideo.CreateMenuItem ());
 		operationsSection.AppendItem (actions.Cutout.CreateMenuItem ());
 		if (item.UserLayer is SingleDirectionAnimationLayer)
 			operationsSection.AppendItem (actions.CreateSingleDirectionAnimation.CreateMenuItem ());

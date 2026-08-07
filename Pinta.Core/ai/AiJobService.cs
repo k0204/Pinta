@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -11,6 +12,8 @@ public sealed class AiJobService
 	private const string chat_path = "api/chat";
 	private const string image_path = "api/images";
 	private const string baidu_image_path = "api/baidu-images";
+	private const string image_jobs_path = "api/images/jobs";
+	private const string video_jobs_path = "api/videos/jobs";
 
 	private readonly AiApiClient api;
 
@@ -26,6 +29,7 @@ public sealed class AiJobService
 		CancellationToken cancellationToken = default)
 		=> RunAsync (
 			ct => api.PostJsonAsync (chat_path, request, ct),
+			image_jobs_path,
 			capture,
 			log,
 			cancellationToken);
@@ -37,9 +41,31 @@ public sealed class AiJobService
 		CancellationToken cancellationToken = default)
 		=> RunAsync (
 			ct => api.PostMultipartAsync (image_path, fields, files, ct),
+			image_jobs_path,
 			capture: null,
 			log,
 			cancellationToken);
+
+	public Task<JsonDocument> RunVideoFromImageAsync (
+		IEnumerable<(byte[] Data, string FileName)> references,
+		string prompt,
+		Action<string>? log = null,
+		CancellationToken cancellationToken = default)
+	{
+		List<KeyValuePair<string, string>> fields = [new ("prompt", prompt)];
+		IEnumerable<(byte[] Data, string FormName, string FileName)> files = references.Select (
+			reference => (reference.Data, "reference_image", reference.FileName));
+		return RunAsync (
+			ct => api.PostMultipartAsync (
+				"api/videos/image",
+				fields,
+				files,
+				ct),
+			video_jobs_path,
+			capture: null,
+			log,
+			cancellationToken);
+	}
 
 	public Task<JsonDocument> RunBaiduCutoutAsync (
 		byte[] png,
@@ -73,6 +99,7 @@ public sealed class AiJobService
 				fields,
 				[(png, "file", "pinta.png")],
 				ct),
+			image_jobs_path,
 			capture: null,
 			log,
 			cancellationToken);
@@ -83,6 +110,7 @@ public sealed class AiJobService
 
 	private async Task<JsonDocument> RunAsync (
 		Func<CancellationToken, Task<string>> submit,
+		string jobsPath,
 		Action<string, string>? capture,
 		Action<string>? log,
 		CancellationToken cancellationToken)
@@ -92,16 +120,17 @@ public sealed class AiJobService
 		using JsonDocument accepted = JsonDocument.Parse (acceptedJson);
 		string jobId = ReadJobId (accepted.RootElement);
 		Log (log, $"AI job accepted: job_id={jobId}");
-		return await WaitForResultAsync (jobId, capture, log, cancellationToken);
+		return await WaitForResultAsync (jobId, jobsPath, capture, log, cancellationToken);
 	}
 
 	private async Task<JsonDocument> WaitForResultAsync (
 		string jobId,
+		string jobsPath,
 		Action<string, string>? capture,
 		Action<string>? log,
 		CancellationToken cancellationToken)
 	{
-		string jobPath = $"api/images/jobs/{jobId}";
+		string jobPath = $"{jobsPath}/{jobId}";
 		while (true) {
 			string statusJson = await api.GetStringAsync (jobPath, cancellationToken);
 			capture?.Invoke ("status", statusJson);

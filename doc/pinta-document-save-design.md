@@ -1,285 +1,84 @@
-# Pinta 文档级保存设计
+# Pinta 项目目录保存设计
 
 ## 目标
 
-当前 Pinta 的保存逻辑是图片级保存：`Save` / `Save As` 保存的是当前 `Document` 对应的一张图片文件，`Save All` 也只是遍历多个打开的 `Document` 逐个保存。
+Pinta 的原生可编辑项目只使用 `.pintaproject` 目录格式。旧 `.pinta` ZIP 文件不再支持打开、迁移或保存。
 
-本文档设计一个单文档级的原生保存格式，用于保存一个可继续编辑的 Pinta 文档。它不是多文档项目，也不保存撤销/重做历史。
+普通图片格式仍用于导入和导出，但只有 `.pintaproject` 会成为 `Ctrl+S` 的原生保存目标。本格式不保存撤销/重做历史、缩放、滚动位置、当前工具或多个标签页。
 
-## 当前数据结构
-
-### Document
-
-位置：`Pinta.Core/Classes/Document.cs`
-
-`Document` 是当前图片/文档主体，已经包含：
-
-- `ImageSize`：画布尺寸。
-- `File` / `FileType` / `HasFile`：当前文件关联。
-- `DisplayName`：窗口和标签页显示名。
-- `IsDirty`：是否需要保存。
-- `Layers`：文档图层树。
-- `Selection` / `PreviousSelection`：当前选择区域。
-- `Workspace`：当前文档的视图和历史状态。
-
-缺口：
-
-- 没有原生文档格式版本。
-- 没有文档级 manifest。
-- 没有专门保存“可编辑文档状态”的入口。
-
-### DocumentLayers
-
-位置：`Pinta.Core/Classes/DocumentLayers.cs`
-
-`DocumentLayers` 是当前权威图层树 API。它已经支持：
-
-- `RootLayers`：根图层集合。
-- `AllLayers`：树结构展开后的全部图层。
-- `CurrentUserLayer`：当前选中图层。
-- `Insert(UserLayer, LayerPosition)`：按树位置插入图层。
-- `MoveLayer(UserLayer, LayerPosition)`：按树位置移动图层。
-- `LayerTreeChanged` / `SelectedLayerChanged`：图层树事件。
-
-项目规则要求图层编辑 tree-first，因此文档保存应直接序列化 `RootLayers` 树，不要新增旧式 flat layer 兼容路径。
-
-缺口：
-
-- 当前选中图层没有稳定 ID 可持久化。
-- 图层树没有专用序列化模型。
-
-### UserLayer / Layer
-
-位置：
-
-- `Pinta.Core/Classes/UserLayer.cs`
-- `Pinta.Core/Classes/Layer.cs`
-
-`Layer` 已经包含可保存的核心渲染状态：
-
-- `Surface`
-- `Transform`
-- `Opacity`
-- `Hidden`
-- `Name`
-- `BlendMode`
-
-`UserLayer` 在此基础上增加：
-
-- `Parent`
-- `Children`
-- `Expanded`
-- `TextEngine`
-- `TextBounds`
-- `PreviousTextBounds`
-- `ReEditableLayers`
-
-缺口：
-
-- 图层节点需要文档内稳定 `id`。
-- `Expanded` 目前只是 UI 状态，但文档级保存需要持久化。
-- `TextEngine` / `ReEditableLayers` 是否完整可编辑保存需要后续单独设计；本版保存前提交工具状态，优先保存当前图层结果。
-
-### DocumentSelection
-
-位置：`Pinta.Core/Classes/DocumentSelection.cs`
-
-`DocumentSelection` 已经包含：
-
-- `Visible`
-- `SelectionPolygons`
-- `HandleBounds`
-
-这些数据可以直接进入文档 manifest。
-
-缺口：
-
-- 当前没有文档文件中的 selection 模型。
-
-### DocumentHistory
-
-位置：`Pinta.Core/Classes/DocumentHistory.cs`
-
-`DocumentHistory` 是会话内状态，包含：
-
-- undo / redo 栈。
-- clean pointer。
-- dirty 变更逻辑。
-
-本版不保存历史。打开文档后应创建新的历史起点，并将文档标记为 clean。
-
-## 推荐文件结构
-
-新增 `.pinta` 原生文档格式，使用 zip 包保存：
+## 目录结构
 
 ```text
-example.pinta
+example.pintaproject/
 ├── project.json
-└── layers/
-    ├── layer-0001.png
-    ├── layer-0002.png
-    └── layer-0003.png
-└── spritesheets/ 或 single-direction-animations/
-    └── {layer-id}/frame-0000.png
+├── resources/
+│   ├── layers/
+│   ├── spritesheets/
+│   └── single-direction-animations/
+└── .staging/
 ```
 
-### project.json
+- `project.json` 是当前已提交项目的权威 manifest。
+- `resources/` 保存普通图层和动画帧 PNG。
+- `.staging/{save-id}/` 保存一次提交尚未完成的临时文件。
 
-`project.json` 保存文档 manifest：
+manifest 的 `format` 固定为 `pinta-document`，`version` 从 `1` 开始。实现只读取当前版本，不包含旧 ZIP 格式或旧 manifest 版本的兼容分支。
 
-```json
-{
-  "format": "pinta-document",
-  "version": 5,
-  "width": 800,
-  "height": 600,
-  "selectedLayerId": "layer-0002",
-  "selection": {
-    "visible": false,
-    "handleBounds": { "x": 0, "y": 0, "width": 0, "height": 0 },
-    "polygons": []
-  },
-  "layers": [
-    {
-      "id": "layer-0001",
-      "name": "Background",
-      "hidden": false,
-      "opacity": 1.0,
-      "blendMode": "Normal",
-      "expanded": true,
-      "surface": "layers/layer-0001.png",
-      "surfaceWidth": 800,
-      "surfaceHeight": 600,
-      "metadata": {},
-      "transform": { "xx": 1, "yx": 0, "xy": 0, "yy": 1, "x0": 0, "y0": 0 },
-      "children": []
-    }
-  ]
-}
-```
+## Manifest
 
-## 需要新增的数据模型
+`project.json` 直接序列化 `Document.Layers.RootLayers`，保持 tree-first 图层模型。主要数据包括：
 
-建议新增到 `Pinta.Core`：
+- 画布宽高、资源根目录和当前选中图层 ID。
+- 选区、辅助线和嵌套图层树。
+- 图层名称、显示状态、透明度、混合模式、展开状态、变换和元数据。
+- 普通图层的资源路径、像素尺寸和 `surfaceHash`。
+- 引用图层的相对引用路径。
+- 多方向动画的 `Action -> Direction -> Frame` 数据。
+- 单方向动画的方向 ID 和 `Action -> Frame` 数据。
+- 每个动画帧的资源路径、尺寸、位置、显示状态和 `surfaceHash`。
 
-- `PintaDocumentManifest`
-- `PintaDocumentLayerNode`
-- `PintaDocumentSelection`
-- `PintaDocumentRectangle`
-- `PintaDocumentMatrix`
+图层使用稳定的文档内 ID。资源文件名不使用用户输入的图层、动作或方向名称。
 
-这些类型只用于文件格式读写，不替代运行时的 `Document` / `DocumentLayers` / `UserLayer`。
+## 保存策略
 
-### PintaDocumentManifest
+保存前先提交当前工具状态，然后按以下顺序执行：
 
-字段：
+1. 为普通图层及每个动画帧计算 Cairo 像素数据的 SHA-256 `surfaceHash`。
+2. 读取目标目录当前的 `project.json`。哈希相同且旧资源仍存在时，直接复用旧资源路径。
+3. 只把发生变化的 surface 编码到 `.staging/{save-id}/`。
+4. 将 staged PNG 移动到本次保存专用的 `resources/` 路径。
+5. 在 staging 中完整写出新的 `project.json`，再原子替换项目根目录的 manifest。
+6. manifest 提交成功后，删除不再被新 manifest 引用的旧资源，并清理 staging。
 
-- `Format`
-- `Version`
-- `Width`
-- `Height`
-- `SelectedLayerId`
-- `Selection`
-- `Layers`
+仅修改图层名称、选区、辅助线等元数据时不会重新编码 PNG。只修改一个图层或动画帧时，只写对应资源。
 
-### PintaDocumentLayerNode
+资源先使用新的保存代次路径，旧 manifest 在提交前始终只引用旧资源。保存失败或进程中断时，旧 `project.json` 和它引用的资源仍然可打开。manifest 替换是提交点；提交后的旧资源清理失败不会使已提交项目失效。
 
-字段：
+本版不对单个大图层做瓦片化。修改大图层后仍需重新编码该图层的完整 PNG。
 
-- `Id`
-- `Name`
-- `Hidden`
-- `Opacity`
-- `BlendMode`
-- `Expanded`
-- `Surface`
-- `SurfaceWidth` / `SurfaceHeight`: v3 起保存每个普通图层的真实像素尺寸；允许精灵帧等图层小于文档画布
-- `Metadata`: v3 起保存功能级字符串元数据，例如精灵图的动作、方向、帧数和拆分参数
-- `Kind`: `layer`、`group`、`spritesheet` 或 `single-direction-animation`
-- `PositionOffsetX` / `PositionOffsetY`: 动画输出层的整体平移偏移
-- `SpriteSheetAnimations`: 多方向动画层的 `Action -> Direction -> Frame` 数据
-- `SingleDirectionId` / `SingleDirectionAnimations`: 单方向动画层的方向 ID 和 `Action -> Frame` 数据
-- `Transform`
-- `Children`
+## Save As
 
-### 动画帧资源
+`Save As` 选择 `.pintaproject` 时创建一个完整的新项目目录。导出和 manifest 提交全部成功后，才更新：
 
-动画输出层不把帧写入普通 `layers/` 表面：
+- `Document.File`
+- `Document.FileType`
+- history clean 状态
+- `HasBeenSavedInSession`
 
-- `spritesheet` 层使用 `spritesheets/{layer-id}/frame-XXXX.png`。
-- `single-direction-animation` 层使用 `single-direction-animations/{layer-id}/frame-XXXX.png`。
+失败或取消时，文档继续关联原保存位置。
 
-两种运行时层都使用通用的 `AnimationFrameData` 和 `AnimationFrameSequenceData`，但 manifest 保留独立的多方向和单方向结构，避免把 `Directions` 变成可选字段。
+## 打开策略
 
-### PintaDocumentSelection
+原生项目打开入口使用目录选择器，只接受名称以 `.pintaproject` 结尾的目录。Importer 读取并校验 `project.json`，递归恢复图层树、选区、辅助线、引用图层和两类动画数据。
 
-字段：
+校验包括格式与版本、尺寸、图层 ID、枚举值、树节点类型、资源相对路径、资源存在性、动画键唯一性和引用根目录。资源路径必须位于项目的 `resources/` 下，不能包含绝对路径或 `..`。
 
-- `Visible`
-- `HandleBounds`
-- `Polygons`
+## 验证清单
 
-## 保存逻辑
-
-1. 入口仍走现有 `Document.Save(bool saveAs)`。
-2. `.pinta` 作为一个新格式注册到 `ImageConverterManager`。
-3. 保存前调用 `tools.Commit()`，让当前工具状态落到文档。
-4. 从 `Document.Layers.RootLayers` 开始递归生成 `PintaDocumentLayerNode`。
-5. 为每个 `UserLayer` 分配稳定的保存 ID，例如 `layer-0001`。
-6. 将每个 `UserLayer.Surface` 写入 `layers/{id}.png`。
-7. 将图层属性、树结构、selection、选中图层写入 `project.json`。
-8. 成功后：
-   - 更新 `Document.File`
-   - 更新 `Document.FileType`
-   - 调用 `document.Workspace.History.SetClean()`
-   - 设置 `HasBeenSavedInSession = true`
-
-## 打开逻辑
-
-1. 通过 `.pinta` 扩展名找到 importer。
-2. 打开 zip，读取 `project.json`。
-3. 校验：
-   - `format == "pinta-document"`
-   - `version` 是当前支持版本。当前写入 v5，并继续读取 v1-v4；旧版本缺失的尺寸按文档画布处理，元数据按空集合处理。
-   - manifest 中引用的 layer PNG 都存在。
-4. 创建新的 `Document`。
-5. 递归读取 `layers` 树：
-   - 创建 `UserLayer`
-   - 载入 PNG 到 `Surface`
-   - 恢复 `Name`、`Hidden`、`Opacity`、`BlendMode`、`Transform`、`Expanded`
-   - 使用 `DocumentLayers.Insert(layer, new LayerPosition(parent, index))` 插入树
-6. 根据 `SelectedLayerId` 恢复当前图层。
-7. 恢复 `Document.Selection`。
-8. 添加一条“Open Document”历史项并标记 clean。
-
-## 不保存的数据
-
-本版明确不保存：
-
-- `DocumentHistory` 的 undo / redo 栈。
-- 当前缩放比例和滚动位置。
-- 当前激活工具。
-- 未提交的工具临时层。
-- 多个打开标签页组成的工作区。
-
-动画输出层的动作、方向、帧顺序、帧像素、位置偏移和可见性属于文档数据，必须保存并在重新打开时恢复。`SpriteSheetLayer` 和 `SingleDirectionAnimationLayer` 分别校验和合并自己的 manifest 数据；不会互相转换。
-
-## 测试场景
-
-- 单图层 `.pinta` 保存后重新打开，像素和尺寸一致。
-- 嵌套图层树 round-trip 后父子关系一致。
-- `Hidden`、`Opacity`、`BlendMode`、`Transform`、`Expanded` 保存并恢复。
-- 当前选中图层保存并恢复。
-- selection 的 `Visible`、`HandleBounds`、`SelectionPolygons` 保存并恢复。
-- 损坏 zip、缺失 `project.json`、缺失 layer PNG、未知版本时能给出明确错误。
-- 保存成功后 `IsDirty == false`。
-- 多方向动画保存后恢复动作、方向和帧顺序。
-- 单方向动画保存后恢复方向 ID、动作和帧顺序。
-- 两种动画输出层的帧像素、位置偏移和可见性 round-trip 后一致。
-
-## 实现约束
-
-- 使用现有树 API，不增加 flat layer 兼容分支。
-- `.pinta` 是原生文档格式，不替代普通图片导出。
-- `.ora` 仍作为 OpenRaster 图片格式存在。
-- 先实现当前可编辑结果的保存，复杂可重编辑对象的完整语义可作为后续版本扩展。
+- 创建新项目目录，保存后重新打开。
+- 嵌套图层、选区、辅助线、引用图层和动画数据 round-trip。
+- 只改元数据时不生成新 PNG。
+- 只改一个图层或帧时只更新对应资源。
+- 保存失败或中断后，旧 `project.json` 仍能打开。
+- 打开和保存入口不再出现 `.pinta`。
+- 普通图片导出继续工作。

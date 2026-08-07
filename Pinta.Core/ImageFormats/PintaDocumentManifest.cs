@@ -32,6 +32,7 @@ public sealed class PintaDocumentLayerNode
 	public string Kind { get; set; } = "layer";
 	public string Storage { get; set; } = "embedded";
 	public string? Surface { get; set; }
+	public string? SurfaceHash { get; set; }
 	public int? SurfaceWidth { get; set; }
 	public int? SurfaceHeight { get; set; }
 	public string? ReferencePath { get; set; }
@@ -67,6 +68,7 @@ public sealed class PintaDocumentSpriteSheetFrame
 	public int Y { get; set; }
 	public bool Visible { get; set; }
 	public string Surface { get; set; } = string.Empty;
+	public string SurfaceHash { get; set; } = string.Empty;
 	public int Width { get; set; }
 	public int Height { get; set; }
 }
@@ -86,6 +88,7 @@ public sealed class PintaDocumentSingleDirectionFrame
 	public int Y { get; set; }
 	public bool Visible { get; set; }
 	public string Surface { get; set; } = string.Empty;
+	public string SurfaceHash { get; set; } = string.Empty;
 	public int Width { get; set; }
 	public int Height { get; set; }
 }

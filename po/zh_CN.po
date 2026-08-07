@@ -3125,6 +3125,807 @@ msgstr "{0} 调色板 ({1})"
 msgid "{0}%"
 msgstr "{0}%"
 
+msgid "Image Split Preview"
+msgstr "拆分图片预览"
+
+msgid "Confirm"
+msgstr "确认"
+
+msgid "Current generation type:"
+msgstr "当前生成类型："
+
+msgid "Current Layer"
+msgstr "当前图层"
+
+msgid "AI Generated Image"
+msgstr "AI 生成图像"
+
+msgid "Prompt History"
+msgstr "提示历史"
+
+msgid "Select Prompt History"
+msgstr "选择提示历史"
+
+msgid "Prompt"
+msgstr "提示词"
+
+msgid "Chat provider:"
+msgstr "聊天提供方："
+
+msgid "Optimize and Translate"
+msgstr "优化并翻译"
+
+msgid "English Prompt (sent to image AI)"
+msgstr "英文提示词（发送给图像 AI）"
+
+msgid "Generate"
+msgstr "生成"
+
+msgid "AI Request Settings"
+msgstr "AI 请求设置"
+
+msgid "Baidu"
+msgstr "Baidu"
+
+msgid "Generate White Background"
+msgstr "生成白色背景"
+
+msgid "{0} credits per cutout"
+msgstr "每次抠图 {0} 积分"
+
+msgid "Single-Direction Animation"
+msgstr "单向动画"
+
+msgid "Clean Up Background"
+msgstr "清理背景"
+
+msgid "Image size:"
+msgstr "图片尺寸："
+
+msgid "Direction Sheet"
+msgstr "方向表"
+
+msgid "Action Spritesheet"
+msgstr "动作精灵图"
+
+msgid "Action Sequence"
+msgstr "动作序列"
+
+msgid "Describe the custom action"
+msgstr "描述自定义动作"
+
+msgid "Custom action:"
+msgstr "自定义动作："
+
+msgid "Frames:"
+msgstr "帧数："
+
+msgid "White (#FFFFFF)"
+msgstr "白色（#FFFFFF）"
+
+msgid "8 fixed directions"
+msgstr "8 个固定方向"
+
+msgid "Directions:"
+msgstr "方向："
+
+msgid "Generation type:"
+msgstr "生成类型："
+
+msgid "Action:"
+msgstr "动作："
+
+msgid "Action generation prompt"
+msgstr "动作生成提示词"
+
+msgid "Select a valid image size."
+msgstr "请选择有效的图片尺寸。"
+
+msgid "No files selected"
+msgstr "未选择文件"
+
+msgid "Choose Image Files..."
+msgstr "选择图片文件..."
+
+msgid "Choose Reference Images"
+msgstr "选择参考图片"
+
+msgid "Other Reference Layers"
+msgstr "其他参考图层"
+
+msgid "Reference Image Files"
+msgstr "参考图片文件"
+
+msgid "Spritesheet"
+msgstr "精灵图"
+
+msgid "Preparing image request..."
+msgstr "正在准备图片请求..."
+
+msgid "Image generation canceled."
+msgstr "图片生成已取消。"
+
+msgid "Creating generated image layer..."
+msgstr "正在创建生成的图片图层..."
+
+msgid "Refreshing balance..."
+msgstr "正在刷新余额..."
+
+msgid "Image generation complete."
+msgstr "图片生成完成。"
+
+msgid "Image Generation Failed"
+msgstr "图片生成失败"
+
+msgid ""
+"Check the selected images, API server logs, balance, and login status, then "
+"try again."
+msgstr "请检查所选图片、API 服务日志、账户余额和登录状态，然后重试。"
+
+msgid "Background Cleanup"
+msgstr "背景清理"
+
+msgid "Preparing image..."
+msgstr "正在准备图片..."
+
+msgid "White Background"
+msgstr "白色背景"
+
+msgid "Creating white background layer..."
+msgstr "正在创建白色背景图层..."
+
+msgid "Background cleanup complete."
+msgstr "背景清理完成。"
+
+msgid "Background cleanup canceled."
+msgstr "背景清理已取消。"
+
+msgid "Background Cleanup Failed"
+msgstr "背景清理失败"
+
+msgid "Transparent Cutout"
+msgstr "透明抠图"
+
+msgid "Requesting Baidu intelligent cutout..."
+msgstr "正在请求百度智能抠图..."
+
+msgid "Creating transparent layer..."
+msgstr "正在创建透明图层..."
+
+msgid "Creating black and transparent layers..."
+msgstr "正在创建黑色和透明图层..."
+
+msgid "Black Background"
+msgstr "黑色背景"
+
+msgid "Cutout complete."
+msgstr "抠图完成。"
+
+msgid "Cutout canceled."
+msgstr "抠图已取消。"
+
+msgid "Cutout Failed"
+msgstr "抠图失败"
+
+msgid "_Retry"
+msgstr "重试(_R)"
+
+msgid "None"
+msgstr "无"
+
+msgid "{0} directions / {1} x {2} grid"
+msgstr "{0} 个方向 / {1} x {2} 网格"
+
+msgid "{0} frames / {1} x {2} grid"
+msgstr "{0} 帧 / {1} x {2} 网格"
+
+msgid "{0} direction(s) x {1} frames = {2} frames / {3} x {4} grid"
+msgstr "{0} 个方向 x {1} 帧 = {2} 帧 / {3} x {4} 网格"
+
+msgid "Optimize the prompt and translate it to English."
+msgstr "优化提示词并将其翻译为英文。"
+
+msgid "Prompt history restored."
+msgstr "已恢复提示历史。"
+
+msgid "Enter a prompt first."
+msgstr "请先输入提示词。"
+
+msgid "Optimizing and translating the prompt..."
+msgstr "正在优化并翻译提示词..."
+
+msgid "The prompt changed, so the old optimization was not applied."
+msgstr "提示词已更改，因此未应用之前的优化结果。"
+
+msgid ""
+"The complete bilingual prompt was not returned; the original prompt will be "
+"used."
+msgstr "未返回完整的双语提示词；将使用原始提示词。"
+
+msgid ""
+"The bilingual prompt is ready; the English version will be sent to the image "
+"AI."
+msgstr "双语提示词已准备完成；英文版本将发送给图像 AI。"
+
+msgid "Prompt optimization failed; the original prompt will be used."
+msgstr "提示词优化失败；将使用原始提示词。"
+
+msgid ""
+"The original prompt changed; optimize and translate it to update both "
+"versions."
+msgstr "原始提示词已更改；请重新优化并翻译以更新两个版本。"
+
+msgid "Choose Image Resolution"
+msgstr "选择图片分辨率"
+
+msgid "Use Smaller Resolution"
+msgstr "使用较小分辨率"
+
+msgid "Use Larger Resolution"
+msgstr "使用较大分辨率"
+
+msgid "Image service:"
+msgstr "图片服务："
+
+msgid "Generation cost:"
+msgstr "生成费用："
+
+msgid "{0} credits per image"
+msgstr "每张图片 {0} 积分"
+
+msgid "Cost unavailable"
+msgstr "费用不可用"
+
+msgid "Nano Banana"
+msgstr "Nano Banana"
+
+msgid "Agnes"
+msgstr "Agnes"
+
+msgid "GPT Image"
+msgstr "GPT Image"
+
+msgid "Nano Banana channel:"
+msgstr "Nano Banana 通道："
+
+msgid "GPT provider:"
+msgstr "GPT provider："
+
+msgid "Smaller ({0})"
+msgstr "较小（{0}）"
+
+msgid "Larger ({0})"
+msgstr "较大（{0}）"
+
+msgid "Custom size"
+msgstr "自定义尺寸"
+
+msgid "White padding"
+msgstr "白底补图"
+
+msgid "Original size:"
+msgstr "原图尺寸："
+
+msgid "AI request size:"
+msgstr "AI 请求尺寸："
+
+msgid "Scale:"
+msgstr "缩放比例："
+
+msgid "Padding:"
+msgstr "补图："
+
+msgid "Original image"
+msgstr "原图"
+
+msgid "Adapted image"
+msgstr "适配后图片"
+
+msgid "{0:P1}"
+msgstr "{0:P1}"
+
+msgid "Left {0}, right {1}, top {2}, bottom {3} px"
+msgstr "左 {0}，右 {1}，上 {2}，下 {3} 像素"
+
+msgid "No supported {0} resolution can contain the source image {1}."
+msgstr "没有支持的 {0} 分辨率可以容纳源图 {1}。"
+
+msgid "split image"
+msgstr "拆分图片"
+
+msgid "Transparent padding"
+msgstr "透明补图"
+
+msgid "Detect Border"
+msgstr "智能抠图"
+
+msgid "Detect border and create a new layer"
+msgstr "智能识别主体并创建新图层"
+
+msgid "Detecting border..."
+msgstr "正在智能抠图..."
+
+msgid "Detected Border"
+msgstr "抠图结果"
+
+msgid "Cutout Mask"
+msgstr "抠图蒙版"
+
+msgid "Border Control"
+msgstr "抠图控制预览"
+
+msgid "Detect Border Failed"
+msgstr "智能抠图失败"
+
+msgid "Select an area before detecting the border."
+msgstr "请先选择要抠图的区域。"
+
+msgid "The selected area is empty."
+msgstr "所选区域为空。"
+
+msgid "Detect the border in the selected area?"
+msgstr "是否识别所选区域中的主体？"
+
+msgid ""
+"Check the API server, Baidu credentials, balance, and login status, then try "
+"again."
+msgstr "请检查 API 服务、百度配置、账户余额和登录状态后重试。"
+
+msgid ""
+"Select an area, then use the keep brush or erase brush to guide border "
+"detection."
+msgstr "先选择区域，再使用保留画笔或排除橡皮擦辅助抠图。"
+
+msgid "Guidance"
+msgstr "操作模式"
+
+msgid "Rectangle selection"
+msgstr "矩形选区"
+
+msgid "Keep brush"
+msgstr "保留画笔"
+
+msgid "Erase brush"
+msgstr "排除橡皮擦"
+
+msgid "Resolution:"
+msgstr "分辨率："
+
+msgid "Aspect ratio:"
+msgstr "宽高比："
+
+msgid "1K"
+msgstr "1K"
+
+msgid "2K"
+msgstr "2K"
+
+msgid "4K"
+msgstr "4K"
+
+msgid "Generating {0} ({1})..."
+msgstr "正在生成 {0}（{1}）..."
+
+msgid "Detected resolution: {0}"
+msgstr "检测到的分辨率：{0}"
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:223
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:425
+msgid "0 selected"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:171
+msgid "00:00.00 / 00:00.00"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:174
+msgid "1x"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:225
+msgid "All frames"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:258
+msgid "Cancel Export"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Video.cs:172
+msgid ""
+"Check the selected layer, API server logs, balance, and login status, then "
+"try again."
+msgstr "请检查选定图层、API 服务日志、账户余额和登录状态，然后重试。"
+
+#: Pinta/VideoFrameExport/VideoFrameExportProcess.cs:223
+msgid "Choose an output folder before exporting."
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:404
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.Export.cs:15
+msgid "Choose output folder"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:342
+msgid "Clear selection"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:121
+msgid "Close Video Frame Exporter"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.Media.cs:76
+msgid "Could not open this video."
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportProcess.cs:47
+msgid "Could not read video metadata."
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportProcess.cs:129
+msgid "Could not start the video tool."
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Video.cs:144
+msgid "Downloading generated video..."
+msgstr "正在下载生成的视频..."
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:284
+msgid "Duration"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Video.cs:111
+msgid "Enter a video prompt before generating."
+msgstr "生成视频前请输入视频提示词。"
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:315
+msgid "Export"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:254
+msgid "Export 0 Frames"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.Export.cs:58
+msgid "Export canceled."
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.Export.cs:55
+#, csharp-format
+msgid "Export complete: {0} frames"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.Export.cs:64
+msgid "Export failed."
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:435
+#, csharp-format
+msgid "Export {0} Frames"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.Export.cs:44
+#, csharp-format
+msgid "Exporting {0} frames..."
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportProcess.cs:132
+msgid "FFmpeg and FFprobe are required for frame preview and export."
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportProcess.cs:108
+msgid "FFmpeg did not export any frames."
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:281
+msgid "File"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:305
+msgid "Filename prefix"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:306
+msgid "Format"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:332
+msgid "Frame preview"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:283
+msgid "Frame rate"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.Thumbnails.cs:25
+#, csharp-format
+msgid "Frame {0} at {1}"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:295
+msgid "Frames"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.Thumbnails.cs:43
+#, csharp-format
+msgid "F{0}"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.cs:113
+#: Pinta.Core/Actions/LayerActions.Video.cs:40
+#: Pinta.Core/Actions/LayerActions.Video.cs:110
+#: Pinta.Core/Actions/LayerActions.Video.cs:122
+msgid "Generate Video"
+msgstr "生成视频"
+
+#: Pinta.Core/Actions/LayerActions.cs:114
+msgid "Generate a video from the selected layer with AI"
+msgstr "使用 AI 从选定图层生成视频"
+
+#: Pinta.Core/Actions/LayerActions.Video.cs:218
+msgid "Generated Video"
+msgstr "生成的视频"
+
+#: Pinta.Core/Actions/LayerActions.Video.cs:136
+msgid "Generating video..."
+msgstr "正在生成视频..."
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.Media.cs:42
+msgid "Loading video..."
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Video.cs:211
+msgid "MP4 video (*.mp4)"
+msgstr "MP4 视频（*.mp4）"
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:180
+msgid "Mute"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:204
+msgid "Next frame"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.Media.cs:55
+msgid "No video frames were found."
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:129
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:218
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.Media.cs:111
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.Media.cs:113
+msgid "No video open"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:219
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:220
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:221
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:222
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.Media.cs:114
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.Media.cs:115
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.Media.cs:116
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.Media.cs:117
+msgid "Not available"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:307
+msgid "Numbering digits"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportProcess.cs:229
+msgid "Numbering must use between 1 and 8 digits."
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.Media.cs:20
+msgid "Open Video"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:142
+msgid "Open Video..."
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:157
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:420
+msgid "Open a video to preview frames"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:304
+msgid "Output folder"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:306
+msgid "PNG"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.Media.cs:213
+msgid "Pause"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:163
+msgid "Play"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:175
+msgid "Playback speed"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.Export.cs:37
+msgid "Preparing export..."
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Video.cs:132
+msgid "Preparing source layer..."
+msgstr "正在准备源图层..."
+
+#: Pinta.Core/Actions/LayerActions.Video.cs:123
+msgid "Preparing video request..."
+msgstr "正在准备视频请求..."
+
+#: Pinta/VideoFrameExport/VideoFrameExportAction.cs:18
+msgid "Preview a video and export selected frames as PNG"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:317
+msgid "Preview states: no video, loading, exporting, unsupported format"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:202
+msgid "Previous frame"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:265
+msgid "Ready"
+msgstr ""
+
+#: Pinta.Gui.Widgets/Widgets/Layers/LayersListViewItemWidget.cs:537
+msgid "Referenced image is missing"
+msgstr ""
+
+#: Pinta.Gui.Widgets/Widgets/Layers/LayersListViewItemWidget.cs:537
+msgid "Referenced layer is locked"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:282
+msgid "Resolution"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Video.cs:203
+msgid "Save Generated Video"
+msgstr "保存生成的视频"
+
+#: Pinta.Core/Actions/LayerActions.Video.cs:159
+msgid "Saving video..."
+msgstr "正在保存视频..."
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:341
+msgid "Select all"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:250
+msgid "Select range"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:226
+msgid "Selected frames"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:301
+msgid "Selection"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:279
+msgid "Source"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Video.cs:46
+#, csharp-format
+msgid "Source layer: {0}"
+msgstr "源图层：{0}"
+
+#: Pinta/VideoFrameExport/VideoFrameExportProcess.cs:227
+msgid "The filename prefix is not valid."
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportProcess.cs:149
+msgid "The video tool could not process this file."
+msgstr ""
+
+#: Pinta/MainWindow.cs:625
+msgid "Tools"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:285
+msgid "Total frames"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.cs:255
+msgid "Unlock Referenced Layer"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.cs:156
+msgid "Use this approved direction sheet as the default character reference"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:65
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:126
+msgid "Video Frame Exporter"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportAction.cs:17
+msgid "Video Frame Exporter..."
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Video.cs:171
+msgid "Video Generation Failed"
+msgstr "视频生成失败"
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.Media.cs:22
+msgid "Video files"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Video.cs:153
+#: Pinta.Core/Actions/LayerActions.Video.cs:167
+msgid "Video generation canceled."
+msgstr "视频生成已取消。"
+
+#: Pinta.Core/Actions/LayerActions.Video.cs:164
+msgid "Video generation complete."
+msgstr "视频生成完成。"
+
+#: Pinta/VideoFrameExport/VideoFrameExportProcess.cs:42
+msgid "Video metadata is incomplete."
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Video.cs:90
+msgid "Video prompt:"
+msgstr "视频提示词："
+
+#: Pinta.Core/Actions/LayerActions.Video.cs:240
+msgid "Video response did not include a video URL."
+msgstr "视频响应未包含视频 URL。"
+
+#: Pinta.Core/Actions/LayerActions.Video.cs:94
+msgid "_Generate"
+msgstr "生成(_G)"
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:297
+msgid "to"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:452
+#, csharp-format
+msgid "{0:0.##} fps"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.Media.cs:220
+#, csharp-format
+msgid "{0:0.#}x"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:467
+#, csharp-format
+msgid "{0:00}:{1:00}.{2:00}"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.Media.cs:207
+#, csharp-format
+msgid "{0} / {1}"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.Thumbnails.cs:58
+#, csharp-format
+msgid "{0} selected / {1}"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:451
+#, csharp-format
+msgid "{0} x {1}"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:449
+#, csharp-format
+msgid "{0} x {1}   {2:0.##} fps   {3}"
+msgstr ""
+
 #, csharp-format
 #~ msgid "Press {0} to decrease brush size"
 #~ msgstr "按 {0} 让笔刷更细"
@@ -3483,377 +4284,145 @@ msgstr "{0}%"
 #~ msgid "Url:"
 #~ msgstr "Url："
 
-msgid "Image Split Preview"
-msgstr "拆分图片预览"
-
-msgid "Confirm"
-msgstr "确认"
-
-msgid "Current generation type:"
-msgstr "当前生成类型："
-
-msgid "Current Layer"
-msgstr "当前图层"
-
-msgid "AI Generated Image"
-msgstr "AI 生成图像"
-
-msgid "Prompt History"
-msgstr "提示历史"
-
-msgid "Select Prompt History"
-msgstr "选择提示历史"
-
-msgid "Prompt"
-msgstr "提示词"
-
-msgid "Chat provider:"
-msgstr "聊天提供方："
-
-msgid "Optimize and Translate"
-msgstr "优化并翻译"
-
-msgid "English Prompt (sent to image AI)"
-msgstr "英文提示词（发送给图像 AI）"
-
-msgid "Generate"
-msgstr "生成"
-
-msgid "AI Request Settings"
-msgstr "AI 请求设置"
-
-msgid "Baidu"
-msgstr "Baidu"
-
-msgid "Generate White Background"
-msgstr "生成白色背景"
-
-msgid "{0} credits per cutout"
-msgstr "每次抠图 {0} 积分"
-
-msgid "Single-Direction Animation"
-msgstr "单向动画"
-
-msgid "Clean Up Background"
-msgstr "清理背景"
-
-msgid "Image size:"
-msgstr "图片尺寸："
-
-msgid "Direction Sheet"
-msgstr "方向表"
-
-msgid "Action Spritesheet"
-msgstr "动作精灵图"
-
-msgid "Action Sequence"
-msgstr "动作序列"
-
-msgid "Describe the custom action"
-msgstr "描述自定义动作"
-
-msgid "Custom action:"
-msgstr "自定义动作："
-
-msgid "Frames:"
-msgstr "帧数："
-
-msgid "White (#FFFFFF)"
-msgstr "白色（#FFFFFF）"
-
-msgid "8 fixed directions"
-msgstr "8 个固定方向"
-
-msgid "Directions:"
-msgstr "方向："
-
-msgid "Generation type:"
-msgstr "生成类型："
-
-msgid "Action:"
-msgstr "动作："
-
-msgid "Action generation prompt"
-msgstr "动作生成提示词"
-
-msgid "Select a valid image size."
-msgstr "请选择有效的图片尺寸。"
-
-msgid "No files selected"
-msgstr "未选择文件"
-
-msgid "Choose Image Files..."
-msgstr "选择图片文件..."
-
-msgid "Choose Reference Images"
-msgstr "选择参考图片"
-
-msgid "Other Reference Layers"
-msgstr "其他参考图层"
-
-msgid "Reference Image Files"
-msgstr "参考图片文件"
-
-msgid "Spritesheet"
-msgstr "精灵图"
-
-msgid "Preparing image request..."
-msgstr "正在准备图片请求..."
-
-msgid "Image generation canceled."
-msgstr "图片生成已取消。"
-
-msgid "Creating generated image layer..."
-msgstr "正在创建生成的图片图层..."
-
-msgid "Refreshing balance..."
-msgstr "正在刷新余额..."
-
-msgid "Image generation complete."
-msgstr "图片生成完成。"
-
-msgid "Image Generation Failed"
-msgstr "图片生成失败"
-
-msgid "Check the selected images, API server logs, balance, and login status, then try again."
-msgstr "请检查所选图片、API 服务日志、账户余额和登录状态，然后重试。"
-
-msgid "Background Cleanup"
-msgstr "背景清理"
-
-msgid "Preparing image..."
-msgstr "正在准备图片..."
-
-msgid "White Background"
-msgstr "白色背景"
-
-msgid "Creating white background layer..."
-msgstr "正在创建白色背景图层..."
-
-msgid "Background cleanup complete."
-msgstr "背景清理完成。"
-
-msgid "Background cleanup canceled."
-msgstr "背景清理已取消。"
-
-msgid "Background Cleanup Failed"
-msgstr "背景清理失败"
-
-msgid "Transparent Cutout"
-msgstr "透明抠图"
-
-msgid "Requesting Baidu intelligent cutout..."
-msgstr "正在请求百度智能抠图..."
-
-msgid "Creating transparent layer..."
-msgstr "正在创建透明图层..."
-
-msgid "Creating black and transparent layers..."
-msgstr "正在创建黑色和透明图层..."
-
-msgid "Black Background"
-msgstr "黑色背景"
-
-msgid "Cutout complete."
-msgstr "抠图完成。"
-
-msgid "Cutout canceled."
-msgstr "抠图已取消。"
-
-msgid "Cutout Failed"
-msgstr "抠图失败"
-
-msgid "_Retry"
-msgstr "重试(_R)"
-
-msgid "None"
-msgstr "无"
-
-msgid "{0} directions / {1} x {2} grid"
-msgstr "{0} 个方向 / {1} x {2} 网格"
-
-msgid "{0} frames / {1} x {2} grid"
-msgstr "{0} 帧 / {1} x {2} 网格"
-
-msgid "{0} direction(s) x {1} frames = {2} frames / {3} x {4} grid"
-msgstr "{0} 个方向 x {1} 帧 = {2} 帧 / {3} x {4} 网格"
-
-msgid "Optimize the prompt and translate it to English."
-msgstr "优化提示词并将其翻译为英文。"
-
-msgid "Prompt history restored."
-msgstr "已恢复提示历史。"
-
-msgid "Enter a prompt first."
-msgstr "请先输入提示词。"
-
-msgid "Optimizing and translating the prompt..."
-msgstr "正在优化并翻译提示词..."
-
-msgid "The prompt changed, so the old optimization was not applied."
-msgstr "提示词已更改，因此未应用之前的优化结果。"
-
-msgid "The complete bilingual prompt was not returned; the original prompt will be used."
-msgstr "未返回完整的双语提示词；将使用原始提示词。"
-
-msgid "The bilingual prompt is ready; the English version will be sent to the image AI."
-msgstr "双语提示词已准备完成；英文版本将发送给图像 AI。"
-
-msgid "Prompt optimization failed; the original prompt will be used."
-msgstr "提示词优化失败；将使用原始提示词。"
-
-msgid "The original prompt changed; optimize and translate it to update both versions."
-msgstr "原始提示词已更改；请重新优化并翻译以更新两个版本。"
-
-msgid "Choose Image Resolution"
-msgstr "选择图片分辨率"
-
-msgid "Use Smaller Resolution"
-msgstr "使用较小分辨率"
-
-msgid "Use Larger Resolution"
-msgstr "使用较大分辨率"
-
-msgid "Image service:"
-msgstr "图片服务："
-
-msgid "Generation cost:"
-msgstr "生成费用："
-
-msgid "{0} credits per image"
-msgstr "每张图片 {0} 积分"
-
-msgid "Cost unavailable"
-msgstr "费用不可用"
-
-msgid "Nano Banana"
-msgstr "Nano Banana"
-
-msgid "Agnes"
-msgstr "Agnes"
-
-msgid "GPT Image"
-msgstr "GPT Image"
-
-msgid "Nano Banana channel:"
-msgstr "Nano Banana 通道："
-
-msgid "GPT provider:"
-msgstr "GPT provider："
-
-msgid "Smaller ({0})"
-msgstr "较小（{0}）"
-
-msgid "Larger ({0})"
-msgstr "较大（{0}）"
-
-msgid "Custom size"
-msgstr "自定义尺寸"
-
-msgid "White padding"
-msgstr "白底补图"
-
-msgid "Original size:"
-msgstr "原图尺寸："
-
-msgid "AI request size:"
-msgstr "AI 请求尺寸："
-
-msgid "Scale:"
-msgstr "缩放比例："
-
-msgid "Padding:"
-msgstr "补图："
-
-msgid "Original image"
-msgstr "原图"
-
-msgid "Adapted image"
-msgstr "适配后图片"
-
-msgid "{0:P1}"
-msgstr "{0:P1}"
-
-msgid "Left {0}, right {1}, top {2}, bottom {3} px"
-msgstr "左 {0}，右 {1}，上 {2}，下 {3} 像素"
-
-msgid "No supported {0} resolution can contain the source image {1}."
-msgstr "没有支持的 {0} 分辨率可以容纳源图 {1}。"
-
-msgid "split image"
-msgstr "拆分图片"
-
-msgid "Transparent padding"
-msgstr "透明补图"
-
 #~ msgid "_Uninstall..."
 #~ msgstr "卸载..."
++#: Pinta/Actions/File/OpenDocumentAction.cs:63
+msgid "Open Pinta Project"
+msgstr "打开 Pinta 项目"
 
-msgid "Detect Border"
-msgstr "智能抠图"
+#: Pinta/Actions/File/SaveDocumentImplementationAction.cs:96
+msgid "Save Pinta Project"
+msgstr "保存 Pinta 项目"
 
-msgid "Detect border and create a new layer"
-msgstr "智能识别主体并创建新图层"
+#: Pinta/Actions/File/SaveDocumentImplementationAction.cs:303
+msgid "Saving Project"
+msgstr "正在保存项目"
 
-msgid "Detecting border..."
-msgstr "正在智能抠图..."
+#: Pinta/Actions/File/OpenDocumentAction.cs:76
+msgid "This folder is not a Pinta project."
+msgstr "此文件夹不是 Pinta 项目。"
 
-msgid "Detected Border"
-msgstr "抠图结果"
+#: Pinta/Actions/File/OpenDocumentAction.cs:77
+msgid "Select a folder ending in .pintaproject."
+msgstr "请选择名称以 .pintaproject 结尾的文件夹。"
 
-msgid "Cutout Mask"
-msgstr "抠图蒙版"
+#: Pinta/Actions/File/SaveDocumentImplementationAction.cs:104
+msgid "The Pinta project format is not registered."
+msgstr "Pinta 项目格式尚未注册。"
 
-msgid "Border Control"
-msgstr "抠图控制预览"
+#: Pinta.Core/ImageFormats/PintaDocumentFormat.cs:68
+msgid "The Pinta project path is a file, not a folder."
+msgstr "Pinta 项目路径是文件，而不是文件夹。"
 
-msgid "Detect Border Failed"
-msgstr "智能抠图失败"
+#: Pinta.Core/ImageFormats/PintaDocumentFormat.cs:101
+msgid "Pinta projects must be stored on a local file system."
+msgstr "Pinta 项目必须存储在本地文件系统中。"
 
-msgid "Select an area before detecting the border."
-msgstr "请先选择要抠图的区域。"
+#: Pinta.Core/ImageFormats/PintaDocumentFormat.cs:116
+msgid "The Pinta project does not contain project.json."
+msgstr "Pinta 项目不包含 project.json。"
 
-msgid "The selected area is empty."
-msgstr "所选区域为空。"
+#: Pinta.Core/ImageFormats/PintaDocumentFormat.cs:122
+msgid "The Pinta project manifest is empty."
+msgstr "Pinta 项目清单为空。"
 
-msgid "Detect the border in the selected area?"
-msgstr "是否识别所选区域中的主体？"
+#: Pinta.Core/ImageFormats/PintaDocumentFormat.cs:124
+msgid "The Pinta project manifest is not valid JSON."
+msgstr "Pinta 项目清单不是有效的 JSON。"
 
-msgid "Check the API server, Baidu credentials, balance, and login status, then try again."
-msgstr "请检查 API 服务、百度配置、账户余额和登录状态后重试。"
+#: Pinta.Core/ImageFormats/PintaDocumentFormat.cs:531
+msgid "The Pinta project resource could not be decoded."
+msgstr "无法解码 Pinta 项目资源。"
 
-msgid "Select an area, then use the keep brush or erase brush to guide border detection."
-msgstr "先选择区域，再使用保留画笔或排除橡皮擦辅助抠图。"
+#: Pinta.Core/ImageFormats/PintaDocumentFormat.cs:533
+msgid "The Pinta project resource dimensions are invalid."
+msgstr "Pinta 项目资源尺寸无效。"
 
-msgid "Guidance"
-msgstr "操作模式"
+#: Pinta.Core/ImageFormats/PintaDocumentFormat.cs:538
+msgid "The Pinta project resource is not a valid PNG."
+msgstr "Pinta 项目资源不是有效的 PNG。"
 
-msgid "Rectangle selection"
-msgstr "矩形选区"
+#: Pinta.Core/ImageFormats/PintaDocumentFormat.cs:545
+msgid "The Pinta project contains an invalid resource path."
+msgstr "Pinta 项目包含无效的资源路径。"
 
-msgid "Keep brush"
-msgstr "保留画笔"
+#: Pinta.Core/ImageFormats/PintaDocumentFormat.cs:570
+msgid "Unsupported Pinta project format or version."
+msgstr "不支持此 Pinta 项目格式或版本。"
 
-msgid "Erase brush"
-msgstr "排除橡皮擦"
+#: Pinta.Core/ImageFormats/PintaDocumentFormat.cs:573
+msgid "The Pinta project resource root is invalid."
+msgstr "Pinta 项目资源根目录无效。"
 
-msgid "Resolution:"
-msgstr "分辨率："
+#: Pinta.Core/ImageFormats/PintaDocumentFormat.cs:575
+msgid "The Pinta project dimensions or guides are invalid."
+msgstr "Pinta 项目尺寸或辅助线无效。"
 
-msgid "Aspect ratio:"
-msgstr "宽高比："
+#: Pinta.Core/ImageFormats/PintaDocumentFormat.cs:577
+msgid "The Pinta project guides are invalid."
+msgstr "Pinta 项目辅助线无效。"
 
-msgid "1K"
-msgstr "1K"
+#: Pinta.Core/ImageFormats/PintaDocumentFormat.cs:579
+msgid "The Pinta project selection is incomplete."
+msgstr "Pinta 项目选区数据不完整。"
 
-msgid "2K"
-msgstr "2K"
+#: Pinta.Core/ImageFormats/PintaDocumentFormat.cs:581
+msgid "The Pinta project content is invalid."
+msgstr "Pinta 项目内容无效。"
 
-msgid "4K"
-msgstr "4K"
+#: Pinta.Core/ImageFormats/PintaDocumentFormat.cs:586
+msgid "The Pinta project contains referenced layers but no resource root."
+msgstr "Pinta 项目包含引用图层，但未设置资源根目录。"
 
-msgid "Generating {0} ({1})..."
-msgstr "正在生成 {0}（{1}）..."
+#: Pinta.Core/ImageFormats/PintaDocumentFormat.cs:588
+msgid "The selected Pinta project layer does not exist."
+msgstr "选中的 Pinta 项目图层不存在。"
 
-msgid "Detected resolution: {0}"
-msgstr "检测到的分辨率：{0}"
+#: Pinta.Core/ImageFormats/PintaDocumentFormat.cs:603
+msgid "The Pinta project contains an invalid layer."
+msgstr "Pinta 项目包含无效图层。"
+
+#: Pinta.Core/ImageFormats/PintaDocumentFormat.cs:607
+msgid "The Pinta project contains an invalid layer type."
+msgstr "Pinta 项目包含无效的图层类型。"
+
+#: Pinta.Core/ImageFormats/PintaDocumentFormat.cs:625
+msgid "The Pinta project group layer is invalid."
+msgstr "Pinta 项目组图层无效。"
+
+#: Pinta.Core/ImageFormats/PintaDocumentFormat.cs:635
+msgid "The Pinta project layer resource is invalid."
+msgstr "Pinta 项目图层资源无效。"
+
+#: Pinta.Core/ImageFormats/PintaDocumentFormat.cs:637
+msgid "The Pinta project reference layer is invalid."
+msgstr "Pinta 项目引用图层无效。"
+
+#: Pinta.Core/ImageFormats/PintaDocumentFormat.cs:644
+msgid "The Pinta project spritesheet layer is invalid."
+msgstr "Pinta 项目精灵图层无效。"
+
+#: Pinta.Core/ImageFormats/PintaDocumentFormat.cs:650
+msgid "The Pinta project spritesheet animation is invalid."
+msgstr "Pinta 项目精灵图动画无效。"
+
+#: Pinta.Core/ImageFormats/PintaDocumentFormat.cs:654
+msgid "The Pinta project spritesheet direction is invalid."
+msgstr "Pinta 项目精灵图方向无效。"
+
+#: Pinta.Core/ImageFormats/PintaDocumentFormat.cs:658
+#: Pinta.Core/ImageFormats/PintaDocumentFormat.cs:679
+msgid "The Pinta project contains duplicate animation frames."
+msgstr "Pinta 项目包含重复的动画帧。"
+
+#: Pinta.Core/ImageFormats/PintaDocumentFormat.cs:669
+msgid "The Pinta project single-direction animation layer is invalid."
+msgstr "Pinta 项目单方向动画图层无效。"
+
+#: Pinta.Core/ImageFormats/PintaDocumentFormat.cs:675
+msgid "The Pinta project single-direction animation is invalid."
+msgstr "Pinta 项目单方向动画无效。"
+
+#: Pinta.Core/ImageFormats/PintaDocumentFormat.cs:696
+msgid "The Pinta project animation resource is invalid."
+msgstr "Pinta 项目动画资源无效。"

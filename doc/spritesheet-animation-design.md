@@ -117,7 +117,7 @@ single-direction-animation
 - `SpriteSheetLayerSnapshot` 和多方向合并规则。
 - `SingleDirectionAnimationLayerSnapshot` 和单方向合并规则。
 
-`.pinta` 文档格式版本为 5。多方向帧写入 `spritesheets/{layer-id}/`，单方向帧写入 `single-direction-animations/{layer-id}/`。manifest 使用不同的 `Kind` 和独立数据字段：
+`.pintaproject` 项目格式版本为 1。多方向帧写入 `resources/spritesheets/{layer-id}/`，单方向帧写入 `resources/single-direction-animations/{layer-id}/`。manifest 使用不同的 `Kind` 和独立数据字段：
 
 - `spritesheet` + `SpriteSheetAnimations`。
 - `single-direction-animation` + `SingleDirectionId` + `SingleDirectionAnimations`。

@@ -10,6 +10,7 @@ The server deducts user balance according to `config/usageCosts.json` in the API
 - `/api/images/jobs:grayscale`: default cost `1`
 - `/api/images/jobs:invert`: default cost `1`
 - `/api/images`: default cost configured by the server
+- `/api/videos`: default cost configured by the server
 - `/api/baidu-images`: default cost `1`
 - `/api/chat`: default cost configured by the server
 
@@ -114,6 +115,24 @@ All requests in this section include `Authorization: Bearer <token>`.
 - Blank prompts are rejected with `400 Bad Request` before the job is queued or balance is deducted.
 
 The client stores background prompts in `config/gpt-image-prompts.json` and reads the white-background prompt when opening the cleanup dialog. The prompt is editable and the submitted value is sent unchanged.
+
+### Generate Video from Image
+
+- Method: `POST`
+- Path: `/api/videos/image`
+- Content type: `multipart/form-data`
+- Form fields:
+  - `reference_image`: one or more PNG, JPEG, or WEBP images. Repeat this field for multiple references; the first image is the first video frame/reference and subsequent images are additional references.
+  - `prompt`: required video prompt text
+  - `provider`: optional video provider ID; omitted values use the server default
+  - `model`: optional video model ID; omitted values use the provider default model
+  - `parameters`: optional JSON object string containing provider-specific video parameters
+- Response: `202 Accepted` with a video job object containing `id`, `status`, `operation`, and job metadata.
+- Client behavior: polls `GET /api/videos/jobs/{id}` while status is `queued` or `processing`. When status is `completed`, it reads `GET /api/videos/jobs/{id}/result`.
+- Result JSON includes `operation`, `provider`, `model`, `prompt`, `task_id`, `request_id`, and `video_url`.
+- Pinta sends the selected layer first, followed by any selected reference files, as repeated `reference_image` fields. It downloads `video_url` after the job completes and saves the result through the user's `.mp4` file selection.
+- Failed jobs return `status: failed` and an `error_message` from the video job status endpoint.
+- Blank prompts and unsupported image content types are rejected with `400 Bad Request` before the job is queued or balance is deducted.
 
 ## Chat and Sprite Analysis
 

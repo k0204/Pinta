@@ -75,7 +75,7 @@ internal sealed class SaveDocumentImplmentationAction : IActionHandler
 			return await SaveFileAs (e.Document, documentFormatOnly: false);
 
 		// Ctrl+S is document save. Imported images do not become the document's
-		// native save target until they have been saved as a .pinta file.
+		// native save target until they have been saved as a .pintaproject folder.
 		if (!IsPintaDocument (e.Document))
 			return await SaveFileAs (e.Document, documentFormatOnly: true);
 
@@ -93,15 +93,15 @@ internal sealed class SaveDocumentImplmentationAction : IActionHandler
 	{
 		var fcd = Gtk.FileChooserNative.New (
 			documentFormatOnly
-				? Translations.GetString ("Save Pinta Document")
+				? Translations.GetString ("Save Pinta Project")
 				: Translations.GetString ("Save Image File"),
 			chrome.MainWindow,
 			Gtk.FileChooserAction.Save,
 			Translations.GetString ("Save"),
 			Translations.GetString ("Cancel"));
 
-		FormatDescriptor pintaFormat = image_formats.GetFormatByExtension ("pinta")
-			?? throw new InvalidOperationException ("The Pinta document format is not registered.");
+		FormatDescriptor pintaFormat = image_formats.GetFormatByExtension (PintaDocumentFormat.Extension)
+			?? throw new InvalidOperationException (Translations.GetString ("The Pinta project format is not registered."));
 
 		if (document.HasFile && !documentFormatOnly)
 			fcd.SetFile (document.File!);
@@ -151,8 +151,8 @@ internal sealed class SaveDocumentImplmentationAction : IActionHandler
 
 			// Note that we can't use file.GetDisplayName() because the file doesn't exist.
 			string displayName = file.GetParent ()!.GetRelativePath (file)!;
-			if (documentFormatOnly && !displayName.EndsWith (".pinta", StringComparison.OrdinalIgnoreCase)) {
-				displayName = System.IO.Path.ChangeExtension (displayName, "pinta");
+			if (documentFormatOnly && !displayName.EndsWith ($".{PintaDocumentFormat.Extension}", StringComparison.OrdinalIgnoreCase)) {
+				displayName = System.IO.Path.ChangeExtension (displayName, PintaDocumentFormat.Extension);
 				file = file.GetParent ()!.GetChild (displayName);
 			}
 
@@ -189,7 +189,7 @@ internal sealed class SaveDocumentImplmentationAction : IActionHandler
 
 			// Native Pinta documents are fully saved by SaveFile. Keep the existing
 			// image-export behavior, where Save As prompts for JPEG quality again.
-			if (!format.Extensions.Contains ("pinta", StringComparer.OrdinalIgnoreCase))
+			if (!format.Extensions.Contains (PintaDocumentFormat.Extension, StringComparer.OrdinalIgnoreCase))
 				document.HasBeenSavedInSession = false;
 
 			recent_files.AddFile (file);
@@ -205,7 +205,7 @@ internal sealed class SaveDocumentImplmentationAction : IActionHandler
 
 	private static bool IsPintaDocument (Document document)
 		=> document.HasFile
-		&& string.Equals (document.FileType, "pinta", StringComparison.OrdinalIgnoreCase);
+		&& string.Equals (document.FileType, PintaDocumentFormat.Extension, StringComparison.OrdinalIgnoreCase);
 
 	private async Task<bool> SaveFile (Document document, Gio.File? file, FormatDescriptor? format, Gtk.Window parent)
 	{
@@ -300,7 +300,7 @@ internal sealed class SaveDocumentImplmentationAction : IActionHandler
 		}
 
 		IProgressDialog progressDialog = chrome.ProgressDialog;
-		progressDialog.Title = Translations.GetString ("Saving Document");
+		progressDialog.Title = Translations.GetString ("Saving Project");
 		progressDialog.Text = file.GetDisplayName ();
 		progressDialog.Progress = 0;
 		progressDialog.Cancellable = false;

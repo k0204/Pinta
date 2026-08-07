@@ -1,19 +1,27 @@
 using System;
+using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.IO;
-using System.IO.Compression;
 using System.Linq;
+using System.Runtime.InteropServices;
+using System.Security.Cryptography;
 using System.Text.Json;
 using Cairo;
 using ClipperLib;
 using GdkPixbuf;
+using Path = System.IO.Path;
 
 namespace Pinta.Core;
 
 public sealed class PintaDocumentFormat : IImageImporter, IImageExporter
 {
 	public const string FormatName = "pinta-document";
-	public const int CurrentVersion = 5;
+	public const string Extension = "pintaproject";
+	public const int CurrentVersion = 1;
+
+	private const string manifest_name = "project.json";
+	private const string resources_directory = "resources";
+	private const string staging_directory = ".staging";
 
 	private static readonly JsonSerializerOptions json_options = new () {
 		PropertyNameCaseInsensitive = true,
@@ -21,11 +29,12 @@ public sealed class PintaDocumentFormat : IImageImporter, IImageExporter
 		WriteIndented = true,
 	};
 
+	private readonly record struct PendingResource (string RelativePath, ImageSurface Surface);
+
 	public Document Import (Gio.File file)
 	{
-		using GioStream stream = new (file.Read (cancellable: null));
-		using ZipArchive archive = new (stream, ZipArchiveMode.Read);
-		PintaDocumentManifest manifest = ReadManifest (archive);
+		string root = GetProjectPath (file);
+		PintaDocumentManifest manifest = ReadManifest (root);
 
 		Document document = new (
 			PintaCore.Actions,
@@ -33,125 +42,144 @@ public sealed class PintaDocumentFormat : IImageImporter, IImageExporter
 			PintaCore.Workspace,
 			new Size (manifest.Width, manifest.Height),
 			file,
-			"pinta");
+			Extension);
 
 		Dictionary<string, UserLayer> layersById = [];
 		document.SetResourceRoot (manifest.ResourceRoot is null ? null : Gio.FileHelper.NewForUri (manifest.ResourceRoot));
-		ImportLayers (document, archive, manifest.Layers, parent: null, layersById, manifest.Version);
+		ImportLayers (document, root, manifest.Layers, parent: null, layersById);
 
 		if (manifest.SelectedLayerId is not null)
 			document.Layers.SetCurrentUserLayer (layersById[manifest.SelectedLayerId]);
 
-                document.Guides.ReplaceAll (CreateGuides (manifest.Guides));
+		document.Guides.ReplaceAll (CreateGuides (manifest.Guides));
 		document.Selection = CreateSelection (manifest.Selection);
 		return document;
 	}
 
 	public void Export (Document document, Gio.File file, Gtk.Window parent)
-	{
-		ExportWithProgress (document, file, progress: null);
-	}
+		=> ExportWithProgress (document, file, progress: null);
 
-	public void ExportWithProgress (Document document, Gio.File file, IProgress<double>? progress)
-	{
-		using GioStream stream = new (file.Replace ());
-		using ZipArchive archive = new (stream, ZipArchiveMode.Create);
-		WriteArchive (document, archive, progress);
-	}
-
-	internal static void WriteArchive (
+	public void ExportWithProgress (
 		Document document,
-		ZipArchive archive,
-		IProgress<double>? progress = null)
+		Gio.File file,
+		IProgress<double>? progress)
 	{
-		AssignLayerIds (document.Layers.RootLayers);
+		string root = GetProjectPath (file);
+		if (File.Exists (root))
+			throw new IOException (Translations.GetString ("The Pinta project path is a file, not a folder."));
 
-		List<UserLayer> layers = [.. document.Layers.AllLayers.Where (layer => layer is not GroupLayer && !layer.IsReference)];
-		List<AnimationOutputLayer> animationLayers = [.. document.Layers.AllLayers.OfType<AnimationOutputLayer> ()];
-		int totalFiles = layers.Count + animationLayers.Sum (layer => layer.GetFrames ().Count ());
-		int completedFiles = 0;
-		progress?.Report (0);
+		Directory.CreateDirectory (root);
+		PintaDocumentManifest? previous = ReadPreviousManifest (root);
+		string saveId = Guid.NewGuid ().ToString ("N");
+		string stagingRoot = Path.Combine (root, staging_directory, saveId);
+		List<PendingResource> pending = [];
+		List<string> createdResources = [];
+		bool manifestCommitted = false;
 
-		void ReportFileComplete ()
-		{
-			completedFiles++;
-			progress?.Report (totalFiles == 0 ? 0.9 : 0.9 * completedFiles / totalFiles);
+		try {
+			AssignLayerIds (document.Layers.RootLayers);
+			PintaDocumentManifest manifest = CreateManifest (document, root, previous, saveId, pending);
+			progress?.Report (0);
+
+			WritePendingResources (root, stagingRoot, pending, createdResources, progress);
+			WriteManifest (root, stagingRoot, manifest);
+			manifestCommitted = true;
+			DeleteUnreferencedResources (root, previous, manifest);
+		} finally {
+			if (!manifestCommitted)
+				DeleteCreatedResources (root, createdResources);
+
+			TryDeleteDirectory (stagingRoot);
 		}
 
-		foreach (UserLayer layer in layers)
-			WriteLayerSurface (archive, layer, ReportFileComplete);
-		foreach (AnimationOutputLayer layer in animationLayers)
-			WriteAnimationFrames (archive, layer, ReportFileComplete);
-
-		PintaDocumentManifest manifest = CreateManifest (document);
-		ZipArchiveEntry manifestEntry = archive.CreateEntry ("project.json");
-		using Stream manifestStream = manifestEntry.Open ();
-		JsonSerializer.Serialize (manifestStream, manifest, json_options);
 		progress?.Report (1);
 	}
 
-	private static void WriteLayerSurface (ZipArchive archive, UserLayer layer, Action reportComplete)
+	private static string GetProjectPath (Gio.File file)
 	{
-		string temporaryFile = System.IO.Path.GetTempFileName ();
-		try {
-			CairoExtensions.SaveToPng (layer.Surface, temporaryFile);
+		string? path = file.GetPath ();
+		if (path is null)
+			throw new IOException (Translations.GetString ("Pinta projects must be stored on a local file system."));
 
-			ZipArchiveEntry entry = archive.CreateEntry ($"layers/{layer.DocumentId}.png");
-			using Stream source = File.OpenRead (temporaryFile);
-			using Stream destination = entry.Open ();
-			source.CopyTo (destination);
-			reportComplete ();
-		} finally {
-			File.Delete (temporaryFile);
-		}
+		return Path.GetFullPath (path);
 	}
 
-	private static void WriteAnimationFrames (
-		ZipArchive archive,
-		AnimationOutputLayer layer,
-		Action reportComplete)
+	private static PintaDocumentManifest? ReadPreviousManifest (string root)
 	{
-		int index = 0;
-		string directory = layer switch {
-			SpriteSheetLayer => "spritesheets",
-			SingleDirectionAnimationLayer => "single-direction-animations",
-			_ => throw new InvalidOperationException ($"Unsupported animation layer type '{layer.GetType ().Name}'."),
-		};
-		foreach (AnimationFrameData frame in layer.GetFrames ()) {
-			string temporaryFile = System.IO.Path.GetTempFileName ();
-			try {
-				CairoExtensions.SaveToPng (frame.Surface, temporaryFile);
-
-				ZipArchiveEntry entry = archive.CreateEntry ($"{directory}/{layer.DocumentId}/frame-{index++:D4}.png");
-				using Stream source = File.OpenRead (temporaryFile);
-				using Stream destination = entry.Open ();
-				source.CopyTo (destination);
-				reportComplete ();
-			} finally {
-				File.Delete (temporaryFile);
-			}
-		}
+		string path = Path.Combine (root, manifest_name);
+		return File.Exists (path) ? ReadManifest (root) : null;
 	}
 
-	internal static PintaDocumentManifest ReadManifest (ZipArchive archive)
+	private static PintaDocumentManifest ReadManifest (string root)
 	{
-		ZipArchiveEntry entry = archive.GetEntry ("project.json")
-			?? throw new InvalidDataException ("The Pinta document does not contain project.json.");
+		string path = Path.Combine (root, manifest_name);
+		if (!File.Exists (path))
+			throw new InvalidDataException (Translations.GetString ("The Pinta project does not contain project.json."));
 
 		PintaDocumentManifest manifest;
 		try {
-			using Stream stream = entry.Open ();
+			using FileStream stream = File.OpenRead (path);
 			manifest = JsonSerializer.Deserialize<PintaDocumentManifest> (stream, json_options)
-				?? throw new InvalidDataException ("The Pinta document manifest is empty.");
+				?? throw new InvalidDataException (Translations.GetString ("The Pinta project manifest is empty."));
 		} catch (JsonException e) {
-			throw new InvalidDataException ("The Pinta document manifest is not valid JSON.", e);
+			throw new InvalidDataException (Translations.GetString ("The Pinta project manifest is not valid JSON."), e);
 		}
 
-		ValidateManifest (manifest, archive);
+		ValidateManifest (manifest, root);
 		return manifest;
 	}
 
-	private static PintaDocumentManifest CreateManifest (Document document)
+	private static void WriteManifest (
+		string root,
+		string stagingRoot,
+		PintaDocumentManifest manifest)
+	{
+		Directory.CreateDirectory (stagingRoot);
+		string temporaryPath = Path.Combine (stagingRoot, manifest_name);
+		using (FileStream stream = File.Create (temporaryPath))
+			JsonSerializer.Serialize (stream, manifest, json_options);
+
+		ReplaceFile (temporaryPath, Path.Combine (root, manifest_name));
+	}
+
+	private static void ReplaceFile (string source, string destination)
+	{
+		if (File.Exists (destination))
+			File.Replace (source, destination, destinationBackupFileName: null);
+		else
+			File.Move (source, destination);
+	}
+
+	private static void WritePendingResources (
+		string root,
+		string stagingRoot,
+		IReadOnlyList<PendingResource> pending,
+		ICollection<string> createdResources,
+		IProgress<double>? progress)
+	{
+		for (int index = 0; index < pending.Count; index++) {
+			PendingResource resource = pending[index];
+			string stagingPath = Path.Combine (stagingRoot, ToSystemPath (resource.RelativePath));
+			string finalPath = Path.Combine (root, ToSystemPath (resource.RelativePath));
+			Directory.CreateDirectory (Path.GetDirectoryName (stagingPath)!);
+			Directory.CreateDirectory (Path.GetDirectoryName (finalPath)!);
+
+			CairoExtensions.SaveToPng (resource.Surface, stagingPath);
+			File.Move (stagingPath, finalPath);
+			createdResources.Add (resource.RelativePath);
+			progress?.Report (pending.Count == 0 ? 0.9 : 0.9 * (index + 1) / pending.Count);
+		}
+	}
+
+	private static string ToSystemPath (string relativePath)
+		=> relativePath.Replace ('/', Path.DirectorySeparatorChar);
+
+	private static PintaDocumentManifest CreateManifest (
+		Document document,
+		string root,
+		PintaDocumentManifest? previous,
+		string saveId,
+		ICollection<PendingResource> pending)
 	{
 		UserLayer selectedLayer = document.Layers.CurrentUserLayer;
 		return new () {
@@ -161,21 +189,28 @@ public sealed class PintaDocumentFormat : IImageImporter, IImageExporter
 			Height = document.ImageSize.Height,
 			ResourceRoot = document.ResourceRootUri,
 			SelectedLayerId = selectedLayer.DocumentId,
-                        Guides = [.. document.Guides.Items.Select (guide => new PintaDocumentGuide {
-                                Orientation = guide.Orientation,
-                                Position = guide.Position,
-                        })],
+			Guides = [.. document.Guides.Items.Select (guide => new PintaDocumentGuide {
+				Orientation = guide.Orientation,
+				Position = guide.Position,
+			})],
 			Selection = CreateSelectionModel (document.Selection),
-			Layers = [.. document.Layers.RootLayers.Select (CreateLayerModel)],
+			Layers = [.. document.Layers.RootLayers.Select (
+				layer => CreateLayerModel (layer, root, previous?.Layers, saveId, pending))],
 		};
 	}
 
-	private static PintaDocumentLayerNode CreateLayerModel (UserLayer layer)
+	private static PintaDocumentLayerNode CreateLayerModel (
+		UserLayer layer,
+		string root,
+		IReadOnlyList<PintaDocumentLayerNode>? previousLayers,
+		string saveId,
+		ICollection<PendingResource> pending)
 	{
+		PintaDocumentLayerNode? previous = previousLayers?.FirstOrDefault (node => node.Id == layer.DocumentId);
 		PointD origin = layer.Transform.TransformPoint (PointD.Zero);
 		PointD xAxis = layer.Transform.TransformPoint (new PointD (1, 0));
 		PointD yAxis = layer.Transform.TransformPoint (new PointD (0, 1));
-		return new () {
+		PintaDocumentLayerNode result = new () {
 			Id = layer.DocumentId!,
 			Name = layer.Name,
 			Hidden = layer.Hidden,
@@ -189,19 +224,13 @@ public sealed class PintaDocumentFormat : IImageImporter, IImageExporter
 				_ => "layer",
 			},
 			Storage = layer.IsReference ? "reference" : "embedded",
-			Surface = layer is GroupLayer || layer.IsReference ? null : $"layers/{layer.DocumentId}.png",
-			SurfaceWidth = layer.Surface.Width,
-			SurfaceHeight = layer.Surface.Height,
+			SurfaceWidth = layer is GroupLayer || layer is AnimationOutputLayer ? null : layer.Surface.Width,
+			SurfaceHeight = layer is GroupLayer || layer is AnimationOutputLayer ? null : layer.Surface.Height,
 			ReferencePath = layer.ReferencePath,
 			Metadata = new (layer.Metadata),
 			SpritesheetSplit = layer.SpritesheetSplit,
 			PositionOffsetX = layer is AnimationOutputLayer animation ? animation.PositionOffset.X : 0,
 			PositionOffsetY = layer is AnimationOutputLayer animationLayer ? animationLayer.PositionOffset.Y : 0,
-			SpriteSheetAnimations = layer is SpriteSheetLayer spriteData ? CreateSpriteSheetAnimations (spriteData) : [],
-			SingleDirectionId = layer is SingleDirectionAnimationLayer single ? single.DirectionId : null,
-			SingleDirectionAnimations = layer is SingleDirectionAnimationLayer singleData
-				? CreateSingleDirectionAnimations (singleData)
-				: [],
 			Transform = new () {
 				Xx = xAxis.X - origin.X,
 				Yx = xAxis.Y - origin.Y,
@@ -210,49 +239,143 @@ public sealed class PintaDocumentFormat : IImageImporter, IImageExporter
 				X0 = origin.X,
 				Y0 = origin.Y,
 			},
-			Children = [.. layer.Children.Select (CreateLayerModel)],
+			Children = [.. layer.Children.Select (child => CreateLayerModel (
+				child, root, previous?.Children, saveId, pending))],
 		};
+
+		if (layer is SpriteSheetLayer spriteSheet)
+			result.SpriteSheetAnimations = CreateSpriteSheetAnimations (spriteSheet, root, previous, saveId, pending);
+		else if (layer is SingleDirectionAnimationLayer singleDirection) {
+			result.SingleDirectionId = singleDirection.DirectionId;
+			result.SingleDirectionAnimations = CreateSingleDirectionAnimations (
+				singleDirection, root, previous, saveId, pending);
+		}
+		else if (layer is not GroupLayer && !layer.IsReference)
+			(result.Surface, result.SurfaceHash) = GetResource (
+				layer.Surface,
+				root,
+				previous?.Surface,
+				previous?.SurfaceHash,
+				$"{resources_directory}/layers/{layer.DocumentId}/{saveId}.png",
+				pending);
+
+		return result;
 	}
 
-	private static List<PintaDocumentSpriteSheetAnimation> CreateSpriteSheetAnimations (SpriteSheetLayer layer)
+	private static List<PintaDocumentSpriteSheetAnimation> CreateSpriteSheetAnimations (
+		SpriteSheetLayer layer,
+		string root,
+		PintaDocumentLayerNode? previous,
+		string saveId,
+		ICollection<PendingResource> pending)
 	{
-		int index = 0;
+		int resourceIndex = 0;
 		return [.. layer.Animations.Select (animation => new PintaDocumentSpriteSheetAnimation {
 			ActionId = animation.ActionId,
 			CanvasWidth = animation.CanvasWidth,
 			CanvasHeight = animation.CanvasHeight,
 			Directions = [.. animation.Directions.Select (direction => new PintaDocumentSpriteSheetDirection {
 				DirectionId = direction.DirectionId,
-				Frames = [.. direction.Frames.Select (frame => new PintaDocumentSpriteSheetFrame {
-					FrameIndex = frame.FrameIndex,
-					X = frame.X,
-					Y = frame.Y,
-					Visible = frame.Visible,
-					Surface = $"spritesheets/{layer.DocumentId}/frame-{index++:D4}.png",
-					Width = frame.Surface.Width,
-					Height = frame.Surface.Height,
+				Frames = [.. direction.Frames.Select (frame => {
+					PintaDocumentSpriteSheetFrame? oldFrame = previous?.SpriteSheetAnimations
+						.Where (item => item.ActionId == animation.ActionId)
+						.SelectMany (item => item.Directions)
+						.Where (item => item.DirectionId == direction.DirectionId)
+						.SelectMany (item => item.Frames)
+						.FirstOrDefault (item => item.FrameIndex == frame.FrameIndex);
+					(string? surface, string hash) = GetResource (
+						frame.Surface,
+						root,
+						oldFrame?.Surface,
+						oldFrame?.SurfaceHash,
+						$"{resources_directory}/spritesheets/{layer.DocumentId}/{saveId}/frame-{resourceIndex++:D6}.png",
+						pending);
+					return new PintaDocumentSpriteSheetFrame {
+						FrameIndex = frame.FrameIndex,
+						X = frame.X,
+						Y = frame.Y,
+						Visible = frame.Visible,
+						Surface = surface!,
+						SurfaceHash = hash,
+						Width = frame.Surface.Width,
+						Height = frame.Surface.Height,
+					};
 				})],
 			})],
 		})];
 	}
 
-	private static List<PintaDocumentSingleDirectionAnimation> CreateSingleDirectionAnimations (SingleDirectionAnimationLayer layer)
+	private static List<PintaDocumentSingleDirectionAnimation> CreateSingleDirectionAnimations (
+		SingleDirectionAnimationLayer layer,
+		string root,
+		PintaDocumentLayerNode? previous,
+		string saveId,
+		ICollection<PendingResource> pending)
 	{
-		int index = 0;
+		int resourceIndex = 0;
 		return [.. layer.Animations.Select (animation => new PintaDocumentSingleDirectionAnimation {
 			ActionId = animation.ActionId,
 			CanvasWidth = animation.CanvasWidth,
 			CanvasHeight = animation.CanvasHeight,
-			Frames = [.. animation.Frames.Select (frame => new PintaDocumentSingleDirectionFrame {
-				FrameIndex = frame.FrameIndex,
-				X = frame.X,
-				Y = frame.Y,
-				Visible = frame.Visible,
-				Surface = $"single-direction-animations/{layer.DocumentId}/frame-{index++:D4}.png",
-				Width = frame.Surface.Width,
-				Height = frame.Surface.Height,
+			Frames = [.. animation.Frames.Select (frame => {
+				PintaDocumentSingleDirectionFrame? oldFrame = previous?.SingleDirectionAnimations
+					.Where (item => item.ActionId == animation.ActionId)
+					.SelectMany (item => item.Frames)
+					.FirstOrDefault (item => item.FrameIndex == frame.FrameIndex);
+				(string? surface, string hash) = GetResource (
+					frame.Surface,
+					root,
+					oldFrame?.Surface,
+					oldFrame?.SurfaceHash,
+					$"{resources_directory}/single-direction-animations/{layer.DocumentId}/{saveId}/frame-{resourceIndex++:D6}.png",
+					pending);
+				return new PintaDocumentSingleDirectionFrame {
+					FrameIndex = frame.FrameIndex,
+					X = frame.X,
+					Y = frame.Y,
+					Visible = frame.Visible,
+					Surface = surface!,
+					SurfaceHash = hash,
+					Width = frame.Surface.Width,
+					Height = frame.Surface.Height,
+				};
 			})],
 		})];
+	}
+
+	private static (string? Path, string Hash) GetResource (
+		ImageSurface surface,
+		string root,
+		string? previousPath,
+		string? previousHash,
+		string newPath,
+		ICollection<PendingResource> pending)
+	{
+		string hash = HashSurface (surface);
+		if (previousPath is not null
+			&& previousHash == hash
+			&& File.Exists (Path.Combine (root, ToSystemPath (previousPath))))
+			return (previousPath, hash);
+
+		pending.Add (new PendingResource (newPath, surface));
+		return (newPath, hash);
+	}
+
+	private static string HashSurface (ImageSurface surface)
+	{
+		surface.Flush ();
+		using IncrementalHash hash = IncrementalHash.CreateHash (HashAlgorithmName.SHA256);
+		Span<byte> dimensions = stackalloc byte[sizeof (int) * 2];
+		BinaryPrimitives.WriteInt32LittleEndian (dimensions, surface.Width);
+		BinaryPrimitives.WriteInt32LittleEndian (dimensions[sizeof (int)..], surface.Height);
+		hash.AppendData (dimensions);
+		ReadOnlySpan<ColorBgra> pixels = surface.GetReadOnlyPixelData ();
+		for (int y = 0; y < surface.Height; y++) {
+			ReadOnlySpan<ColorBgra> row = pixels.Slice (y * surface.Width, surface.Width);
+			hash.AppendData (MemoryMarshal.AsBytes (row));
+		}
+
+		return Convert.ToHexString (hash.GetHashAndReset ());
 	}
 
 	private static PintaDocumentSelection CreateSelectionModel (DocumentSelection selection)
@@ -268,8 +391,8 @@ public sealed class PintaDocumentFormat : IImageImporter, IImageExporter
 				polygon => polygon.Select (point => new PintaDocumentPoint { X = point.X, Y = point.Y }).ToList ())],
 		};
 
-        private static IReadOnlyList<DocumentGuide> CreateGuides (IReadOnlyList<PintaDocumentGuide> guides)
-                => [.. guides.Select (guide => new DocumentGuide (guide.Orientation, guide.Position))];
+	private static IReadOnlyList<DocumentGuide> CreateGuides (IReadOnlyList<PintaDocumentGuide> guides)
+		=> [.. guides.Select (guide => new DocumentGuide (guide.Orientation, guide.Position))];
 
 	private static DocumentSelection CreateSelection (PintaDocumentSelection selection)
 		=> new () {
@@ -285,21 +408,14 @@ public sealed class PintaDocumentFormat : IImageImporter, IImageExporter
 
 	private static void ImportLayers (
 		Document document,
-		ZipArchive archive,
+		string root,
 		IReadOnlyList<PintaDocumentLayerNode> nodes,
 		UserLayer? parent,
-		Dictionary<string, UserLayer> layersById,
-		int version)
+		Dictionary<string, UserLayer> layersById)
 	{
 		for (int index = 0; index < nodes.Count; index++) {
 			PintaDocumentLayerNode node = nodes[index];
-			UserLayer layer = version >= 5 && node.Kind == "single-direction-animation"
-				? CreateSingleDirectionAnimationLayer (document, node)
-				: version >= 4 && node.Kind == "spritesheet"
-					? CreateSpriteSheetLayer (document, node)
-					: version >= 2 && node.Kind == "group"
-						? document.Layers.CreateGroupLayer (node.Name, node.SurfaceWidth, node.SurfaceHeight)
-						: document.Layers.CreateLayer (node.Name, node.SurfaceWidth, node.SurfaceHeight);
+			UserLayer layer = CreateLayer (document, node);
 			layer.DocumentId = node.Id;
 			layer.Hidden = node.Hidden;
 			layer.Opacity = node.Opacity;
@@ -316,27 +432,34 @@ public sealed class PintaDocumentFormat : IImageImporter, IImageExporter
 				node.Transform.X0,
 				node.Transform.Y0);
 
-			if (version >= 5 && node.Kind == "single-direction-animation")
-				LoadSingleDirectionAnimationSurfaces (archive, (SingleDirectionAnimationLayer) layer, node);
-			else if (version >= 4 && node.Kind == "spritesheet")
-				LoadSpriteSheetSurfaces (archive, (SpriteSheetLayer) layer, node);
-			else if (version == 1 || (node.Kind == "layer" && node.Storage == "embedded"))
-				LoadSurface (archive.GetEntry (node.Surface!)!, layer);
-			else if (node.Storage == "reference") {
+			if (node.Kind == "single-direction-animation")
+				LoadSingleDirectionAnimationSurfaces (root, (SingleDirectionAnimationLayer) layer, node);
+			else if (node.Kind == "spritesheet")
+				LoadSpriteSheetSurfaces (root, (SpriteSheetLayer) layer, node);
+			else if (node.Kind == "layer" && node.Storage == "embedded")
+				LoadSurface (root, node.Surface!, layer.Surface);
+			else if (node.Kind == "layer") {
 				layer.ReferencePath = node.ReferencePath;
 				document.LoadReferencedLayer (layer);
 			}
+
 			document.Layers.Insert (layer, new LayerPosition (parent, index));
 			layersById.Add (node.Id, layer);
-			ImportLayers (document, archive, node.Children, layer, layersById, version);
+			ImportLayers (document, root, node.Children, layer, layersById);
 		}
 	}
 
+	private static UserLayer CreateLayer (Document document, PintaDocumentLayerNode node)
+		=> node.Kind switch {
+			"single-direction-animation" => CreateSingleDirectionAnimationLayer (document, node),
+			"spritesheet" => CreateSpriteSheetLayer (document, node),
+			"group" => document.Layers.CreateGroupLayer (node.Name, node.SurfaceWidth, node.SurfaceHeight),
+			_ => document.Layers.CreateLayer (node.Name, node.SurfaceWidth, node.SurfaceHeight),
+		};
+
 	private static SpriteSheetLayer CreateSpriteSheetLayer (Document document, PintaDocumentLayerNode node)
 	{
-		PintaDocumentSpriteSheetAnimation animation = node.SpriteSheetAnimations.FirstOrDefault ()
-			?? throw new InvalidDataException ($"Spritesheet layer '{node.Id}' has no animation data.");
-		SpriteSheetLayer layer = document.Layers.CreateSpriteSheetLayer (node.Name, animation.CanvasWidth, animation.CanvasHeight);
+		PintaDocumentSpriteSheetAnimation animation = node.SpriteSheetAnimations[0];
 		List<SpriteSheetAnimationData> animations = [];
 		foreach (PintaDocumentSpriteSheetAnimation sourceAnimation in node.SpriteSheetAnimations) {
 			SpriteSheetAnimationData animationData = new (sourceAnimation.ActionId, sourceAnimation.CanvasWidth, sourceAnimation.CanvasHeight);
@@ -349,6 +472,8 @@ public sealed class PintaDocumentFormat : IImageImporter, IImageExporter
 			}
 			animations.Add (animationData);
 		}
+
+		SpriteSheetLayer layer = document.Layers.CreateSpriteSheetLayer (node.Name, animation.CanvasWidth, animation.CanvasHeight);
 		layer.ReplaceSnapshot (new SpriteSheetLayerSnapshot (
 			animation.CanvasWidth,
 			animation.CanvasHeight,
@@ -359,34 +484,24 @@ public sealed class PintaDocumentFormat : IImageImporter, IImageExporter
 
 	private static SingleDirectionAnimationLayer CreateSingleDirectionAnimationLayer (Document document, PintaDocumentLayerNode node)
 	{
-		PintaDocumentSingleDirectionAnimation animation = node.SingleDirectionAnimations.FirstOrDefault ()
-			?? throw new InvalidDataException ($"Single-direction animation layer '{node.Id}' has no animation data.");
-		string directionId = node.SingleDirectionId
-			?? throw new InvalidDataException ($"Single-direction animation layer '{node.Id}' has no direction ID.");
+		PintaDocumentSingleDirectionAnimation animation = node.SingleDirectionAnimations[0];
+		List<SingleDirectionAnimationData> animations = [];
+		foreach (PintaDocumentSingleDirectionAnimation sourceAnimation in node.SingleDirectionAnimations) {
+			SingleDirectionAnimationData animationData = new (sourceAnimation.ActionId, sourceAnimation.CanvasWidth, sourceAnimation.CanvasHeight);
+			foreach (PintaDocumentSingleDirectionFrame sourceFrame in sourceAnimation.Frames) {
+				ImageSurface surface = CairoExtensions.CreateImageSurface (Format.Argb32, sourceFrame.Width, sourceFrame.Height);
+				animationData.Frames.Add (new AnimationFrameData (sourceFrame.FrameIndex, sourceFrame.X, sourceFrame.Y, sourceFrame.Visible, surface));
+			}
+			animations.Add (animationData);
+		}
+
 		SingleDirectionAnimationLayer layer = document.Layers.CreateSingleDirectionAnimationLayer (
 			node.Name,
 			animation.CanvasWidth,
 			animation.CanvasHeight,
-			directionId);
-		List<SingleDirectionAnimationData> animations = [];
-		foreach (PintaDocumentSingleDirectionAnimation sourceAnimation in node.SingleDirectionAnimations) {
-			SingleDirectionAnimationData animationData = new (
-				sourceAnimation.ActionId,
-				sourceAnimation.CanvasWidth,
-				sourceAnimation.CanvasHeight);
-			foreach (PintaDocumentSingleDirectionFrame sourceFrame in sourceAnimation.Frames) {
-				ImageSurface surface = CairoExtensions.CreateImageSurface (Format.Argb32, sourceFrame.Width, sourceFrame.Height);
-				animationData.Frames.Add (new AnimationFrameData (
-					sourceFrame.FrameIndex,
-					sourceFrame.X,
-					sourceFrame.Y,
-					sourceFrame.Visible,
-					surface));
-			}
-			animations.Add (animationData);
-		}
+			node.SingleDirectionId!);
 		layer.ReplaceSnapshot (new SingleDirectionAnimationLayerSnapshot (
-			directionId,
+			node.SingleDirectionId!,
 			animation.CanvasWidth,
 			animation.CanvasHeight,
 			new PointD (node.PositionOffsetX, node.PositionOffsetY),
@@ -394,54 +509,47 @@ public sealed class PintaDocumentFormat : IImageImporter, IImageExporter
 		return layer;
 	}
 
-	private static void LoadSpriteSheetSurfaces (ZipArchive archive, SpriteSheetLayer layer, PintaDocumentLayerNode node)
+	private static void LoadSpriteSheetSurfaces (string root, SpriteSheetLayer layer, PintaDocumentLayerNode node)
 	{
-		int index = 0;
-		foreach (AnimationFrameData frame in layer.GetFrames ()) {
-			PintaDocumentSpriteSheetFrame manifestFrame = node.SpriteSheetAnimations
-				.SelectMany (animation => animation.Directions.SelectMany (direction => direction.Frames))
-				.ElementAt (index++);
-			LoadSurface (archive.GetEntry (manifestFrame.Surface)!, frame.Surface);
-		}
+		IEnumerable<PintaDocumentSpriteSheetFrame> frames = node.SpriteSheetAnimations
+			.SelectMany (animation => animation.Directions.SelectMany (direction => direction.Frames));
+		foreach ((AnimationFrameData frame, PintaDocumentSpriteSheetFrame manifestFrame) in layer.GetFrames ().Zip (frames))
+			LoadSurface (root, manifestFrame.Surface, frame.Surface);
 	}
 
 	private static void LoadSingleDirectionAnimationSurfaces (
-		ZipArchive archive,
+		string root,
 		SingleDirectionAnimationLayer layer,
 		PintaDocumentLayerNode node)
 	{
-		int index = 0;
-		foreach (AnimationFrameData frame in layer.GetFrames ()) {
-			PintaDocumentSingleDirectionFrame manifestFrame = node.SingleDirectionAnimations
-				.SelectMany (animation => animation.Frames)
-				.ElementAt (index++);
-			LoadSurface (archive.GetEntry (manifestFrame.Surface)!, frame.Surface);
-		}
+		IEnumerable<PintaDocumentSingleDirectionFrame> frames = node.SingleDirectionAnimations
+			.SelectMany (animation => animation.Frames);
+		foreach ((AnimationFrameData frame, PintaDocumentSingleDirectionFrame manifestFrame) in layer.GetFrames ().Zip (frames))
+			LoadSurface (root, manifestFrame.Surface, frame.Surface);
 	}
 
-	private static void LoadSurface (ZipArchiveEntry entry, UserLayer layer)
-		=> LoadSurface (entry, layer.Surface);
-
-	private static void LoadSurface (ZipArchiveEntry entry, ImageSurface surface)
+	private static void LoadSurface (string root, string relativePath, ImageSurface surface)
 	{
-		string temporaryFile = System.IO.Path.GetTempFileName ();
+		string path = ResolveResourcePath (root, relativePath);
 		try {
-			using (Stream source = entry.Open ())
-			using (FileStream destination = File.OpenWrite (temporaryFile))
-				source.CopyTo (destination);
-
-			using Pixbuf pixbuf = Pixbuf.NewFromFile (temporaryFile)
-				?? throw new InvalidDataException ($"Layer surface '{entry.FullName}' could not be decoded as PNG.");
+			using Pixbuf pixbuf = Pixbuf.NewFromFile (path)
+				?? throw new InvalidDataException (Translations.GetString ("The Pinta project resource could not be decoded."));
 			if (pixbuf.Width != surface.Width || pixbuf.Height != surface.Height)
-				throw new InvalidDataException ($"Layer surface '{entry.FullName}' does not match the document dimensions.");
+				throw new InvalidDataException (Translations.GetString ("The Pinta project resource dimensions are invalid."));
 
 			using Context context = new (surface);
 			context.DrawPixbuf (pixbuf, PointD.Zero);
 		} catch (GLib.GException e) {
-			throw new InvalidDataException ($"Layer surface '{entry.FullName}' is not a valid PNG.", e);
-		} finally {
-			File.Delete (temporaryFile);
+			throw new InvalidDataException (Translations.GetString ("The Pinta project resource is not a valid PNG."), e);
 		}
+	}
+
+	private static string ResolveResourcePath (string root, string relativePath)
+	{
+		if (!IsValidResourcePath (relativePath))
+			throw new InvalidDataException (Translations.GetString ("The Pinta project contains an invalid resource path."));
+
+		return Path.Combine (root, ToSystemPath (relativePath));
 	}
 
 	private static void AssignLayerIds (IReadOnlyList<UserLayer> roots)
@@ -452,8 +560,8 @@ public sealed class PintaDocumentFormat : IImageImporter, IImageExporter
 		foreach (UserLayer layer in layers) {
 			if (layer.DocumentId is not null && usedIds.Add (layer.DocumentId))
 				continue;
-			layer.DocumentId = null;
 
+			layer.DocumentId = null;
 			string id;
 			do id = $"layer-{nextId++:D4}";
 			while (!usedIds.Add (id));
@@ -461,193 +569,218 @@ public sealed class PintaDocumentFormat : IImageImporter, IImageExporter
 		}
 	}
 
-	private static void ValidateManifest (PintaDocumentManifest manifest, ZipArchive archive)
+	private static void ValidateManifest (PintaDocumentManifest manifest, string root)
 	{
-		if (manifest.Format != FormatName)
-			throw new InvalidDataException ($"Unsupported Pinta document format '{manifest.Format}'.");
-		if (manifest.Version is not 1 and not 2 and not 3 and not 4 and not CurrentVersion)
-			throw new InvalidDataException ($"Unsupported Pinta document version {manifest.Version}.");
+		if (manifest.Format != FormatName || manifest.Version != CurrentVersion)
+			throw new InvalidDataException (Translations.GetString ("Unsupported Pinta project format or version."));
 		if (manifest.ResourceRoot is not null
 			&& (!Uri.TryCreate (manifest.ResourceRoot, UriKind.Absolute, out Uri? rootUri) || rootUri.Scheme != Uri.UriSchemeFile))
-			throw new InvalidDataException ("The Pinta document resource root is not a valid local file URI.");
-		if (manifest.Width <= 0 || manifest.Height <= 0)
-			throw new InvalidDataException ("The Pinta document dimensions must be positive.");
-                if (manifest.Guides is null)
-                        throw new InvalidDataException ("The Pinta document guides collection is missing.");
-                if (manifest.Guides.Any (guide => !Enum.IsDefined (guide.Orientation) || !double.IsFinite (guide.Position)))
-                        throw new InvalidDataException ("The Pinta document guides are invalid.");
+			throw new InvalidDataException (Translations.GetString ("The Pinta project resource root is invalid."));
+		if (manifest.Width <= 0 || manifest.Height <= 0 || manifest.Guides is null)
+			throw new InvalidDataException (Translations.GetString ("The Pinta project dimensions or guides are invalid."));
+		if (manifest.Guides.Any (guide => !Enum.IsDefined (guide.Orientation) || !double.IsFinite (guide.Position)))
+			throw new InvalidDataException (Translations.GetString ("The Pinta project guides are invalid."));
 		if (manifest.Selection is null || manifest.Selection.HandleBounds is null || manifest.Selection.Polygons is null)
-			throw new InvalidDataException ("The Pinta document selection is incomplete.");
-		if (!IsFinite (manifest.Selection.HandleBounds))
-			throw new InvalidDataException ("The Pinta document selection bounds are invalid.");
-		if (manifest.Selection.Polygons.Any (polygon => polygon is null || polygon.Any (point => point is null)))
-			throw new InvalidDataException ("The Pinta document selection polygons are invalid.");
-		if (manifest.Layers is null || manifest.Layers.Count == 0)
-			throw new InvalidDataException ("The Pinta document does not contain any layers.");
+			throw new InvalidDataException (Translations.GetString ("The Pinta project selection is incomplete."));
+		if (!IsFinite (manifest.Selection.HandleBounds) || manifest.Layers is null || manifest.Layers.Count == 0)
+			throw new InvalidDataException (Translations.GetString ("The Pinta project content is invalid."));
 
 		HashSet<string> ids = [];
-		ValidateLayers (manifest.Layers, archive, ids, manifest.Version);
-		if (manifest.Version >= 2 && ContainsReferencedLayer (manifest.Layers) && string.IsNullOrWhiteSpace (manifest.ResourceRoot))
-			throw new InvalidDataException ("The Pinta document contains referenced layers but no resource root.");
+		ValidateLayers (manifest.Layers, root, ids);
+		if (manifest.ResourceRoot is null && ContainsReferencedLayer (manifest.Layers))
+			throw new InvalidDataException (Translations.GetString ("The Pinta project contains referenced layers but no resource root."));
 		if (manifest.SelectedLayerId is not null && !ids.Contains (manifest.SelectedLayerId))
-			throw new InvalidDataException ($"Selected layer '{manifest.SelectedLayerId}' does not exist.");
+			throw new InvalidDataException (Translations.GetString ("The selected Pinta project layer does not exist."));
 	}
 
 	private static void ValidateLayers (
 		IReadOnlyList<PintaDocumentLayerNode> nodes,
-		ZipArchive archive,
-		HashSet<string> ids,
-		int version)
+		string root,
+		HashSet<string> ids)
 	{
 		foreach (PintaDocumentLayerNode node in nodes) {
-			if (node is null)
-				throw new InvalidDataException ("The Pinta document contains an invalid layer node.");
-			if (string.IsNullOrWhiteSpace (node.Id) || !ids.Add (node.Id))
-				throw new InvalidDataException ($"The Pinta document contains an invalid or duplicate layer ID '{node.Id}'.");
-			if (node.Name is null)
-				throw new InvalidDataException ($"Layer '{node.Id}' has no name.");
-			if (!double.IsFinite (node.Opacity) || node.Opacity < 0 || node.Opacity > 1)
-				throw new InvalidDataException ($"Layer '{node.Id}' has invalid opacity.");
-			if (!Enum.TryParse<BlendMode> (node.BlendMode, ignoreCase: false, out _))
-				throw new InvalidDataException ($"Layer '{node.Id}' has unknown blend mode '{node.BlendMode}'.");
-			if (node.Transform is null || !IsFinite (node.Transform))
-				throw new InvalidDataException ($"Layer '{node.Id}' has an invalid transform.");
-			if (node.Metadata is null || node.Metadata.Any (item => string.IsNullOrWhiteSpace (item.Key) || item.Value is null))
-				throw new InvalidDataException ($"Layer '{node.Id}' has invalid metadata.");
-			if (version == 1) {
-				if (node.Surface != $"layers/{node.Id}.png")
-					throw new InvalidDataException ($"Layer '{node.Id}' has an invalid surface path.");
-				if (archive.GetEntry (node.Surface) is null)
-					throw new InvalidDataException ($"Layer surface '{node.Surface}' is missing.");
-			} else {
-				if (node.Kind == "spritesheet" && version < 4)
-					throw new InvalidDataException ($"Spritesheet layers require document version 4.");
-				if (node.Kind == "single-direction-animation" && version < 5)
-					throw new InvalidDataException ($"Single-direction animation layers require document version 5.");
-				if (node.Kind is not ("layer" or "group" or "spritesheet" or "single-direction-animation"))
-					throw new InvalidDataException ($"Layer '{node.Id}' has an invalid kind.");
-				if (node.Storage is not ("embedded" or "reference"))
-					throw new InvalidDataException ($"Layer '{node.Id}' has an invalid storage mode.");
-				if (node.Kind == "group" && (node.Storage != "embedded" || node.Surface is not null || node.ReferencePath is not null))
-					throw new InvalidDataException ($"Group '{node.Id}' cannot store image data.");
-				if (node.Kind == "spritesheet") {
-					ValidateSpriteSheetNode (node, archive);
-					if (node.Children is null || node.Children.Count > 0 || node.Surface is not null || node.ReferencePath is not null || node.Storage != "embedded")
-						throw new InvalidDataException ($"Spritesheet layer '{node.Id}' cannot contain child layers or a regular surface.");
-				}
-				if (node.Kind == "single-direction-animation") {
-					ValidateSingleDirectionAnimationNode (node, archive);
-					if (node.Children is null || node.Children.Count > 0 || node.Surface is not null || node.ReferencePath is not null || node.Storage != "embedded")
-						throw new InvalidDataException ($"Single-direction animation layer '{node.Id}' cannot contain child layers or a regular surface.");
-				}
-				if (node.Kind == "layer" && node.Storage == "embedded") {
-					if (node.Surface != $"layers/{node.Id}.png" || archive.GetEntry (node.Surface) is null)
-						throw new InvalidDataException ($"Layer surface for '{node.Id}' is missing or invalid.");
-					if ((node.SurfaceWidth is null) != (node.SurfaceHeight is null)
-						|| node.SurfaceWidth is <= 0
-						|| node.SurfaceHeight is <= 0)
-						throw new InvalidDataException ($"Layer surface dimensions for '{node.Id}' are invalid.");
-				}
-				if (node.Storage == "reference" && (node.Surface is not null || !IsValidReferencePath (node.ReferencePath)))
-					throw new InvalidDataException ($"Referenced layer '{node.Id}' has an invalid resource path.");
-			}
-			if (node.Children is null)
-				throw new InvalidDataException ($"Layer '{node.Id}' has no children collection.");
+			if (node is null || string.IsNullOrWhiteSpace (node.Id) || !ids.Add (node.Id)
+				|| node.Name is null || !double.IsFinite (node.Opacity) || node.Opacity < 0 || node.Opacity > 1
+				|| !Enum.TryParse<BlendMode> (node.BlendMode, ignoreCase: false, out _)
+				|| node.Transform is null || !IsFinite (node.Transform)
+				|| node.Metadata is null || node.Metadata.Any (item => string.IsNullOrWhiteSpace (item.Key) || item.Value is null)
+				|| node.Children is null)
+				throw new InvalidDataException (Translations.GetString ("The Pinta project contains an invalid layer."));
 
-			ValidateLayers (node.Children, archive, ids, version);
+			if (node.Kind is not ("layer" or "group" or "spritesheet" or "single-direction-animation")
+				|| node.Storage is not ("embedded" or "reference"))
+				throw new InvalidDataException (Translations.GetString ("The Pinta project contains an invalid layer type."));
+
+			if (node.Kind == "group")
+				ValidateGroup (node);
+			else if (node.Kind == "layer")
+				ValidateRegularLayer (node, root);
+			else if (node.Kind == "spritesheet")
+				ValidateSpriteSheetNode (node, root);
+			else
+				ValidateSingleDirectionAnimationNode (node, root);
+
+			ValidateLayers (node.Children, root, ids);
 		}
 	}
 
-	private static void ValidateSpriteSheetNode (PintaDocumentLayerNode node, ZipArchive archive)
+	private static void ValidateGroup (PintaDocumentLayerNode node)
 	{
-		if (node.SpriteSheetAnimations is null || node.SpriteSheetAnimations.Count == 0
-			|| !double.IsFinite (node.PositionOffsetX) || !double.IsFinite (node.PositionOffsetY))
-			throw new InvalidDataException ($"Spritesheet layer '{node.Id}' has invalid animation data.");
+		if (node.Storage != "embedded" || node.Surface is not null || node.SurfaceHash is not null || node.ReferencePath is not null)
+			throw new InvalidDataException (Translations.GetString ("The Pinta project group layer is invalid."));
+	}
+
+	private static void ValidateRegularLayer (PintaDocumentLayerNode node, string root)
+	{
+		if (node.Storage == "embedded") {
+			if (node.Surface is null || node.SurfaceHash is null || !IsValidResourcePath (node.Surface)
+				|| !node.Surface.StartsWith ($"{resources_directory}/layers/", StringComparison.Ordinal)
+				|| !File.Exists (ResolveResourcePath (root, node.Surface))
+				|| node.SurfaceWidth is not > 0 || node.SurfaceHeight is not > 0)
+				throw new InvalidDataException (Translations.GetString ("The Pinta project layer resource is invalid."));
+		} else if (node.Surface is not null || node.SurfaceHash is not null || !IsValidReferencePath (node.ReferencePath))
+			throw new InvalidDataException (Translations.GetString ("The Pinta project reference layer is invalid."));
+	}
+
+	private static void ValidateSpriteSheetNode (PintaDocumentLayerNode node, string root)
+	{
+		if (node.Storage != "embedded" || node.Children.Count > 0 || node.Surface is not null
+			|| node.SpriteSheetAnimations is null || node.SpriteSheetAnimations.Count == 0)
+			throw new InvalidDataException (Translations.GetString ("The Pinta project spritesheet layer is invalid."));
 
 		HashSet<(string Action, string Direction, int Frame)> keys = [];
-		int pathIndex = 0;
-		int canvasWidth = 0;
-		int canvasHeight = 0;
 		foreach (PintaDocumentSpriteSheetAnimation animation in node.SpriteSheetAnimations) {
-			if (animation is null
-				|| string.IsNullOrWhiteSpace (animation.ActionId)
-				|| animation.CanvasWidth <= 0
-				|| animation.CanvasHeight <= 0
-				|| animation.Directions is null
-				|| animation.Directions.Count == 0)
-				throw new InvalidDataException ($"Spritesheet layer '{node.Id}' has an invalid animation.");
-			if (canvasWidth == 0) {
-				canvasWidth = animation.CanvasWidth;
-				canvasHeight = animation.CanvasHeight;
-			} else if (canvasWidth != animation.CanvasWidth || canvasHeight != animation.CanvasHeight) {
-				throw new InvalidDataException ($"Spritesheet layer '{node.Id}' has inconsistent animation canvas sizes.");
-			}
+			if (animation is null || string.IsNullOrWhiteSpace (animation.ActionId)
+				|| animation.CanvasWidth <= 0 || animation.CanvasHeight <= 0 || animation.Directions is null || animation.Directions.Count == 0)
+				throw new InvalidDataException (Translations.GetString ("The Pinta project spritesheet animation is invalid."));
 
 			foreach (PintaDocumentSpriteSheetDirection direction in animation.Directions) {
 				if (direction is null || string.IsNullOrWhiteSpace (direction.DirectionId) || direction.Frames is null || direction.Frames.Count == 0)
-					throw new InvalidDataException ($"Spritesheet layer '{node.Id}' has an invalid direction.");
+					throw new InvalidDataException (Translations.GetString ("The Pinta project spritesheet direction is invalid."));
 				foreach (PintaDocumentSpriteSheetFrame frame in direction.Frames) {
-					if (frame is null || frame.Width <= 0 || frame.Height <= 0 || frame.Surface != $"spritesheets/{node.Id}/frame-{pathIndex++:D4}.png")
-						throw new InvalidDataException ($"Spritesheet layer '{node.Id}' has an invalid frame path or size.");
+					ValidateFrame (frame, node.Id, root, "spritesheets");
 					if (!keys.Add ((animation.ActionId, direction.DirectionId, frame.FrameIndex)))
-						throw new InvalidDataException ($"Spritesheet layer '{node.Id}' contains duplicate frame keys.");
-					if (archive.GetEntry (frame.Surface) is null)
-						throw new InvalidDataException ($"Spritesheet frame '{frame.Surface}' is missing.");
+						throw new InvalidDataException (Translations.GetString ("The Pinta project contains duplicate animation frames."));
 				}
 			}
 		}
 	}
 
-	private static void ValidateSingleDirectionAnimationNode (PintaDocumentLayerNode node, ZipArchive archive)
+	private static void ValidateSingleDirectionAnimationNode (PintaDocumentLayerNode node, string root)
 	{
-		if (string.IsNullOrWhiteSpace (node.SingleDirectionId)
-			|| node.SingleDirectionAnimations is null
-			|| node.SingleDirectionAnimations.Count == 0
-			|| !double.IsFinite (node.PositionOffsetX)
-			|| !double.IsFinite (node.PositionOffsetY))
-			throw new InvalidDataException ($"Single-direction animation layer '{node.Id}' has invalid animation data.");
+		if (node.Storage != "embedded" || node.Children.Count > 0 || node.Surface is not null
+			|| string.IsNullOrWhiteSpace (node.SingleDirectionId)
+			|| node.SingleDirectionAnimations is null || node.SingleDirectionAnimations.Count == 0)
+			throw new InvalidDataException (Translations.GetString ("The Pinta project single-direction animation layer is invalid."));
 
 		HashSet<(string Action, int Frame)> keys = [];
-		int pathIndex = 0;
-		int canvasWidth = 0;
-		int canvasHeight = 0;
 		foreach (PintaDocumentSingleDirectionAnimation animation in node.SingleDirectionAnimations) {
-			if (animation is null
-				|| string.IsNullOrWhiteSpace (animation.ActionId)
-				|| animation.CanvasWidth <= 0
-				|| animation.CanvasHeight <= 0
-				|| animation.Frames is null
-				|| animation.Frames.Count == 0)
-				throw new InvalidDataException ($"Single-direction animation layer '{node.Id}' has an invalid animation.");
-			if (canvasWidth == 0) {
-				canvasWidth = animation.CanvasWidth;
-				canvasHeight = animation.CanvasHeight;
-			} else if (canvasWidth != animation.CanvasWidth || canvasHeight != animation.CanvasHeight) {
-				throw new InvalidDataException ($"Single-direction animation layer '{node.Id}' has inconsistent animation canvas sizes.");
-			}
-
+			if (animation is null || string.IsNullOrWhiteSpace (animation.ActionId)
+				|| animation.CanvasWidth <= 0 || animation.CanvasHeight <= 0 || animation.Frames is null || animation.Frames.Count == 0)
+				throw new InvalidDataException (Translations.GetString ("The Pinta project single-direction animation is invalid."));
 			foreach (PintaDocumentSingleDirectionFrame frame in animation.Frames) {
-				if (frame is null
-					|| frame.Width <= 0
-					|| frame.Height <= 0
-					|| frame.Surface != $"single-direction-animations/{node.Id}/frame-{pathIndex++:D4}.png")
-					throw new InvalidDataException ($"Single-direction animation layer '{node.Id}' has an invalid frame path or size.");
+				ValidateFrame (frame, node.Id, root, "single-direction-animations");
 				if (!keys.Add ((animation.ActionId, frame.FrameIndex)))
-					throw new InvalidDataException ($"Single-direction animation layer '{node.Id}' contains duplicate frame keys.");
-				if (archive.GetEntry (frame.Surface) is null)
-					throw new InvalidDataException ($"Single-direction animation frame '{frame.Surface}' is missing.");
+					throw new InvalidDataException (Translations.GetString ("The Pinta project contains duplicate animation frames."));
 			}
 		}
+	}
+
+	private static void ValidateFrame<T> (T frame, string layerId, string root, string directory)
+		where T : class
+	{
+		(string? path, string? hash, int width, int height) = frame switch {
+			PintaDocumentSpriteSheetFrame sprite => (sprite.Surface, sprite.SurfaceHash, sprite.Width, sprite.Height),
+			PintaDocumentSingleDirectionFrame single => (single.Surface, single.SurfaceHash, single.Width, single.Height),
+			_ => (null, null, 0, 0),
+		};
+		if (path is null || hash is null || width <= 0 || height <= 0
+			|| !IsValidResourcePath (path)
+			|| !path.StartsWith ($"{resources_directory}/{directory}/{layerId}/", StringComparison.Ordinal)
+			|| !File.Exists (ResolveResourcePath (root, path)))
+			throw new InvalidDataException (Translations.GetString ("The Pinta project animation resource is invalid."));
 	}
 
 	private static bool ContainsReferencedLayer (IReadOnlyList<PintaDocumentLayerNode> nodes)
 		=> nodes.Any (node => node.Storage == "reference" || ContainsReferencedLayer (node.Children));
 
-	private static bool IsValidReferencePath (string? path)
+	private static bool IsValidResourcePath (string path)
 		=> !string.IsNullOrWhiteSpace (path)
-		&& !System.IO.Path.IsPathRooted (path)
+		&& !Path.IsPathRooted (path)
 		&& !path.Contains ('\\')
-		&& path.Split ('/').All (part => !string.IsNullOrEmpty (part) && part is not "." and not "..");
+		&& path.Split ('/').All (part => !string.IsNullOrEmpty (part) && part is not ("." or ".."))
+		&& path.StartsWith ($"{resources_directory}/", StringComparison.Ordinal)
+		&& path.EndsWith (".png", StringComparison.OrdinalIgnoreCase);
+
+	private static bool IsValidReferencePath (string? path)
+		=> path is not null
+		&& !string.IsNullOrWhiteSpace (path)
+		&& !Path.IsPathRooted (path)
+		&& !path.Contains ('\\')
+		&& path.Split ('/').All (part => !string.IsNullOrEmpty (part) && part is not ("." or ".."));
+
+	private static void DeleteUnreferencedResources (
+		string root,
+		PintaDocumentManifest? previous,
+		PintaDocumentManifest current)
+	{
+		if (previous is null)
+			return;
+
+		HashSet<string> currentPaths = GetResourcePaths (current).ToHashSet (StringComparer.Ordinal);
+		foreach (string oldPath in GetResourcePaths (previous)) {
+			if (currentPaths.Contains (oldPath))
+				continue;
+
+			string path = ResolveResourcePath (root, oldPath);
+			TryDeleteFile (path);
+		}
+	}
+
+	private static void DeleteCreatedResources (string root, IEnumerable<string> paths)
+	{
+		foreach (string relativePath in paths) {
+			string path = ResolveResourcePath (root, relativePath);
+			TryDeleteFile (path);
+		}
+	}
+
+	private static void TryDeleteFile (string path)
+	{
+		try {
+			if (File.Exists (path))
+				File.Delete (path);
+		} catch (IOException) {
+		} catch (UnauthorizedAccessException) {
+		}
+	}
+
+	private static void TryDeleteDirectory (string path)
+	{
+		try {
+			if (Directory.Exists (path))
+				Directory.Delete (path, recursive: true);
+		} catch (IOException) {
+		} catch (UnauthorizedAccessException) {
+		}
+	}
+
+	private static IEnumerable<string> GetResourcePaths (PintaDocumentManifest manifest)
+		=> manifest.Layers.SelectMany (GetResourcePaths);
+
+	private static IEnumerable<string> GetResourcePaths (PintaDocumentLayerNode node)
+	{
+		if (node.Surface is not null)
+			yield return node.Surface;
+		foreach (PintaDocumentSpriteSheetFrame frame in node.SpriteSheetAnimations.SelectMany (
+			animation => animation.Directions.SelectMany (direction => direction.Frames)))
+			yield return frame.Surface;
+		foreach (PintaDocumentSingleDirectionFrame frame in node.SingleDirectionAnimations.SelectMany (animation => animation.Frames))
+			yield return frame.Surface;
+		foreach (PintaDocumentLayerNode child in node.Children)
+			foreach (string path in GetResourcePaths (child))
+				yield return path;
+	}
 
 	private static bool IsFinite (PintaDocumentRectangle rectangle)
 		=> double.IsFinite (rectangle.X)

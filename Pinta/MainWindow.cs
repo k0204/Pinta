@@ -56,6 +56,7 @@ internal sealed partial class MainWindow
 	private bool session_restored;
 	private bool suppress_tab_change;
 	private int deferred_document_position = -1;
+	private VideoFrameExportAction video_frame_export = null!;
 
 	private sealed class DeferredDocumentViewContent : IDockNotebookItem
 	{
@@ -491,6 +492,8 @@ internal sealed partial class MainWindow
 			PintaCore.Actions.App.RegisterActions (app);
 		}
 		PintaCore.Actions.File.RegisterActions (app, fileMenu);
+		video_frame_export = new VideoFrameExportAction (app);
+		video_frame_export.Register (app, fileMenu);
 		PintaCore.Actions.Edit.RegisterActions (app, editMenu);
 		PintaCore.Actions.View.RegisterActions (app, viewMenu);
 		PintaCore.Actions.Image.RegisterActions (app, imageMenu);

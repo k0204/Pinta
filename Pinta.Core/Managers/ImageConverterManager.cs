@@ -52,8 +52,8 @@ public sealed class ImageConverterManager
 		PintaDocumentFormat pintaDocumentHandler = new ();
 		yield return new FormatDescriptor (
 			displayPrefix: "Pinta",
-			extensions: ["pinta", "PINTA"],
-			mimes: ["application/x-pinta-document"],
+			extensions: [PintaDocumentFormat.Extension, PintaDocumentFormat.Extension.ToUpperInvariant ()],
+			mimes: ["application/x-pinta-project"],
 			importer: pintaDocumentHandler,
 			exporter: pintaDocumentHandler,
 			supportsLayers: true);
