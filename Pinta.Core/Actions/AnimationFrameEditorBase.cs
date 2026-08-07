@@ -135,6 +135,8 @@ internal abstract partial class AnimationFrameEditorBase
 
 		BuildContent ();
 		ConnectEvents ();
+		if (allow_ai_analysis && !editing_existing_frames && info.DirectionIds.Count == 1)
+			source_mode_stack.VisibleChildName = ai_source_mode;
 		if (editing_existing_frames) {
 			source_section.Visible = false;
 			if (attempt_section is not null)

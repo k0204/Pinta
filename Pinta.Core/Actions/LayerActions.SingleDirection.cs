@@ -198,12 +198,8 @@ public sealed partial class LayerActions
 		message.Wrap = true;
 		message.Halign = Gtk.Align.Start;
 		content.Append (message);
-		Gtk.Label action = Gtk.Label.New ($"{Translations.GetString ("Action")}: {info.ActionId}");
-		action.Halign = Gtk.Align.Start;
-		content.Append (action);
-
 		Gtk.Expander promptExpander = Gtk.Expander.New (
-			Translations.GetString ("Action generation prompt"));
+			Translations.GetString ("Prompt"));
 		Gtk.TextView promptView = Gtk.TextView.New ();
 		promptView.Editable = false;
 		promptView.WrapMode = Gtk.WrapMode.WordChar;

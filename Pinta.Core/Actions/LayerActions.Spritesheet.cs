@@ -210,17 +210,12 @@ public sealed partial class LayerActions
 	}
 
 	private static AI.SpritesheetAttemptInfo CreateSingleDirectionAttemptInfo (
-		AI.SpritesheetPromptCatalog catalog,
-		int actionIndex,
-		double frameCount,
 		Size size,
 		Gtk.TextBuffer promptBuffer)
 	{
-		int frames = (int) frameCount;
-		(int columns, int rows) = AI.SpritesheetPromptCatalog.CalculateGrid (frames, size);
 		promptBuffer.GetBounds (out Gtk.TextIter start, out Gtk.TextIter end);
-		return new (false, catalog.Actions[actionIndex].Id, [SingleDirectionAnimationLayer.DefaultDirectionId], frames,
-			columns, rows, AI.SpritesheetPromptCatalog.FixedBackgroundId, size,
+		return new (false, "prompt", [SingleDirectionAnimationLayer.DefaultDirectionId], 1,
+			1, 1, AI.SpritesheetPromptCatalog.FixedBackgroundId, size,
 			promptBuffer.GetText (start, end, true).Trim (),
 			AI.AiRequestSettings.GetImageService (PintaCore.Settings), AI.AiRequestSettings.GetImageProvider (PintaCore.Settings), 1);
 	}
