@@ -58,6 +58,8 @@ internal abstract partial class AnimationFrameEditorBase
 			item.Bbox.X, item.Bbox.Y, item.Bbox.Width, item.Bbox.Height))];
 		align_character.Active = false;
 		RebuildFrames (analysis.Items.Count);
+		foreach (EditableFrame frame in frames)
+			frame.Visible = true;
 		ApplyAnalysisPlacement (analysis.Items);
 		Refresh ();
 	}

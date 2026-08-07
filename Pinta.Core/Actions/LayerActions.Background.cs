@@ -848,8 +848,7 @@ public sealed partial class LayerActions
 
 			Gtk.SpinButton frameCountSpinner = Gtk.SpinButton.NewWithRange (1, 16, 1);
 			frameCountSpinner.Value = spritesheetCatalog.Actions[0].DefaultFrameCount;
-			Gtk.Label frameCountLabel = CreateSettingsLabel (Translations.GetString (
-				singleDirectionMode ? "Frames:" : "Frames per direction:"));
+			Gtk.Label frameCountLabel = CreateSettingsLabel (Translations.GetString ("Frames per direction:"));
 
 			Gtk.Label backgroundSummaryLabel = Gtk.Label.New (Translations.GetString ("White (#FFFFFF)"));
 			backgroundSummaryLabel.Halign = Gtk.Align.Start;
@@ -882,10 +881,15 @@ public sealed partial class LayerActions
 			spritesheetGrid.Attach (directionsSummaryLabel, 1, 5, 1, 1);
 			spritesheetGrid.Attach (summaryLabel, 1, 6, 1, 1);
 			Gtk.Box promptSection = Gtk.Box.New (Gtk.Orientation.Vertical, 6);
-			promptSection.Append (CreateDialogLabel (Translations.GetString ("Action generation prompt")));
+			promptSection.Append (CreateDialogLabel (Translations.GetString (
+				singleDirectionMode ? "Prompt" : "Action generation prompt")));
 			promptSection.Append (spritesheetGrid);
 			spritesheet_controls = promptSection;
 			modeBox.Visible = !singleDirectionMode;
+			actionLabel.Visible = !singleDirectionMode;
+			actionCombobox.Visible = !singleDirectionMode;
+			frameCountLabel.Visible = !singleDirectionMode;
+			frameCountSpinner.Visible = !singleDirectionMode;
 			directionsLabel.Visible = !singleDirectionMode;
 			directionsSummaryLabel.Visible = !singleDirectionMode;
 			if (singleDirectionMode)
@@ -896,6 +900,9 @@ public sealed partial class LayerActions
 
 			void RebuildSpritesheetPrompt ()
 			{
+				if (singleDirectionMode)
+					return;
+
 				bool directionSheet = !singleDirectionMode && directionModeButton.Active;
 				actionLabel.Visible = !directionSheet;
 				actionCombobox.Visible = !directionSheet;
@@ -927,14 +934,16 @@ public sealed partial class LayerActions
 							columns,
 							rows));
 				string actionId = spritesheetCatalog.Actions[actionCombobox.Active].Id;
-				promptBuffer.SetText (singleDirectionMode
-					? spritesheetCatalog.BuildSingleDirectionPrompt (actionId, customActionEntry.GetText (), framesPerDirection, size)
-					: spritesheetCatalog.BuildPrompt (directionSheet, actionId, customActionEntry.GetText (), framesPerDirection, size), -1);
+				promptBuffer.SetText (
+					spritesheetCatalog.BuildPrompt (directionSheet, actionId, customActionEntry.GetText (), framesPerDirection, size), -1);
 			}
 
-			spritesheet_valid = () => directionModeButton.Active || !IsCustomAction () || !string.IsNullOrWhiteSpace (customActionEntry.GetText ());
+			spritesheet_valid = () => singleDirectionMode
+				|| directionModeButton.Active
+				|| !IsCustomAction ()
+				|| !string.IsNullOrWhiteSpace (customActionEntry.GetText ());
 			spritesheet_result_layer_name = () => singleDirectionMode
-				? $"{spritesheetCatalog.Actions[actionCombobox.Active].Label} {Translations.GetString ("Single-Direction Animation")}"
+				? Translations.GetString ("Single-Direction Animation")
 				: directionModeButton.Active
 					? Translations.GetString ("Direction Sheet")
 					: $"{spritesheetCatalog.Actions[actionCombobox.Active].Label} {Translations.GetString ("Spritesheet")}";
@@ -944,8 +953,7 @@ public sealed partial class LayerActions
 					spritesheetCatalog, directionModeButton.Active, actionCombobox.Active,
 					frameCountSpinner.Value, sizePicker.SelectedSize!.Value, promptBuffer);
 			single_direction_info = () => singleDirectionMode
-			? CreateSingleDirectionAttemptInfo (spritesheetCatalog, actionCombobox.Active, frameCountSpinner.Value,
-				sizePicker.SelectedSize!.Value, promptBuffer)
+			? CreateSingleDirectionAttemptInfo (sizePicker.SelectedSize!.Value, promptBuffer)
 			: null;
 
 			directionModeButton.OnToggled += (_, _) => {
@@ -966,8 +974,12 @@ public sealed partial class LayerActions
 			};
 			customActionEntry.OnChanged += (_, _) => RebuildSpritesheetPrompt ();
 			frameCountSpinner.OnValueChanged += (_, _) => RebuildSpritesheetPrompt ();
-			sizePicker.Changed += (_, _) => RebuildSpritesheetPrompt ();
-			RebuildSpritesheetPrompt ();
+			sizePicker.Changed += (_, _) => {
+				if (!singleDirectionMode)
+					RebuildSpritesheetPrompt ();
+			};
+			if (!singleDirectionMode)
+				RebuildSpritesheetPrompt ();
 		}
 		generationTypeValue.SetText (
 			GetImageGenerationTypeLabel (mode, directionModeSelection?.Active == true));

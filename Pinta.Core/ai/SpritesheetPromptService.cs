@@ -112,22 +112,6 @@ public sealed class SpritesheetPromptCatalog
 		return string.Join ($"{Environment.NewLine}{Environment.NewLine}", sections.Where (section => !string.IsNullOrWhiteSpace (section)));
 	}
 
-	public string BuildSingleDirectionPrompt (
-		string actionId,
-		string customAction,
-		int frameCount,
-		Size imageSize)
-	{
-		int frames = Math.Clamp (frameCount, 1, 16);
-		(int columns, int rows) = CalculateGrid (frames, imageSize);
-		return string.Join ($"{Environment.NewLine}{Environment.NewLine}", [
-			"Generate a single-direction character animation spritesheet.",
-			BuildActionPrompt (actionId, customAction, frames),
-			$"Use exactly {frames} sequential frames in a {columns} x {rows} row-major grid. "
-			+ $"The output size is {imageSize.Width}x{imageSize.Height} pixels with identical cell sizes and a white #FFFFFF background.",
-		]);
-	}
-
 	private static string BuildDirectionCellPlan (int framesPerDirection)
 	{
 		List<string> lines = [];
