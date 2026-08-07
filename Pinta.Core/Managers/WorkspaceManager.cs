@@ -364,6 +364,8 @@ public sealed class WorkspaceManager : IWorkspaceService
 
 			return true;
 
+		} catch (OperationCanceledException) {
+			return false;
 		} catch (UnauthorizedAccessException) {
 			ShowFilePermissionErrorDialog (parent, file.GetParseName ());
 		} catch (Exception e) {
