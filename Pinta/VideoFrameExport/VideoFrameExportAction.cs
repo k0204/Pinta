@@ -27,6 +27,7 @@ internal sealed class VideoFrameExportAction
 	public void ImportVideoForLayer (VideoEditingLayer layer)
 	{
 		EnsureWindow (layer);
+		window!.Present ();
 		window!.ImportVideo ();
 	}
 

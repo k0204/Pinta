@@ -26,6 +26,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using Gtk;
 
 namespace Pinta.Core;
@@ -72,22 +73,39 @@ public sealed class RecentFileManager
 	/// </summary>
 	public void AddFile (Gio.File file)
 	{
+		if (!IsPintaProject (file))
+			return;
+
 		RecentManager.GetDefault ().AddItem (file.GetUri ());
 	}
 
 	public IReadOnlyList<RecentFile> GetFiles ()
 	{
-		GLib.List items = RecentManager.GetDefault ().GetItems ();
+		RecentManager manager = RecentManager.GetDefault ();
+		GLib.List items = manager.GetItems ();
 		List<RecentFile> files = [];
+		List<string> invalidUris = [];
 		uint count = GLib.List.Length (items);
 		for (uint i = 0; i < count; i++) {
 			IntPtr pointer = GLib.List.NthData (items, i);
 			Gtk.Internal.RecentInfoOwnedHandle handle = new (pointer);
 			RecentInfo info = new (handle);
-			if (info.Exists ())
-				files.Add (new (info.GetUri (), info.GetDisplayName (), info.GetUriDisplay () ?? info.GetUri ()));
+			string uri = info.GetUri ();
+			if (info.Exists () && IsPintaProject (Gio.FileHelper.NewForUri (uri)))
+				files.Add (new (uri, info.GetDisplayName (), info.GetUriDisplay () ?? uri));
+			else
+				invalidUris.Add (uri);
 		}
 		GLib.List.Free (items);
+
+		foreach (string uri in invalidUris)
+			manager.RemoveItem (uri);
+
 		return files;
 	}
+
+	private static bool IsPintaProject (Gio.File file)
+		=> file.GetPath () is string path
+		&& path.EndsWith ($".{PintaDocumentFormat.Extension}", StringComparison.OrdinalIgnoreCase)
+		&& Directory.Exists (path);
 }

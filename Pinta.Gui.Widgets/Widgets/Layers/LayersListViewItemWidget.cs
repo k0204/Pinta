@@ -150,6 +150,8 @@ public sealed partial class LayersListViewItemWidget
 	private Gtk.DrawingArea item_thumbnail;
 	private Gtk.Label item_label;
 	private Gtk.Button cutout_button;
+	private Gtk.Button generate_video_button;
+	private Gtk.Button import_video_button;
         private Gtk.Image visible_button;
 	private LayerDropHint drop_hint = LayerDropHint.None;
 	private int drop_preview_depth;
@@ -159,6 +161,7 @@ public sealed partial class LayersListViewItemWidget
 	public event EventHandler? LayerDragCanceled;
 	public event EventHandler<LayerSelectionEventArgs>? LayerSelectionRequested;
 	public event EventHandler<LayerPreviewRequestedEventArgs>? LayerPreviewRequested;
+	public event EventHandler? VideoImportRequested;
 	public int Depth => item?.Depth ?? 0;
 	public UserLayer? UserLayer => item?.UserLayer;
 
@@ -168,6 +171,8 @@ public sealed partial class LayersListViewItemWidget
 	[MemberNotNull (nameof (item_thumbnail))]
 	[MemberNotNull (nameof (item_label))]
 	[MemberNotNull (nameof (cutout_button))]
+	[MemberNotNull (nameof (generate_video_button))]
+	[MemberNotNull (nameof (import_video_button))]
         [MemberNotNull (nameof (layer_icon))]
 	[MemberNotNull (nameof (visible_button))]
 	[MemberNotNull (nameof (disclosure_button))]
@@ -211,6 +216,20 @@ public sealed partial class LayersListViewItemWidget
 			PintaCore.Actions.Layers.Cutout.Activate ();
 		};
 
+		Gtk.Button generateVideoButton = Gtk.Button.NewFromIconName (Resources.Icons.EffectsRenderClouds);
+		generateVideoButton.TooltipText = Translations.GetString ("Generate Video");
+		generateVideoButton.OnClicked += (_, _) => {
+			SelectCurrentLayer ();
+			PintaCore.Actions.Layers.GenerateVideo.Activate ();
+		};
+
+		Gtk.Button importVideoButton = Gtk.Button.NewFromIconName (Resources.Icons.LayerImport);
+		importVideoButton.TooltipText = Translations.GetString ("Import Video");
+		importVideoButton.OnClicked += (_, _) => {
+			SelectCurrentLayer ();
+			VideoImportRequested?.Invoke (this, EventArgs.Empty);
+		};
+
                 Gtk.Image visibleButton = Gtk.Image.New ();
                 visibleButton.WidthRequest = 16;
                 visibleButton.Halign = Gtk.Align.Start;
@@ -247,6 +266,8 @@ public sealed partial class LayersListViewItemWidget
                 hierarchyContent.Hexpand = true;
 			hierarchyContent.Append (disclosureButton);
 			hierarchyContent.Append (dragContent);
+			hierarchyContent.Append (generateVideoButton);
+			hierarchyContent.Append (importVideoButton);
 			hierarchyContent.Append (cutoutButton);
                 itemRow.Append (hierarchyContent);
 
@@ -267,6 +288,8 @@ public sealed partial class LayersListViewItemWidget
 		item_thumbnail = itemThumbnail;
 		item_label = itemLabel;
 		cutout_button = cutoutButton;
+		generate_video_button = generateVideoButton;
+		import_video_button = importVideoButton;
 		visible_button = visibleButton;
 	}
 
@@ -537,6 +560,10 @@ public sealed partial class LayersListViewItemWidget
 				? item.UserLayer!.ReferenceMissing ? Translations.GetString ("Referenced image is missing") : Translations.GetString ("Referenced layer is locked")
 				: null;
 			layer_icon.Visible = isGroup || isReference;
+			bool showVideoActions = item.UserLayer is VideoEditingLayer videoLayer
+				&& string.IsNullOrWhiteSpace (videoLayer.VideoPath);
+			generate_video_button.Visible = showVideoActions;
+			import_video_button.Visible = showVideoActions;
 			cutout_button.Sensitive = item.UserLayer?.IsEditable == true;
                 visible_button.IconName = item.Visible ? Resources.StandardIcons.ViewReveal : Resources.StandardIcons.ViewConceal;
 		visible_button.TooltipText = item.Visible

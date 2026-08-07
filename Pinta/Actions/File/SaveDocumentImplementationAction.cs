@@ -94,19 +94,17 @@ internal sealed class SaveDocumentImplmentationAction : IActionHandler
 	// been saved before.  Either way, we need to prompt for a filename.
 	private async Task<bool> SaveFileAs (Document document, bool documentFormatOnly)
 	{
+		if (documentFormatOnly)
+			return await SaveProjectAs (document);
+
 		var fcd = Gtk.FileChooserNative.New (
-			documentFormatOnly
-				? Translations.GetString ("Save Pinta Project")
-				: Translations.GetString ("Save Image File"),
+			Translations.GetString ("Save Image File"),
 			chrome.MainWindow,
 			Gtk.FileChooserAction.Save,
 			Translations.GetString ("Save"),
 			Translations.GetString ("Cancel"));
 
-		FormatDescriptor pintaFormat = image_formats.GetFormatByExtension (PintaDocumentFormat.Extension)
-			?? throw new InvalidOperationException (Translations.GetString ("The Pinta project format is not registered."));
-
-		if (document.HasFile && !documentFormatOnly)
+		if (document.HasFile)
 			fcd.SetFile (document.File!);
 		else {
 			Gio.File? dir = document.File?.GetParent () ?? recent_files.GetDialogDirectory ();
@@ -114,9 +112,7 @@ internal sealed class SaveDocumentImplmentationAction : IActionHandler
 				fcd.SetCurrentFolder (dir);
 
 			string name = System.IO.Path.GetFileNameWithoutExtension (document.DisplayName);
-			string extension = documentFormatOnly
-				? pintaFormat.Extensions.First ()
-				: image_formats.GetDefaultSaveFormat ().Extensions.First ();
+			string extension = image_formats.GetDefaultSaveFormat ().Extensions.First ();
 			fcd.SetCurrentName ($"{name}.{extension}");
 		}
 
@@ -124,7 +120,7 @@ internal sealed class SaveDocumentImplmentationAction : IActionHandler
 		Dictionary<Gtk.FileFilter, FormatDescriptor> filetypes = [];
 		foreach (var format in image_formats.Formats) {
 
-			if (!format.IsExportAvailable () || (documentFormatOnly && format != pintaFormat))
+			if (!format.IsExportAvailable ())
 				continue;
 
 			fcd.AddFilter (format.Filter);
@@ -137,9 +133,9 @@ internal sealed class SaveDocumentImplmentationAction : IActionHandler
 
 		// If we already have a format, set it to the default.
 		// If not, default to jpeg
-		FormatDescriptor? format_desc = documentFormatOnly ? pintaFormat : null;
+		FormatDescriptor? format_desc = null;
 
-		if (!documentFormatOnly && document.HasFile) {
+		if (document.HasFile) {
 			format_desc = image_formats.GetFormatByFile (document.DisplayName);
 		}
 
@@ -154,17 +150,10 @@ internal sealed class SaveDocumentImplmentationAction : IActionHandler
 
 			// Note that we can't use file.GetDisplayName() because the file doesn't exist.
 			string displayName = file.GetParent ()!.GetRelativePath (file)!;
-			if (documentFormatOnly && !displayName.EndsWith ($".{PintaDocumentFormat.Extension}", StringComparison.OrdinalIgnoreCase)) {
-				displayName = System.IO.Path.ChangeExtension (displayName, PintaDocumentFormat.Extension);
-				file = file.GetParent ()!.GetChild (displayName);
-			}
-
 			// Always follow the extension rather than the file type drop down
 			// ie: if the user chooses to save a "jpeg" as "foo.png", we are going
 			// to assume they just didn't update the dropdown and really want png
-			FormatDescriptor? format = documentFormatOnly
-				? pintaFormat
-				: image_formats.GetFormatByFile (displayName);
+			FormatDescriptor? format = image_formats.GetFormatByFile (displayName);
 			if (format is null) {
 				if (fcd.Filter is not null)
 					format = filetypes[fcd.Filter];
@@ -204,6 +193,77 @@ internal sealed class SaveDocumentImplmentationAction : IActionHandler
 		}
 
 		return false;
+	}
+
+	private async Task<bool> SaveProjectAs (Document document)
+	{
+		string? projectName = await GetProjectName (document);
+		if (projectName is null)
+			return false;
+
+		using Gtk.FileDialog folderDialog = Gtk.FileDialog.New ();
+		folderDialog.SetTitle (Translations.GetString ("Save Pinta Project"));
+
+		Gio.File? dir = document.File?.GetParent () ?? recent_files.GetDialogDirectory ();
+		if (dir is not null && dir.QueryExists (null))
+			folderDialog.SetInitialFolder (dir);
+
+		Gio.File? parent = await folderDialog.SelectFolderAsync (chrome.MainWindow);
+		if (parent is null || parent.GetPath () is not string parentPath)
+			return false;
+
+		string projectPath = System.IO.Path.Combine (parentPath, projectName);
+		Gio.File file = parent.GetChild (projectName);
+
+		FormatDescriptor format = image_formats.GetFormatByExtension (PintaDocumentFormat.Extension)
+			?? throw new InvalidOperationException (Translations.GetString ("The Pinta project format is not registered."));
+		if (!await SaveFile (document, file, format, chrome.MainWindow))
+			return false;
+		if (!System.IO.Directory.Exists (projectPath)
+			|| !System.IO.File.Exists (System.IO.Path.Combine (projectPath, "project.json")))
+			return false;
+
+		recent_files.LastDialogDirectory = parent;
+		recent_files.AddFile (file);
+		image_formats.SetDefaultFormat (format.Extensions.First ());
+		document.File = file;
+		document.FileType = format.Extensions.First ();
+		return true;
+	}
+
+	private async Task<string?> GetProjectName (Document document)
+	{
+		using Gtk.Dialog dialog = Gtk.Dialog.New ();
+		dialog.Title = Translations.GetString ("Save Pinta Project");
+		dialog.TransientFor = chrome.MainWindow;
+		dialog.Modal = true;
+		dialog.AddCancelOkButtons ();
+		dialog.SetDefaultResponse (Gtk.ResponseType.Ok);
+
+		Gtk.Label nameLabel = Gtk.Label.New (Translations.GetString ("Name:"));
+		Gtk.Entry nameEntry = Gtk.Entry.New ();
+		nameEntry.Hexpand = true;
+		nameEntry.SetActivatesDefault (true);
+		nameEntry.SetText ($"{System.IO.Path.GetFileNameWithoutExtension (document.DisplayName)}.{PintaDocumentFormat.Extension}");
+
+		Gtk.Box content = dialog.GetContentAreaBox ();
+		content.SetAllMargins (10);
+		content.Spacing = 6;
+		content.Append (nameLabel);
+		content.Append (nameEntry);
+
+		Gtk.ResponseType response = await dialog.RunAsync ();
+		dialog.Hide ();
+		if (response != Gtk.ResponseType.Ok)
+			return null;
+
+		string name = nameEntry.GetText ().Trim ();
+		if (string.IsNullOrWhiteSpace (name))
+			return null;
+
+		return name.EndsWith ($".{PintaDocumentFormat.Extension}", StringComparison.OrdinalIgnoreCase)
+			? name
+			: System.IO.Path.ChangeExtension (name, PintaDocumentFormat.Extension);
 	}
 
 	private static bool IsPintaDocument (Document document)
@@ -304,7 +364,7 @@ internal sealed class SaveDocumentImplmentationAction : IActionHandler
 
 		IProgressDialog progressDialog = chrome.ProgressDialog;
 		progressDialog.Title = Translations.GetString ("Saving Project");
-		progressDialog.Text = file.GetDisplayName ();
+		progressDialog.Text = file.GetBasename () ?? file.GetParseName ();
 		progressDialog.Progress = 0;
 		progressDialog.Cancellable = false;
 		progressDialog.Show ();

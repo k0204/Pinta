@@ -63,6 +63,7 @@ public static class StandardIcons
 
 	public const string ImageGeneric = "image-x-generic-symbolic";
 	public const string ImageMissing = "image-missing-symbolic";
+	public const string VideoGeneric = "video-x-generic-symbolic";
 
 	public const string KeyboardShortcuts = "preferences-system-symbolic";
 

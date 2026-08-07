@@ -69,6 +69,15 @@ msgstr ""
 msgid "Add New Group"
 msgstr ""
 
+#: ../Pinta.Core/Actions/LayerActions.cs:109
+#: ../Pinta.Core/Actions/LayerActions.cs:581
+msgid "Add Video Layer"
+msgstr ""
+
+#: ../Pinta.Core/Actions/LayerActions.cs:110
+msgid "Add a video editing layer"
+msgstr ""
+
 #: ../Pinta.Core/Actions/LayerActions.cs:101
 msgid "AI Image Generation"
 msgstr ""

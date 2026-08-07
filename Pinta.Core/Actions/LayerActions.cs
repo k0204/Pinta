@@ -34,6 +34,7 @@ public sealed partial class LayerActions
 {
 	public Command AddNewLayer { get; }
 	public Command AddNewGroup { get; }
+	public Command AddVideoLayer { get; }
 	public Command GenerateImage { get; }
 	public Command GenerateVideo { get; }
 	public Command GenerateSpritesheet { get; }
@@ -101,6 +102,12 @@ public sealed partial class LayerActions
                         Translations.GetString ("Add New Group"),
                         null,
                         Resources.Icons.LayerGroup);
+
+		AddVideoLayer = new Command (
+			"addvideolayer",
+			Translations.GetString ("Add Video Layer"),
+			Translations.GetString ("Add a video editing layer"),
+			Resources.StandardIcons.VideoGeneric);
 
 		GenerateImage = new Command (
 			"generateimage",
@@ -276,6 +283,7 @@ public sealed partial class LayerActions
 		app.AddCommands ([
 			AddNewLayer,
 			AddNewGroup,
+			AddVideoLayer,
 			GenerateImage,
 			GenerateVideo,
 			GenerateSpritesheet,
@@ -310,6 +318,7 @@ public sealed partial class LayerActions
 	{
 		AddNewLayer.Activated += HandlePintaCoreActionsLayersAddNewLayerActivated;
 		AddNewGroup.Activated += HandlePintaCoreActionsLayersAddNewGroupActivated;
+		AddVideoLayer.Activated += HandleAddVideoLayerActivated;
 		GenerateImage.Activated += HandlePintaCoreActionsLayersGenerateImageActivated;
 		GenerateVideo.Activated += HandleGenerateVideoActivated;
 		GenerateSpritesheet.Activated += HandlePintaCoreActionsLayersGenerateSpritesheetActivated;
@@ -348,6 +357,7 @@ public sealed partial class LayerActions
 		DuplicateLayer.Sensitive = hasSelectedLayer;
 		image.Flatten.Sensitive = hasMultipleLayers && activeDoc?.Layers.HasLockedReferences != true;
 		AddNewGroup.Sensitive = activeDoc != null;
+		AddVideoLayer.Sensitive = activeDoc != null;
 		GenerateImage.Sensitive = !cutout_running;
 		GenerateVideo.Sensitive = hasSelectedLayer && !cutout_running && !video_running;
 		GenerateSpritesheet.Sensitive = activeDoc is not null && !cutout_running;
@@ -562,5 +572,18 @@ public sealed partial class LayerActions
                         doc.Layers.GetPosition (layer));
                 doc.History.PushNewItem (hist);
         }
+
+	private void HandleAddVideoLayerActivated (object sender, EventArgs e)
+	{
+		Document doc = workspace.ActiveDocument;
+		tools.Commit ();
+
+		VideoEditingLayer layer = doc.Layers.AddVideoEditingLayer ();
+		doc.History.PushNewItem (new AddLayerHistoryItem (
+			Resources.StandardIcons.VideoGeneric,
+			Translations.GetString ("Add Video Layer"),
+			layer,
+			doc.Layers.GetPosition (layer)));
+	}
 
 }

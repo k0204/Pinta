@@ -36,7 +36,6 @@ internal sealed class LayersPad : IDockPad
 	private readonly LayerActions layer_actions;
 	private readonly VideoFrameExportAction video_frame_export;
 	private Gtk.SpinButton opacity_spinner = null!;
-	private Gtk.Box video_import_box = null!;
 	private bool updating_opacity;
 
 	internal LayersPad (LayerActions layerActions, VideoFrameExportAction videoFrameExport)
@@ -79,10 +78,9 @@ internal sealed class LayersPad : IDockPad
 		actionGenerationButton.SetTooltipText (Translations.GetString ("Generate a single-direction animation with action prompts"));
 		actionGenerationButton.AddCssClass (AdwaitaStyles.SuggestedAction);
 		content.Append (actionGenerationButton);
-		video_import_box = CreateVideoImportBox ();
-		content.Append (video_import_box);
 		content.Append (opacityRow);
 		content.Append (layers);
+		layers.VideoImportRequested += HandleImportVideoClicked;
 
 		DockItem layers_item = DockItem.New (
 			child: content,
@@ -122,6 +120,7 @@ internal sealed class LayersPad : IDockPad
 		layers_tb.AppendMultiple ([
 			layer_actions.AddNewLayer.CreateDockToolBarItem (),
                         layer_actions.AddNewGroup.CreateDockToolBarItem (),
+			layer_actions.AddVideoLayer.CreateDockToolBarItem (),
 			layer_actions.GenerateImage.CreateDockToolBarItem (),
 			layer_actions.GenerateSpritesheet.CreateDockToolBarItem (),
 			layer_actions.GenerateSingleDirectionAnimation.CreateDockToolBarItem (),
@@ -143,28 +142,8 @@ internal sealed class LayersPad : IDockPad
 		PintaCore.Workspace.ActiveDocumentChanged += HandleOpacityTargetChanged;
 		PintaCore.Workspace.SelectedLayerChanged += HandleOpacityTargetChanged;
 		PintaCore.Workspace.LayerPropertyChanged += HandleOpacityTargetChanged;
-		PintaCore.Workspace.LayerTreeChanged += HandleVideoImportTargetChanged;
-		PintaCore.Workspace.SelectedLayerChanged += HandleVideoImportTargetChanged;
-		PintaCore.Workspace.ActiveDocumentChanged += HandleVideoImportTargetChanged;
-		video_frame_export.VideoImported += HandleVideoImportTargetChanged;
-		UpdateVideoImportControl ();
+		video_frame_export.VideoImported += HandleVideoImported;
 		UpdateOpacityControl ();
-	}
-
-	private Gtk.Box CreateVideoImportBox ()
-	{
-		Gtk.Box box = Gtk.Box.New (Gtk.Orientation.Vertical, 6);
-		box.SetAllMargins (6);
-		Gtk.Label label = Gtk.Label.New (Translations.GetString ("No video imported"));
-		label.Halign = Gtk.Align.Start;
-		label.AddCssClass (AdwaitaStyles.DimLabel);
-		Gtk.Button button = Gtk.Button.NewWithLabel (Translations.GetString ("Import Video"));
-		button.AddCssClass (AdwaitaStyles.SuggestedAction);
-		button.OnClicked += HandleImportVideoClicked;
-		box.Append (label);
-		box.Append (button);
-		box.Hide ();
-		return box;
 	}
 
 	private void HandleImportVideoClicked (object? sender, EventArgs args)
@@ -175,19 +154,10 @@ internal sealed class LayersPad : IDockPad
 			video_frame_export.ImportVideoForLayer (layer);
 	}
 
-	private void HandleVideoImportTargetChanged (object? sender, EventArgs args)
-		=> UpdateVideoImportControl ();
-
-	private void UpdateVideoImportControl ()
+	private void HandleVideoImported (object? sender, EventArgs args)
 	{
-		bool show = PintaCore.Workspace.ActiveDocumentOrDefault is Document document
-			&& document.Layers.HasSelectedLayer
-			&& document.Layers.CurrentUserLayer is VideoEditingLayer layer
-			&& string.IsNullOrWhiteSpace (layer.VideoPath);
-		if (show)
-			video_import_box.Show ();
-		else
-			video_import_box.Hide ();
+		if (PintaCore.Workspace.ActiveDocumentOrDefault is Document document)
+			document.Layers.NotifyLayerTreeChanged ();
 	}
 
 	private void HandleOpacityChanged (object? sender, EventArgs e)

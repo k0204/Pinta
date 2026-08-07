@@ -72,6 +72,15 @@ msgstr "添加新图层"
 msgid "Add New Group"
 msgstr "添加新组"
 
+#: ../Pinta.Core/Actions/LayerActions.cs:109
+#: ../Pinta.Core/Actions/LayerActions.cs:581
+msgid "Add Video Layer"
+msgstr "添加视频图层"
+
+#: ../Pinta.Core/Actions/LayerActions.cs:110
+msgid "Add a video editing layer"
+msgstr "添加视频编辑图层"
+
 #: ../Pinta.Core/Actions/LayerActions.cs:101
 msgid "AI Image Generation"
 msgstr "AI 图像生成"
