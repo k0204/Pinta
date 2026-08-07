@@ -27,6 +27,7 @@ Pinta.Core/Actions/LayerActions.Export.cs
 Pinta.Core/Actions/LayerActions.GenerationType.cs
 Pinta.Core/Actions/LayerActions.ImageSize.cs
 Pinta.Core/Actions/LayerActions.ImageSplit.cs
+Pinta.Core/Actions/LayerActions.ImageSplitPreview.cs
 Pinta.Core/Actions/LayerActions.Import.cs
 Pinta.Core/Actions/LayerActions.PromptOptimization.cs
 Pinta.Core/Actions/LayerActions.Render.cs

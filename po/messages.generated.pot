@@ -1105,6 +1105,11 @@ msgstr ""
 msgid "Prompt"
 msgstr ""
 
+#: Pinta.Core/Actions/LayerActions.PromptOptimization.cs:116
+#: Pinta.Core/Actions/LayerActions.PromptOptimization.cs:122
+msgid "Chat provider:"
+msgstr ""
+
 #: Pinta.Core/Actions/LayerActions.PromptOptimization.cs:130
 msgid "Optimize and Translate"
 msgstr ""
@@ -3526,69 +3531,64 @@ msgstr ""
 msgid "Resource folder is unavailable"
 msgstr ""
 
-#: Pinta.Core/Actions/LayerActions.ImageSplit.cs:59
-#: Pinta.Core/Actions/LayerActions.ImageSplit.cs:229
-#: Pinta.Core/Actions/LayerActions.ImageSplit.cs:260
+#: Pinta.Core/Actions/LayerActions.ImageSplitPreview.cs:112
 msgid "Image Split Preview"
 msgstr ""
 
-#: Pinta.Core/Actions/LayerActions.ImageSplit.cs:66
-msgid "Confirm and Generate"
-msgstr ""
-
-#: Pinta.Core/Actions/LayerActions.ImageSplit.cs:86
+#: Pinta.Core/Actions/LayerActions.ImageSplitPreview.cs:170
 #, csharp-format
 msgid "Smaller ({0})"
 msgstr ""
 
-#: Pinta.Core/Actions/LayerActions.ImageSplit.cs:89
+#: Pinta.Core/Actions/LayerActions.ImageSplitPreview.cs:173
 #, csharp-format
 msgid "Larger ({0})"
 msgstr ""
 
-#: Pinta.Core/Actions/LayerActions.ImageSplit.cs:92
+#: Pinta.Core/Actions/LayerActions.ImageSplitPreview.cs:175
 msgid "Custom size"
 msgstr ""
 
-#: Pinta.Core/Actions/LayerActions.ImageSplit.cs:125
+#: Pinta.Core/Actions/LayerActions.ImageSplitPreview.cs:73
+#: Pinta.Core/Actions/LayerActions.ImageSplitPreview.cs:128
 msgid "White padding"
 msgstr ""
 
-#: Pinta.Core/Actions/LayerActions.ImageSplit.cs:136
+#: Pinta.Core/Actions/LayerActions.ImageSplitPreview.cs:85
 msgid "Original size:"
 msgstr ""
 
-#: Pinta.Core/Actions/LayerActions.ImageSplit.cs:137
+#: Pinta.Core/Actions/LayerActions.ImageSplitPreview.cs:86
 msgid "AI request size:"
 msgstr ""
 
-#: Pinta.Core/Actions/LayerActions.ImageSplit.cs:138
+#: Pinta.Core/Actions/LayerActions.ImageSplitPreview.cs:87
 msgid "Scale:"
 msgstr ""
 
-#: Pinta.Core/Actions/LayerActions.ImageSplit.cs:139
+#: Pinta.Core/Actions/LayerActions.ImageSplitPreview.cs:88
 msgid "Padding:"
 msgstr ""
 
-#: Pinta.Core/Actions/LayerActions.ImageSplit.cs:146
+#: Pinta.Core/Actions/LayerActions.ImageSplitPreview.cs:106
 msgid "Original image"
 msgstr ""
 
-#: Pinta.Core/Actions/LayerActions.ImageSplit.cs:146
+#: Pinta.Core/Actions/LayerActions.ImageSplitPreview.cs:107
 msgid "Adapted image"
 msgstr ""
 
-#: Pinta.Core/Actions/LayerActions.ImageSplit.cs:197
+#: Pinta.Core/Actions/LayerActions.ImageSplitPreview.cs:261
 #, csharp-format
 msgid "{0:P1}"
 msgstr ""
 
-#: Pinta.Core/Actions/LayerActions.ImageSplit.cs:337
+#: Pinta.Core/Actions/LayerActions.ImageSplit.cs:95
 #, csharp-format
 msgid "Left {0}, right {1}, top {2}, bottom {3} px"
 msgstr ""
 
-#: Pinta.Core/Actions/LayerActions.ImageSplit.cs:262
+#: Pinta.Core/Actions/LayerActions.ImageSplitPreview.cs:214
 #, csharp-format
 msgid "No supported {0} resolution can contain the source image {1}."
 msgstr ""
@@ -3597,6 +3597,6 @@ msgstr ""
 msgid "split image"
 msgstr ""
 
-#: Pinta.Core/Actions/LayerActions.ImageSplit.cs:242
+#: Pinta.Core/Actions/LayerActions.ImageSplitPreview.cs:128
 msgid "Transparent padding"
 msgstr ""

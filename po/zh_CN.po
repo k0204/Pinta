@@ -3486,8 +3486,233 @@ msgstr "{0}%"
 msgid "Image Split Preview"
 msgstr "拆分图片预览"
 
-msgid "Confirm and Generate"
-msgstr "确认并生成"
+msgid "Confirm"
+msgstr "确认"
+
+msgid "Current generation type:"
+msgstr "当前生成类型："
+
+msgid "Current Layer"
+msgstr "当前图层"
+
+msgid "AI Generated Image"
+msgstr "AI 生成图像"
+
+msgid "Prompt History"
+msgstr "提示历史"
+
+msgid "Select Prompt History"
+msgstr "选择提示历史"
+
+msgid "Prompt"
+msgstr "提示词"
+
+msgid "Chat provider:"
+msgstr "聊天提供方："
+
+msgid "Optimize and Translate"
+msgstr "优化并翻译"
+
+msgid "English Prompt (sent to image AI)"
+msgstr "英文提示词（发送给图像 AI）"
+
+msgid "Generate"
+msgstr "生成"
+
+msgid "AI Request Settings"
+msgstr "AI 请求设置"
+
+msgid "Baidu"
+msgstr "Baidu"
+
+msgid "Generate White Background"
+msgstr "生成白色背景"
+
+msgid "{0} credits per cutout"
+msgstr "每次抠图 {0} 积分"
+
+msgid "Single-Direction Animation"
+msgstr "单向动画"
+
+msgid "Clean Up Background"
+msgstr "清理背景"
+
+msgid "Image size:"
+msgstr "图片尺寸："
+
+msgid "Direction Sheet"
+msgstr "方向表"
+
+msgid "Action Spritesheet"
+msgstr "动作精灵图"
+
+msgid "Action Sequence"
+msgstr "动作序列"
+
+msgid "Describe the custom action"
+msgstr "描述自定义动作"
+
+msgid "Custom action:"
+msgstr "自定义动作："
+
+msgid "Frames:"
+msgstr "帧数："
+
+msgid "White (#FFFFFF)"
+msgstr "白色（#FFFFFF）"
+
+msgid "8 fixed directions"
+msgstr "8 个固定方向"
+
+msgid "Directions:"
+msgstr "方向："
+
+msgid "Generation type:"
+msgstr "生成类型："
+
+msgid "Action:"
+msgstr "动作："
+
+msgid "Action generation prompt"
+msgstr "动作生成提示词"
+
+msgid "Select a valid image size."
+msgstr "请选择有效的图片尺寸。"
+
+msgid "No files selected"
+msgstr "未选择文件"
+
+msgid "Choose Image Files..."
+msgstr "选择图片文件..."
+
+msgid "Choose Reference Images"
+msgstr "选择参考图片"
+
+msgid "Other Reference Layers"
+msgstr "其他参考图层"
+
+msgid "Reference Image Files"
+msgstr "参考图片文件"
+
+msgid "Spritesheet"
+msgstr "精灵图"
+
+msgid "Preparing image request..."
+msgstr "正在准备图片请求..."
+
+msgid "Image generation canceled."
+msgstr "图片生成已取消。"
+
+msgid "Creating generated image layer..."
+msgstr "正在创建生成的图片图层..."
+
+msgid "Refreshing balance..."
+msgstr "正在刷新余额..."
+
+msgid "Image generation complete."
+msgstr "图片生成完成。"
+
+msgid "Image Generation Failed"
+msgstr "图片生成失败"
+
+msgid "Check the selected images, API server logs, balance, and login status, then try again."
+msgstr "请检查所选图片、API 服务日志、账户余额和登录状态，然后重试。"
+
+msgid "Background Cleanup"
+msgstr "背景清理"
+
+msgid "Preparing image..."
+msgstr "正在准备图片..."
+
+msgid "White Background"
+msgstr "白色背景"
+
+msgid "Creating white background layer..."
+msgstr "正在创建白色背景图层..."
+
+msgid "Background cleanup complete."
+msgstr "背景清理完成。"
+
+msgid "Background cleanup canceled."
+msgstr "背景清理已取消。"
+
+msgid "Background Cleanup Failed"
+msgstr "背景清理失败"
+
+msgid "Transparent Cutout"
+msgstr "透明抠图"
+
+msgid "Requesting Baidu intelligent cutout..."
+msgstr "正在请求百度智能抠图..."
+
+msgid "Creating transparent layer..."
+msgstr "正在创建透明图层..."
+
+msgid "Creating black and transparent layers..."
+msgstr "正在创建黑色和透明图层..."
+
+msgid "Black Background"
+msgstr "黑色背景"
+
+msgid "Cutout complete."
+msgstr "抠图完成。"
+
+msgid "Cutout canceled."
+msgstr "抠图已取消。"
+
+msgid "Cutout Failed"
+msgstr "抠图失败"
+
+msgid "_Retry"
+msgstr "重试(_R)"
+
+msgid "None"
+msgstr "无"
+
+msgid "{0} directions / {1} x {2} grid"
+msgstr "{0} 个方向 / {1} x {2} 网格"
+
+msgid "{0} frames / {1} x {2} grid"
+msgstr "{0} 帧 / {1} x {2} 网格"
+
+msgid "{0} direction(s) x {1} frames = {2} frames / {3} x {4} grid"
+msgstr "{0} 个方向 x {1} 帧 = {2} 帧 / {3} x {4} 网格"
+
+msgid "Optimize the prompt and translate it to English."
+msgstr "优化提示词并将其翻译为英文。"
+
+msgid "Prompt history restored."
+msgstr "已恢复提示历史。"
+
+msgid "Enter a prompt first."
+msgstr "请先输入提示词。"
+
+msgid "Optimizing and translating the prompt..."
+msgstr "正在优化并翻译提示词..."
+
+msgid "The prompt changed, so the old optimization was not applied."
+msgstr "提示词已更改，因此未应用之前的优化结果。"
+
+msgid "The complete bilingual prompt was not returned; the original prompt will be used."
+msgstr "未返回完整的双语提示词；将使用原始提示词。"
+
+msgid "The bilingual prompt is ready; the English version will be sent to the image AI."
+msgstr "双语提示词已准备完成；英文版本将发送给图像 AI。"
+
+msgid "Prompt optimization failed; the original prompt will be used."
+msgstr "提示词优化失败；将使用原始提示词。"
+
+msgid "The original prompt changed; optimize and translate it to update both versions."
+msgstr "原始提示词已更改；请重新优化并翻译以更新两个版本。"
+
+msgid "Choose Image Resolution"
+msgstr "选择图片分辨率"
+
+msgid "Use Smaller Resolution"
+msgstr "使用较小分辨率"
+
+msgid "Use Larger Resolution"
+msgstr "使用较大分辨率"
 
 msgid "Image service:"
 msgstr "图片服务："

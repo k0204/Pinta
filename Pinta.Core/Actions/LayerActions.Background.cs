@@ -90,7 +90,7 @@ public sealed partial class LayerActions
 		try {
 			List<(byte[] Png, string FileName)> references = [];
 			byte[]? sourcePng = options.SourceLayer is UserLayer sourceLayer
-				? CreateLayerPng (sourceLayer)
+				? options.PreparedSourcePng ?? CreateLayerPng (sourceLayer)
 				: null;
 			IEnumerable<UserLayer> layers = options.ParentLayer is not null
 				? options.Layers
@@ -704,8 +704,8 @@ public sealed partial class LayerActions
 		};
 		dialog.TransientFor = chrome.MainWindow;
 		dialog.Modal = true;
-		dialog.DefaultWidth = 520;
-		dialog.DefaultHeight = spritesheetMode ? 820 : 620;
+		dialog.DefaultWidth = imageSplitMode ? 980 : 520;
+		dialog.DefaultHeight = imageSplitMode ? 900 : spritesheetMode ? 820 : 620;
 		dialog.AddButton (Translations.GetString ("_Cancel"), (int) Gtk.ResponseType.Cancel);
 		Gtk.Widget submitButton = dialog.AddButton (
 			mode == AiImageRequestMode.BackgroundCleanup
@@ -749,6 +749,9 @@ public sealed partial class LayerActions
 		generationCostLabel.Halign = Gtk.Align.Start;
 		generationCostLabel.AddCssClass (AdwaitaStyles.DimLabel);
 		AiImageSizePicker sizePicker = new ();
+		using ImageSplitPreviewControls? imageSplitPreview = imageSplitMode
+			? CreateImageSplitPreviewControls (sourceLayer!)
+			: null;
 
 		void UpdateGenerationSettings ()
 		{
@@ -774,10 +777,13 @@ public sealed partial class LayerActions
 
 		void UpdateProviderSettings (string imageService, IReadOnlyList<AI.AiProviderInfo> providers)
 		{
-			string provider = providerCombobox.Active >= 0 && providerCombobox.Active < providers.Count
+			string provider = imageService == AI.AiRequestSettings.AgnesService
+				? AI.AiRequestSettings.AgnesService
+				: providerCombobox.Active >= 0 && providerCombobox.Active < providers.Count
 				? providers[providerCombobox.Active].Id
 				: imageService;
 			sizePicker.SetService (imageService, provider);
+			imageSplitPreview?.SetService (imageService, provider);
 			int cost = AI.BackgroundCutoutService.GetImageGenerationCost (provider);
 			generationCostLabel.SetText (cost > 0
 				? Translations.GetString ("{0} credits per image", cost)
@@ -1066,9 +1072,6 @@ public sealed partial class LayerActions
 			mode,
 			promptBuffer,
 			promptScroll,
-			serviceCombobox,
-			providerCombobox,
-			gptProviders,
 			sourceLayer,
 			layerChoices,
 			files);
@@ -1089,11 +1092,13 @@ public sealed partial class LayerActions
 		content.Append (generationGrid);
 		if (spritesheet_controls is not null)
 			content.Append (spritesheet_controls);
-		if (sourceLayer is not null) {
+		if (sourceLayer is not null && !imageSplitMode) {
 			content.Append (CreateDialogLabel (Translations.GetString ("Current Layer")));
 			content.Append (sourcePreview);
 			content.Append (sourceLabel);
 		}
+		if (imageSplitPreview is not null)
+			content.Append (imageSplitPreview.Widget);
 		content.Append (promptOptimization?.Section ?? CreatePromptSection (promptScroll));
 		if (doc is not null) {
 			content.Append (CreateDialogLabel (Translations.GetString ("Other Reference Layers")));
@@ -1106,7 +1111,8 @@ public sealed partial class LayerActions
 		void UpdateSubmitButton ()
 		{
 			promptBuffer.GetBounds (out Gtk.TextIter start, out Gtk.TextIter end);
-			submitButton.Sensitive = (imageSplitMode || sizePicker.IsValid)
+			submitButton.Sensitive = (imageSplitPreview?.IsValid ?? !imageSplitMode)
+				&& (imageSplitMode || sizePicker.IsValid)
 				&& spritesheet_valid ()
 				&& !string.IsNullOrWhiteSpace (promptBuffer.GetText (start, end, includeHiddenChars: true));
 		}
@@ -1117,6 +1123,9 @@ public sealed partial class LayerActions
 		if (await dialog.RunAsync () != Gtk.ResponseType.Ok)
 			return null;
 		dialog.Hide ();
+		ImageSplitPreviewSelection? splitSelection = imageSplitPreview?.Selection;
+		if (imageSplitMode && splitSelection is null)
+			return null;
 
 		List<UserLayer> layers = [];
 		foreach ((Gtk.CheckButton check, UserLayer layer) in layerChoices)
@@ -1155,7 +1164,11 @@ public sealed partial class LayerActions
 				? Translations.GetString ("Single-Direction Animation")
 				: Translations.GetString ("Generate Spritesheet")
 			: Translations.GetString ("AI Image Generation");
-		return new (prompt, imageSize, layers, files, resultLayerName, progressTitle, spritesheet_info (), single_direction_info ());
+		return new (prompt, imageSize, layers, files, resultLayerName, progressTitle, spritesheet_info (), single_direction_info ()) {
+			RequestImageSize = splitSelection?.RequestSize,
+			WhitePadding = splitSelection?.WhitePadding ?? false,
+			PreparedSourcePng = splitSelection?.PreparedSourcePng,
+		};
 	}
 
 	private static Gtk.Label CreateDialogLabel (string text)
@@ -1297,6 +1310,7 @@ public sealed partial class LayerActions
 		public UserLayer? SourceLayer { get; init; }
 		public Size? RequestImageSize { get; init; }
 		public bool WhitePadding { get; init; }
+		public byte[]? PreparedSourcePng { get; init; }
 	}
 
 	private enum AiImageRequestMode

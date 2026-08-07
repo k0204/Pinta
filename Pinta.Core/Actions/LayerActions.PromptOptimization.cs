@@ -10,9 +10,6 @@ public sealed partial class LayerActions
 		AiImageRequestMode mode,
 		Gtk.TextBuffer promptBuffer,
 		Gtk.ScrolledWindow promptScroll,
-		Gtk.ComboBoxText serviceCombobox,
-		Gtk.ComboBoxText providerCombobox,
-		IReadOnlyList<AI.AiProviderInfo> imageProviders,
 		UserLayer? sourceLayer,
 		IReadOnlyList<(Gtk.CheckButton Button, UserLayer Layer)> layerChoices,
 		IReadOnlyList<Gio.File> files)
@@ -23,7 +20,7 @@ public sealed partial class LayerActions
 		return new PromptOptimizationControls (
 			promptBuffer,
 			promptScroll,
-			() => GetPromptOptimizationProvider (serviceCombobox, providerCombobox, imageProviders),
+			PintaCore.AiProviders.ChatProviders,
 			() => CreatePromptOptimizationReferences (sourceLayer, layerChoices, files),
 			prompt_optimization);
 	}
@@ -56,28 +53,6 @@ public sealed partial class LayerActions
 		return section;
 	}
 
-	private static string GetPromptOptimizationProvider (
-		Gtk.ComboBoxText serviceCombobox,
-		Gtk.ComboBoxText providerCombobox,
-		IReadOnlyList<AI.AiProviderInfo> imageProviders)
-	{
-		string requested = serviceCombobox.Active switch {
-			0 => AI.AiRequestSettings.AgnesService,
-			1 when providerCombobox.Active >= 0 && providerCombobox.Active < imageProviders.Count
-				=> imageProviders[providerCombobox.Active].Id,
-			_ => AI.AiRequestSettings.GetGptProvider (PintaCore.Settings),
-		};
-
-		foreach (AI.AiProviderInfo provider in PintaCore.AiProviders.ChatProviders)
-			if (provider.Id == requested)
-				return provider.Id;
-
-		foreach (AI.AiProviderInfo provider in PintaCore.AiProviders.ChatProviders)
-			return provider.Id;
-
-		throw new InvalidOperationException ("No chat provider is available for prompt optimization.");
-	}
-
 	private static string FormatPromptHistoryLabel (AI.AiPromptHistoryItem item)
 	{
 		string prompt = item.ChinesePrompt.ReplaceLineEndings (" ");
@@ -98,7 +73,9 @@ public sealed partial class LayerActions
 		private readonly Gtk.TextBuffer originalBuffer;
 		private readonly Gtk.TextBuffer englishBuffer;
 		private readonly Gtk.Button optimizeButton;
+		private readonly Gtk.ComboBoxText chatProviderCombobox;
 		private readonly Gtk.Label statusLabel;
+		private readonly IReadOnlyList<AI.AiProviderInfo> chatProviders;
 		private readonly Func<string> getProvider;
 		private readonly Func<IReadOnlyList<byte[]>> getReferenceImages;
 		private readonly AI.AiPromptOptimizationService service;
@@ -108,12 +85,13 @@ public sealed partial class LayerActions
 		public PromptOptimizationControls (
 			Gtk.TextBuffer originalBuffer,
 			Gtk.ScrolledWindow promptScroll,
-			Func<string> getProvider,
+			IReadOnlyList<AI.AiProviderInfo> chatProviders,
 			Func<IReadOnlyList<byte[]>> getReferenceImages,
 			AI.AiPromptOptimizationService service)
 		{
 			this.originalBuffer = originalBuffer;
-			this.getProvider = getProvider;
+			this.chatProviders = chatProviders;
+			getProvider = GetSelectedProvider;
 			this.getReferenceImages = getReferenceImages;
 			this.service = service;
 
@@ -130,11 +108,19 @@ public sealed partial class LayerActions
 			optimizeButton = Gtk.Button.NewWithLabel (Translations.GetString ("Optimize and Translate"));
 			optimizeButton.TooltipText = Translations.GetString ("Optimize the prompt and translate it to English.");
 			optimizeButton.OnClicked += async (_, _) => await OptimizeAsync ();
+			chatProviderCombobox = Gtk.ComboBoxText.New ();
+			foreach (AI.AiProviderInfo provider in chatProviders)
+				chatProviderCombobox.AppendText (provider.Name);
+			chatProviderCombobox.Active = GetPreferredChatProviderIndex (chatProviders);
+			chatProviderCombobox.Sensitive = chatProviders.Count > 0;
+			chatProviderCombobox.TooltipText = Translations.GetString ("Chat provider:");
 
 			Gtk.Label promptLabel = CreateDialogLabel (Translations.GetString ("Prompt"));
 			promptLabel.Hexpand = true;
 			Gtk.Box promptHeader = Gtk.Box.New (Gtk.Orientation.Horizontal, 8);
 			promptHeader.Append (promptLabel);
+			promptHeader.Append (CreateSettingsLabel (Translations.GetString ("Chat provider:")));
+			promptHeader.Append (chatProviderCombobox);
 			promptHeader.Append (optimizeButton);
 
 			statusLabel = Gtk.Label.New (string.Empty);
@@ -155,7 +141,7 @@ public sealed partial class LayerActions
 			Section = section;
 
 			originalBuffer.OnChanged += (_, _) => MarkPromptChanged ();
-			optimizeButton.Sensitive = PintaCore.AiProviders.ChatProviders.Count > 0;
+			optimizeButton.Sensitive = chatProviders.Count > 0;
 		}
 
 		public Gtk.Box Section { get; }
@@ -227,6 +213,7 @@ public sealed partial class LayerActions
 			}
 
 			optimizeButton.Sensitive = false;
+			chatProviderCombobox.Sensitive = false;
 			SetStatus (Translations.GetString ("Optimizing and translating the prompt..."), error: false);
 			try {
 				AI.AiPromptOptimizationResult result = await service.OptimizeAndTranslateAsync (
@@ -260,7 +247,24 @@ public sealed partial class LayerActions
 				SetStatus (Translations.GetString ("Prompt optimization failed; the original prompt will be used."), error: true);
 			} finally {
 				optimizeButton.Sensitive = true;
+				chatProviderCombobox.Sensitive = chatProviders.Count > 0;
 			}
+		}
+
+		private string GetSelectedProvider ()
+		{
+			if (chatProviderCombobox.Active < 0 || chatProviderCombobox.Active >= chatProviders.Count)
+				throw new InvalidOperationException ("No chat provider is available for prompt optimization.");
+			return chatProviders[chatProviderCombobox.Active].Id;
+		}
+
+		private static int GetPreferredChatProviderIndex (IReadOnlyList<AI.AiProviderInfo> providers)
+		{
+			string preferred = AI.AiRequestSettings.GetImageProvider (PintaCore.Settings);
+			for (int index = 0; index < providers.Count; index++)
+				if (providers[index].Id == preferred)
+					return index;
+			return providers.Count > 0 ? 0 : -1;
 		}
 
 		private void MarkPromptChanged ()
