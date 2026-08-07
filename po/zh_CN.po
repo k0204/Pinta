@@ -4286,7 +4286,7 @@ msgstr ""
 
 #~ msgid "_Uninstall..."
 #~ msgstr "卸载..."
-+#: Pinta/Actions/File/OpenDocumentAction.cs:63
+#: Pinta/Actions/File/OpenDocumentAction.cs:63
 msgid "Open Pinta Project"
 msgstr "打开 Pinta 项目"
 
@@ -4422,6 +4422,32 @@ msgstr "Pinta 项目单方向动画图层无效。"
 #: Pinta.Core/ImageFormats/PintaDocumentFormat.cs:675
 msgid "The Pinta project single-direction animation is invalid."
 msgstr "Pinta 项目单方向动画无效。"
+
+#: Pinta/RecentDocumentsWindow.cs:30
+#: Pinta/RecentDocumentsWindow.cs:111
+msgid "Document Open History"
+msgstr "历史文档打开记录"
+
+#: Pinta/RecentDocumentsWindow.cs:52
+msgid "No recently opened documents."
+msgstr "没有最近打开的文档。"
+
+#: Pinta/RecentDocumentsWindow.cs:76
+#, csharp-format
+msgid "{0} recent documents"
+msgstr "{0} 个最近文档"
+
+#: Pinta.Core/Classes/VideoEditingLayer.cs:25
+msgid "Video Editing"
+msgstr "视频编辑"
+
+#: Pinta/Pads/LayersPad.cs
+msgid "Import Video"
+msgstr "导入视频"
+
+#: Pinta/Pads/LayersPad.cs
+msgid "No video imported"
+msgstr "未导入视频"
 
 #: Pinta.Core/ImageFormats/PintaDocumentFormat.cs:696
 msgid "The Pinta project animation resource is invalid."

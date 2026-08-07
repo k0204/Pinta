@@ -3987,7 +3987,8 @@ msgstr ""
 #, csharp-format
 msgid "{0} selected / {1}"
 msgstr ""
-+#: Pinta/Actions/File/OpenDocumentAction.cs:63
+
+#: Pinta/Actions/File/OpenDocumentAction.cs:63
 msgid "Open Pinta Project"
 msgstr ""
 
@@ -4126,4 +4127,29 @@ msgstr ""
 
 #: Pinta.Core/ImageFormats/PintaDocumentFormat.cs:696
 msgid "The Pinta project animation resource is invalid."
+msgstr ""
+
+#: Pinta\RecentDocumentsWindow.cs:29 Pinta\RecentDocumentsWindow.cs:98
+msgid "Document Open History"
+msgstr ""
+
+#: Pinta\RecentDocumentsWindow.cs:51
+msgid "No recently opened documents."
+msgstr ""
+
+#: Pinta\RecentDocumentsWindow.cs:74
+#, csharp-format
+msgid "{0} recent documents"
+msgstr ""
+
+#: Pinta.Core/Classes/VideoEditingLayer.cs:25
+msgid "Video Editing"
+msgstr ""
+
+#: Pinta/Pads/LayersPad.cs
+msgid "Import Video"
+msgstr ""
+
+#: Pinta/Pads/LayersPad.cs
+msgid "No video imported"
 msgstr ""

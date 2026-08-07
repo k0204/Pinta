@@ -71,7 +71,6 @@ public sealed class WindowShell
 		shell_layout = Gtk.Box.New (Gtk.Orientation.Vertical, 0);
 		app_layout.SetContent (shell_layout);
 
-		app_window.Present ();
 	}
 
 	public Gtk.ApplicationWindow Window => app_window;

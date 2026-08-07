@@ -156,7 +156,7 @@ public sealed partial class DocumentLayers
 		return layer;
 	}
 
-        public GroupLayer CreateGroupLayer (
+	public GroupLayer CreateGroupLayer (
                 string? name = null,
                 int? width = null,
                 int? height = null)
@@ -585,6 +585,7 @@ public sealed partial class DocumentLayers
 		UserLayer layer = source switch {
 			SpriteSheetLayer sprite => DuplicateSpriteSheetLayer (sprite),
 			SingleDirectionAnimationLayer single => DuplicateSingleDirectionAnimationLayer (single),
+			VideoEditingLayer => CreateVideoEditingLayer (Translations.GetString ("{0} copy", source.Name)),
 			GroupLayer => CreateGroupLayer (Translations.GetString ("{0} copy", source.Name)),
 			_ => CreateLayer (Translations.GetString ("{0} copy", source.Name)),
 		};
@@ -630,6 +631,26 @@ public sealed partial class DocumentLayers
 		copy.SpritesheetSplit = source.SpritesheetSplit;
 		copy.ReplaceSnapshot (source.CaptureSnapshot (), document.ImageSize);
 		return copy;
+	}
+
+	public VideoEditingLayer CreateVideoEditingLayer (string? name = null)
+	{
+		ImageSurface surface = CairoExtensions.CreateImageSurface (Format.Argb32, document.ImageSize.Width, document.ImageSize.Height);
+		return new VideoEditingLayer (surface, name ?? Translations.GetString ("Video Editing"));
+	}
+
+	public VideoEditingLayer? FindVideoEditingLayer ()
+		=> RootLayers.OfType<VideoEditingLayer> ().FirstOrDefault ();
+
+	public VideoEditingLayer GetOrCreateVideoEditingLayer ()
+		=> FindVideoEditingLayer () ?? AddVideoEditingLayer ();
+
+	public VideoEditingLayer AddVideoEditingLayer ()
+	{
+		VideoEditingLayer layer = CreateVideoEditingLayer ();
+		Insert (layer, new LayerPosition (null, user_layers.Count));
+		SetCurrentUserLayer (layer);
+		return layer;
 	}
 
 	private SingleDirectionAnimationLayer DuplicateSingleDirectionAnimationLayer (SingleDirectionAnimationLayer source)

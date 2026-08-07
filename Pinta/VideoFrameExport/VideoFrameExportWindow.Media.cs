@@ -14,6 +14,9 @@ internal sealed partial class VideoFrameExportWindow
 	private bool is_playing;
 	private bool updating_seek;
 
+	public void ImportVideo ()
+		=> HandleOpenVideoClicked (this, EventArgs.Empty);
+
 	private async void HandleOpenVideoClicked (object sender, EventArgs args)
 	{
 		using Gtk.FileDialog dialog = Gtk.FileDialog.New ();
@@ -55,6 +58,9 @@ internal sealed partial class VideoFrameExportWindow
 				throw new VideoFrameExportException (Translations.GetString ("No video frames were found."));
 
 			videoFilename = filename;
+			if (videoLayer is not null)
+				videoLayer.VideoPath = filename;
+			NotifyVideoLoaded ();
 			metadata = loadedMetadata;
 			previewDirectory = directory;
 			LoadMedia (filename);

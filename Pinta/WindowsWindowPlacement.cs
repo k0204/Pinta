@@ -53,6 +53,32 @@ internal static class WindowsWindowPlacement
 		return bounds.Width > 0 && bounds.Height > 0;
 	}
 
+	internal static void Center ()
+	{
+		IntPtr window = FindMainWindow ();
+		WindowPlacement placement = new () { Length = Marshal.SizeOf<WindowPlacement> () };
+		if (window == IntPtr.Zero || !GetWindowPlacement (window, ref placement))
+			return;
+
+		Rect bounds = placement.NormalPosition;
+		IntPtr monitor = MonitorFromRect (ref bounds, MONITOR_DEFAULTTONEAREST);
+		MonitorInfo info = new () { Size = Marshal.SizeOf<MonitorInfo> () };
+		if (monitor == IntPtr.Zero || !GetMonitorInfo (monitor, ref info))
+			return;
+
+		Rect workArea = info.WorkArea;
+		int left = workArea.Left + (workArea.Width - bounds.Width) / 2;
+		int top = workArea.Top + (workArea.Height - bounds.Height) / 2;
+		_ = SetWindowPos (
+			window,
+			IntPtr.Zero,
+			left,
+			top,
+			bounds.Width,
+			bounds.Height,
+			SWP_NOACTIVATE | SWP_NOZORDER);
+	}
+
 	private static Rect FitToWorkArea (Rect bounds, Rect workArea)
 	{
 		int width = Math.Min (bounds.Width, workArea.Width);

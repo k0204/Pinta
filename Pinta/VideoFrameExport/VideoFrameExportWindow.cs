@@ -53,11 +53,17 @@ internal sealed partial class VideoFrameExportWindow : IDisposable
 	private int currentFrameIndex;
 	private int speedIndex = 1;
 	private bool disposed;
+	private readonly VideoEditingLayer? videoLayer;
 
 	public event EventHandler? Closed;
+	public event EventHandler? VideoLoaded;
 
-	public VideoFrameExportWindow (Adw.Application application, Gtk.Window parent)
+	internal void NotifyVideoLoaded ()
+		=> VideoLoaded?.Invoke (this, EventArgs.Empty);
+
+	public VideoFrameExportWindow (Adw.Application application, Gtk.Window parent, VideoEditingLayer? videoLayer = null)
 	{
+		this.videoLayer = videoLayer;
 		window = Adw.ApplicationWindow.New (application);
 		window.TransientFor = parent;
 		window.DefaultWidth = 1440;
@@ -86,6 +92,8 @@ internal sealed partial class VideoFrameExportWindow : IDisposable
 		root.Append (filmstripPanel);
 		window.SetContent (root);
 		ResetView ();
+		if (videoLayer?.VideoPath is string path && File.Exists (path))
+			_ = LoadVideoAsync (path);
 	}
 
 	public void Present () => window.Present ();

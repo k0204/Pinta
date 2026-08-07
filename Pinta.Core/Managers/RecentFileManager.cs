@@ -25,12 +25,15 @@
 // THE SOFTWARE.
 
 using System;
+using System.Collections.Generic;
 using Gtk;
 
 namespace Pinta.Core;
 
 public sealed class RecentFileManager
 {
+	public readonly record struct RecentFile (string Uri, string DisplayName, string DisplayPath);
+
 	private Gio.File? last_dialog_directory;
 
 	public RecentFileManager ()
@@ -70,5 +73,21 @@ public sealed class RecentFileManager
 	public void AddFile (Gio.File file)
 	{
 		RecentManager.GetDefault ().AddItem (file.GetUri ());
+	}
+
+	public IReadOnlyList<RecentFile> GetFiles ()
+	{
+		GLib.List items = RecentManager.GetDefault ().GetItems ();
+		List<RecentFile> files = [];
+		uint count = GLib.List.Length (items);
+		for (uint i = 0; i < count; i++) {
+			IntPtr pointer = GLib.List.NthData (items, i);
+			Gtk.Internal.RecentInfoOwnedHandle handle = new (pointer);
+			RecentInfo info = new (handle);
+			if (info.Exists ())
+				files.Add (new (info.GetUri (), info.GetDisplayName (), info.GetUriDisplay () ?? info.GetUri ()));
+		}
+		GLib.List.Free (items);
+		return files;
 	}
 }

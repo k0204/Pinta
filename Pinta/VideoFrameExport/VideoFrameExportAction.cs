@@ -9,6 +9,8 @@ internal sealed class VideoFrameExportAction
 	private readonly Adw.Application application;
 	private VideoFrameExportWindow? window;
 
+	public event EventHandler? VideoImported;
+
 	public VideoFrameExportAction (Adw.Application application)
 	{
 		this.application = application;
@@ -22,6 +24,12 @@ internal sealed class VideoFrameExportAction
 
 	public Command Command { get; }
 
+	public void ImportVideoForLayer (VideoEditingLayer layer)
+	{
+		EnsureWindow (layer);
+		window!.ImportVideo ();
+	}
+
 	public void Register (Gtk.Application app, Gio.Menu menu)
 	{
 		app.AddCommand (Command);
@@ -30,20 +38,34 @@ internal sealed class VideoFrameExportAction
 
 	private void HandleActivated (object sender, EventArgs args)
 	{
+		VideoEditingLayer? videoLayer = null;
+		if (PintaCore.Workspace.ActiveDocumentOrDefault is Document document)
+			videoLayer = document.Layers.GetOrCreateVideoEditingLayer ();
+		EnsureWindow (videoLayer);
+		window!.Present ();
+	}
+
+	private void EnsureWindow (VideoEditingLayer? videoLayer)
+	{
 		if (window is not null) {
 			window.Present ();
 			return;
 		}
 
-		window = new VideoFrameExportWindow (application, PintaCore.Chrome.MainWindow);
+		window = new VideoFrameExportWindow (application, PintaCore.Chrome.MainWindow, videoLayer);
 		window.Closed += HandleWindowClosed;
-		window.Present ();
+		window.VideoLoaded += HandleVideoLoaded;
 	}
+
+	private void HandleVideoLoaded (object? sender, EventArgs args)
+		=> VideoImported?.Invoke (this, EventArgs.Empty);
 
 	private void HandleWindowClosed (object? sender, EventArgs args)
 	{
-		if (sender is VideoFrameExportWindow closedWindow)
+		if (sender is VideoFrameExportWindow closedWindow) {
+			closedWindow.VideoLoaded -= HandleVideoLoaded;
 			closedWindow.Closed -= HandleWindowClosed;
+		}
 		window = null;
 	}
 }

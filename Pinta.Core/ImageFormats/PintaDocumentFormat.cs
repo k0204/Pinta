@@ -77,7 +77,7 @@ public sealed class PintaDocumentFormat : IImageImporter, IImageExporter
 		bool manifestCommitted = false;
 
 		try {
-			AssignLayerIds (document.Layers.RootLayers);
+			AssignLayerGuids (document.Layers.RootLayers);
 			PintaDocumentManifest manifest = CreateManifest (document, root, previous, saveId, pending);
 			progress?.Report (0);
 
@@ -220,6 +220,7 @@ public sealed class PintaDocumentFormat : IImageImporter, IImageExporter
 			Kind = layer switch {
 				SpriteSheetLayer => "spritesheet",
 				SingleDirectionAnimationLayer => "single-direction-animation",
+				VideoEditingLayer => "video-editing",
 				GroupLayer => "group",
 				_ => "layer",
 			},
@@ -454,6 +455,7 @@ public sealed class PintaDocumentFormat : IImageImporter, IImageExporter
 			"single-direction-animation" => CreateSingleDirectionAnimationLayer (document, node),
 			"spritesheet" => CreateSpriteSheetLayer (document, node),
 			"group" => document.Layers.CreateGroupLayer (node.Name, node.SurfaceWidth, node.SurfaceHeight),
+			"video-editing" => document.Layers.CreateVideoEditingLayer (node.Name),
 			_ => document.Layers.CreateLayer (node.Name, node.SurfaceWidth, node.SurfaceHeight),
 		};
 
@@ -552,20 +554,19 @@ public sealed class PintaDocumentFormat : IImageImporter, IImageExporter
 		return Path.Combine (root, ToSystemPath (relativePath));
 	}
 
-	private static void AssignLayerIds (IReadOnlyList<UserLayer> roots)
+	private static void AssignLayerGuids (IReadOnlyList<UserLayer> roots)
 	{
 		List<UserLayer> layers = [.. roots.SelectMany (layer => layer.GetSelfAndDescendants ())];
-		HashSet<string> usedIds = [];
-		int nextId = 1;
+		HashSet<Guid> usedIds = [];
 		foreach (UserLayer layer in layers) {
-			if (layer.DocumentId is not null && usedIds.Add (layer.DocumentId))
+			if (Guid.TryParseExact (layer.DocumentId, "N", out Guid id)
+				&& id != Guid.Empty
+				&& usedIds.Add (id))
 				continue;
 
-			layer.DocumentId = null;
-			string id;
-			do id = $"layer-{nextId++:D4}";
+			do id = Guid.NewGuid ();
 			while (!usedIds.Add (id));
-			layer.DocumentId = id;
+			layer.DocumentId = id.ToString ("N");
 		}
 	}
 
@@ -607,11 +608,11 @@ public sealed class PintaDocumentFormat : IImageImporter, IImageExporter
 				|| node.Children is null)
 				throw new InvalidDataException (Translations.GetString ("The Pinta project contains an invalid layer."));
 
-			if (node.Kind is not ("layer" or "group" or "spritesheet" or "single-direction-animation")
+			if (node.Kind is not ("layer" or "group" or "video-editing" or "spritesheet" or "single-direction-animation")
 				|| node.Storage is not ("embedded" or "reference"))
 				throw new InvalidDataException (Translations.GetString ("The Pinta project contains an invalid layer type."));
 
-			if (node.Kind == "group")
+			if (node.Kind is "group" or "video-editing")
 				ValidateGroup (node);
 			else if (node.Kind == "layer")
 				ValidateRegularLayer (node, root);

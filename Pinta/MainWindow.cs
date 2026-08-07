@@ -28,7 +28,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text.Json;
 using System.Threading.Tasks;
 using Mono.Addins;
 using Pinta.Core;
@@ -53,26 +52,8 @@ internal sealed partial class MainWindow
 
 	private int main_thread_id = -1;
 	private Gtk.DropTarget drop_target = null!;
-	private bool session_restored;
 	private bool suppress_tab_change;
-	private int deferred_document_position = -1;
 	private VideoFrameExportAction video_frame_export = null!;
-
-	private sealed class DeferredDocumentViewContent : IDockNotebookItem
-	{
-		public DeferredDocumentViewContent (string path)
-		{
-			Path = path;
-			Widget = Gtk.Box.New (Gtk.Orientation.Vertical, 0);
-		}
-
-		public string Path { get; }
-		public Gtk.Widget Widget { get; }
-		public string Label => System.IO.Path.GetFileName (Path);
-		public event EventHandler? LabelChanged { add { } remove { } }
-	}
-
-	private sealed record FileSession (string[] Paths, string? ActivePath);
 
 	public MainWindow (Adw.Application app)
 	{
@@ -90,6 +71,7 @@ internal sealed partial class MainWindow
 	/// </summary>
 	public void Startup ()
 	{
+		ResourceLoader.LoadCssStyles ();
 		CreateMainMenu ();
 	}
 
@@ -125,7 +107,6 @@ internal sealed partial class MainWindow
 		LoadUserSettings ();
 		_ = RefreshAiProvidersAsync ();
 		_ = RestoreAiAccountAsync ();
-		PintaCore.Actions.App.BeforeQuitAttempt += delegate { SaveFileSession (); };
 		PintaCore.Actions.App.BeforeQuit += delegate { SaveUserSettings (); };
 
 		// We support drag and drop for URIs, which are converted into a Gdk.FileList.
@@ -180,9 +161,6 @@ internal sealed partial class MainWindow
 
 	private void DockNotebook_TabClosed (object? sender, TabClosedEventArgs e)
 	{
-		if (e.Item is DeferredDocumentViewContent)
-			return;
-
 		var view = (DocumentViewContent) e.Item;
 
 		int index = PintaCore.Workspace.OpenDocuments.IndexOf (view.Document);
@@ -209,11 +187,6 @@ internal sealed partial class MainWindow
 		if (item == null)
 			return;
 
-		if (item is DeferredDocumentViewContent deferred) {
-			OpenDeferredDocument (deferred);
-			return;
-		}
-
 		var view = (DocumentViewContent) item;
 
 		int index = PintaCore.Workspace.OpenDocuments.IndexOf (view.Document);
@@ -226,25 +199,7 @@ internal sealed partial class MainWindow
 		var doc = e.Document;
 
 		var notebook = canvas_pad.Notebook;
-		if (deferred_document_position < 0 && doc.File?.GetPath () is string path) {
-			List<IDockNotebookItem> tabs = notebook.Items.ToList ();
-			int placeholderIndex = tabs.FindIndex (item =>
-				item is DeferredDocumentViewContent deferred &&
-				string.Equals (deferred.Path, path, StringComparison.OrdinalIgnoreCase));
-			if (placeholderIndex >= 0) {
-				suppress_tab_change = true;
-				try {
-					notebook.RemoveTab (tabs[placeholderIndex]);
-				} finally {
-					suppress_tab_change = false;
-				}
-				deferred_document_position = placeholderIndex;
-			}
-		}
-		int selected_index = deferred_document_position >= 0
-			? deferred_document_position - 1
-			: notebook.ActiveItemIndex;
-		deferred_document_position = -1;
+		int selected_index = notebook.ActiveItemIndex;
 
 		CanvasWindow canvas = CanvasWindow.New (
 			PintaCore.Chrome,
@@ -409,8 +364,6 @@ internal sealed partial class MainWindow
 		int y = PintaCore.Settings.GetSetting (SettingNames.WINDOW_POSITION_Y, int.MinValue);
 #endif
 		bool maximize = PintaCore.Settings.GetSetting (SettingNames.WINDOW_MAXIMIZED, false);
-
-		ResourceLoader.LoadCssStyles ();
 
 		window_shell = new WindowShell (
 			app,
@@ -626,7 +579,7 @@ internal sealed partial class MainWindow
 		dock.AddItem (toolbox_item, DockPlacement.Left);
 
 		// Layer pad
-		LayersPad layers_pad = new (PintaCore.Actions.Layers);
+		LayersPad layers_pad = new (PintaCore.Actions.Layers, video_frame_export);
 		layers_pad.Initialize (dock);
 
 		// History pad
@@ -726,90 +679,6 @@ internal sealed partial class MainWindow
 			Console.Error.WriteLine ($"Failed to refresh AI providers: {ex.Message}");
 		}
 	}
-
-	private void SaveFileSession ()
-	{
-		string[] paths = canvas_pad.Notebook.Items
-			.Select (GetSessionPath)
-			.Where (path => path is not null)
-			.Cast<string> ()
-			.Distinct (StringComparer.OrdinalIgnoreCase)
-			.ToArray ();
-		string? activePath = canvas_pad.Notebook.ActiveItem is IDockNotebookItem active
-			? GetSessionPath (active)
-			: null;
-
-		PintaCore.Settings.PutSetting (
-			SettingNames.OPEN_FILE_SESSION,
-			JsonSerializer.Serialize (new FileSession (paths, activePath)));
-	}
-
-	public bool RestoreFileSession ()
-	{
-		if (session_restored)
-			return PintaCore.Workspace.HasOpenDocuments || canvas_pad.Notebook.Items.Any ();
-		session_restored = true;
-
-		FileSession? session;
-		try {
-			string json = PintaCore.Settings.GetSetting (SettingNames.OPEN_FILE_SESSION, string.Empty);
-			session = string.IsNullOrWhiteSpace (json)
-				? null
-				: JsonSerializer.Deserialize<FileSession> (json);
-		} catch (JsonException) {
-			return false;
-		}
-
-		string[] paths = session?.Paths
-			.Where (File.Exists)
-			.Distinct (StringComparer.OrdinalIgnoreCase)
-			.ToArray () ?? [];
-		if (paths.Length == 0)
-			return false;
-
-		string activePath = paths.FirstOrDefault (path => string.Equals (path, session?.ActivePath, StringComparison.OrdinalIgnoreCase))
-			?? paths[0];
-		if (!PintaCore.Workspace.OpenFile (Gio.FileHelper.NewForPath (activePath)))
-			return false;
-
-		IDockNotebookItem activeItem = canvas_pad.Notebook.ActiveItem!;
-		suppress_tab_change = true;
-		try {
-			for (int i = 0; i < paths.Length; i++)
-				if (!string.Equals (paths[i], activePath, StringComparison.OrdinalIgnoreCase))
-					canvas_pad.Notebook.InsertTab (new DeferredDocumentViewContent (paths[i]), i);
-			canvas_pad.Notebook.ActiveItem = activeItem;
-		} finally {
-			suppress_tab_change = false;
-		}
-
-		return true;
-	}
-
-	private void OpenDeferredDocument (DeferredDocumentViewContent deferred)
-	{
-		int position = canvas_pad.Notebook.ActiveItemIndex;
-		suppress_tab_change = true;
-		try {
-			canvas_pad.Notebook.RemoveTab (deferred);
-		} finally {
-			suppress_tab_change = false;
-		}
-
-		if (!File.Exists (deferred.Path))
-			return;
-
-		deferred_document_position = position;
-		if (!PintaCore.Workspace.OpenFile (Gio.FileHelper.NewForPath (deferred.Path)))
-			deferred_document_position = -1;
-	}
-
-	private static string? GetSessionPath (IDockNotebookItem item)
-		=> item switch {
-			DeferredDocumentViewContent deferred => deferred.Path,
-			DocumentViewContent view => view.Document.File?.GetPath (),
-			_ => null,
-		};
 
 	#region Action Handlers
 	private bool HandleCloseRequest (object o, EventArgs args)

@@ -79,6 +79,9 @@ internal sealed class SaveDocumentImplmentationAction : IActionHandler
 		if (!IsPintaDocument (e.Document))
 			return await SaveFileAs (e.Document, documentFormatOnly: true);
 
+		// Pending tool state may be the only unsaved change, so commit it before checking IsDirty.
+		tools.Commit ();
+
 		// Document hasn't changed, don't re-save it
 		if (!e.Document.IsDirty)
 			return true;

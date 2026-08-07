@@ -113,10 +113,32 @@ internal sealed class MainClass
 			PintaCore.System.RenderThreads = threads;
 
 		app.OnStartup += (_, _) => main_window.Startup ();
+		bool main_window_activated = false;
+		RecentDocumentsWindow? recent_documents_window = null;
 
 		app.OnActivate += (_, _) => {
-			main_window.Activate ();
-			OpenFilesFromCommandLine (main_window, files);
+			void ActivateMainWindow ()
+			{
+				if (main_window_activated)
+					return;
+
+				main_window.Activate ();
+				main_window_activated = true;
+			}
+
+			if (files.Any ()) {
+				ActivateMainWindow ();
+				OpenFilesFromCommandLine (main_window, files);
+			} else {
+				if (recent_documents_window is null) {
+					recent_documents_window = CreateRecentDocumentsWindow (
+						app,
+						main_window,
+						ActivateMainWindow);
+					recent_documents_window.ContinuedToMainWindow += (_, _) => recent_documents_window = null;
+				}
+				recent_documents_window.Present ();
+			}
 
 			// For debugging, run the garbage collector much more frequently.
 			// This can be useful to detect certain memory management issues in the GTK bindings.
@@ -133,6 +155,29 @@ internal sealed class MainClass
 		app.RunWithSynchronizationContext (null);
 	}
 
+	private static RecentDocumentsWindow CreateRecentDocumentsWindow (
+		Adw.Application app,
+		MainWindow mainWindow,
+		Action activateMainWindow)
+	{
+		return new (
+			app,
+			PintaCore.RecentFiles,
+			createNewDocument: () => {
+				activateMainWindow ();
+				mainWindow.ShowMainWindow ();
+				return true;
+			},
+			openDocument: uri => {
+				activateMainWindow ();
+				if (!PintaCore.Workspace.OpenFile (Gio.FileHelper.NewForUri (uri)))
+					return false;
+
+				mainWindow.ShowMainWindow ();
+				return true;
+			});
+	}
+
 	private static void OpenFilesFromCommandLine (MainWindow mainWindow, IEnumerable<string> files)
 	{
 		// Ignore the process serial number parameter on Mac OS X
@@ -146,11 +191,7 @@ internal sealed class MainClass
 			foreach (var file in files) {
 				PintaCore.Workspace.OpenFile (Gio.FileHelper.NewForCommandlineArg (file));
 			}
-		} else if (!mainWindow.RestoreFileSession ()) {
-			// Create a blank document
-			PintaCore.Workspace.NewDocument (
-				new Core.Size (800, 600),
-				new Cairo.Color (1, 1, 1));
+			mainWindow.ShowMainWindow ();
 		}
 	}
 

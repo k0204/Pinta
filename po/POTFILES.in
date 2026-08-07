@@ -150,6 +150,7 @@ Pinta.Core/Classes/ToolOption/IntegerOption.cs
 Pinta.Core/Classes/ToolOption/ToolOption.cs
 Pinta.Core/Classes/Translations.cs
 Pinta.Core/Classes/UserLayer.cs
+Pinta.Core/Classes/VideoEditingLayer.cs
 Pinta.Core/Delegates/AsyncEventHandler.cs
 Pinta.Core/Effects/BaseEffect.cs
 Pinta.Core/Effects/GradientRenderer.cs
@@ -489,8 +490,10 @@ Pinta/MacInterop/CoreFoundation.cs
 Pinta/MacInterop/Environment.cs
 Pinta/Main.cs
 Pinta/MainWindow.cs
+Pinta/MainWindow.RecentDocuments.cs
 Pinta/MainWindow.TextEditing.cs
 Pinta/Messages/ActionOptions.cs
+Pinta/RecentDocumentsWindow.cs
 Pinta/Pads/CanvasPad.cs
 Pinta/Pads/HistoryPad.cs
 Pinta/Pads/IDockPad.cs
