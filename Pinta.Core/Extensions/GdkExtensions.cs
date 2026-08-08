@@ -28,6 +28,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Text;
 using System.Threading.Tasks;
 using Cairo;
 
@@ -36,6 +37,7 @@ namespace Pinta.Core;
 public static class GdkExtensions
 {
 	private const string GdkLibraryName = "Gdk";
+	private const uint ClipboardFileDropFormat = 15;
 
 	static GdkExtensions ()
 	{
@@ -230,6 +232,91 @@ public static class GdkExtensions
 
 		return tcs.Task;
 	}
+
+	/// <summary>
+	/// Reads file URIs copied by a file manager from the clipboard.
+	/// </summary>
+	public static Task<string[]?> ReadFileUrisAsync (this Gdk.Clipboard clipboard)
+	{
+		if (TryGetWindowsClipboardFileUris (out string[] windowsUris))
+			return Task.FromResult<string[]?> (windowsUris);
+
+		if (!clipboard.GetFormats ().ContainGtype (Gdk.FileList.GetGType ()))
+			return Task.FromResult<string[]?> (null);
+
+		TaskCompletionSource<string[]?> tcs = new ();
+
+		Gdk.Internal.Clipboard.ReadValueAsync (
+			clipboard.Handle.DangerousGetHandle (),
+			Gdk.FileList.GetGType (),
+			0,
+			IntPtr.Zero,
+			new Gio.Internal.AsyncReadyCallbackAsyncHandler ((_, args, _) => {
+				try {
+					using GObject.Value value = clipboard.ReadValueFinish (args);
+					if (value.GetBoxed (Gdk.FileList.GetGType ()) is not Gdk.FileList fileList) {
+						tcs.SetResult (null);
+						return;
+					}
+
+					string[] uris = fileList.GetFilesHelper ().Select (file => file.GetUri ()).ToArray ();
+					tcs.SetResult (uris);
+				} catch (Exception) {
+					tcs.SetResult (null);
+				}
+			}).NativeCallback,
+			IntPtr.Zero);
+
+		return tcs.Task;
+	}
+
+	private static bool TryGetWindowsClipboardFileUris (out string[] uris)
+	{
+		uris = [];
+		if (!OperatingSystem.IsWindows () || !IsClipboardFormatAvailable (ClipboardFileDropFormat) || !OpenClipboard (IntPtr.Zero))
+			return false;
+
+		try {
+			IntPtr dropHandle = GetClipboardData (ClipboardFileDropFormat);
+			if (dropHandle == IntPtr.Zero)
+				return false;
+
+			uint count = DragQueryFile (dropHandle, uint.MaxValue, null, 0);
+			if (count > int.MaxValue)
+				return false;
+
+			List<string> result = new ((int) count);
+			for (uint index = 0; index < count; index++) {
+				uint length = DragQueryFile (dropHandle, index, null, 0);
+				StringBuilder path = new (checked ((int) length + 1));
+				if (DragQueryFile (dropHandle, index, path, (uint) path.Capacity) > 0)
+					result.Add (new Uri (path.ToString ()).AbsoluteUri);
+			}
+
+			uris = [.. result];
+			return uris.Length > 0;
+		} finally {
+			CloseClipboard ();
+		}
+	}
+
+	[DllImport ("user32.dll")]
+	[return: MarshalAs (UnmanagedType.Bool)]
+	private static extern bool IsClipboardFormatAvailable (uint format);
+
+	[DllImport ("user32.dll", SetLastError = true)]
+	[return: MarshalAs (UnmanagedType.Bool)]
+	private static extern bool OpenClipboard (IntPtr owner);
+
+	[DllImport ("user32.dll")]
+	private static extern IntPtr GetClipboardData (uint format);
+
+	[DllImport ("user32.dll")]
+	[return: MarshalAs (UnmanagedType.Bool)]
+	private static extern bool CloseClipboard ();
+
+	[DllImport ("shell32.dll", CharSet = CharSet.Unicode)]
+	private static extern uint DragQueryFile (IntPtr dropHandle, uint fileIndex, StringBuilder? fileName, uint fileNameLength);
 
 	/// <summary>
 	/// Helper function to set the clipboard's contents to an image.

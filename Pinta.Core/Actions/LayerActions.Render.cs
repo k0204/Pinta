@@ -14,8 +14,19 @@ public sealed partial class LayerActions
 		Document document,
 		UserLayer layer,
 		IProgress<double>? progress = null)
+		=> RenderLayers (layer.GetLayersToPaint (), progress, useSurfaceBounds: true);
+
+	public static ImageSurface RenderLayers (
+		IEnumerable<Layer> layers,
+		IProgress<double>? progress = null)
+		=> RenderLayers (layers, progress, useSurfaceBounds: false);
+
+	private static ImageSurface RenderLayers (
+		IEnumerable<Layer> layers,
+		IProgress<double>? progress,
+		bool useSurfaceBounds)
 	{
-		List<Layer> paintLayers = [.. layer.GetLayersToPaint ()];
+		List<Layer> paintLayers = [.. layers];
 		if (paintLayers.Count == 0) {
 			progress?.Report (1);
 			return CairoExtensions.CreateImageSurface (Format.Argb32, 1, 1);
@@ -25,8 +36,13 @@ public sealed partial class LayerActions
 		double top = double.PositiveInfinity;
 		double right = double.NegativeInfinity;
 		double bottom = double.NegativeInfinity;
+		bool hasContent = false;
 		foreach (Layer paintLayer in paintLayers)
-			ExpandBounds (paintLayer, ref left, ref top, ref right, ref bottom);
+			hasContent |= ExpandBounds (paintLayer, useSurfaceBounds, ref left, ref top, ref right, ref bottom);
+		if (!hasContent) {
+			progress?.Report (1);
+			return CairoExtensions.CreateImageSurface (Format.Argb32, 1, 1);
+		}
 
 		double originX = Math.Floor (left);
 		double originY = Math.Floor (top);
@@ -61,8 +77,9 @@ public sealed partial class LayerActions
 		return Math.Max (1, checked ((int) Math.Ceiling (value)));
 	}
 
-	private static void ExpandBounds (
+	private static bool ExpandBounds (
 		Layer layer,
+		bool useSurfaceBounds,
 		ref double left,
 		ref double top,
 		ref double right,
@@ -70,12 +87,19 @@ public sealed partial class LayerActions
 	{
 		if (layer.Surface.Status != Status.Success)
 			throw new InvalidOperationException ($"Layer surface is invalid: {layer.Surface.Status}");
+		RectangleI contentBounds = useSurfaceBounds
+			? layer.Surface.GetBounds ()
+			: Utility.TryGetAlphaBounds (layer.Surface, out RectangleI alphaBounds)
+				? alphaBounds
+				: RectangleI.Zero;
+		if (contentBounds.Width <= 0 || contentBounds.Height <= 0)
+			return false;
 
 		PointD[] corners = [
-			layer.Transform.TransformPoint (new PointD (0, 0)),
-			layer.Transform.TransformPoint (new PointD (layer.Surface.Width, 0)),
-			layer.Transform.TransformPoint (new PointD (0, layer.Surface.Height)),
-			layer.Transform.TransformPoint (new PointD (layer.Surface.Width, layer.Surface.Height))];
+			layer.Transform.TransformPoint (new PointD (contentBounds.X, contentBounds.Y)),
+			layer.Transform.TransformPoint (new PointD (contentBounds.X + contentBounds.Width, contentBounds.Y)),
+			layer.Transform.TransformPoint (new PointD (contentBounds.X, contentBounds.Y + contentBounds.Height)),
+			layer.Transform.TransformPoint (new PointD (contentBounds.X + contentBounds.Width, contentBounds.Y + contentBounds.Height))];
 
 		foreach (PointD corner in corners) {
 			if (!double.IsFinite (corner.X) || !double.IsFinite (corner.Y))
@@ -86,5 +110,7 @@ public sealed partial class LayerActions
 			right = Math.Max (right, corner.X);
 			bottom = Math.Max (bottom, corner.Y);
 		}
+
+		return true;
 	}
 }

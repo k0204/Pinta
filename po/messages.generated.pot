@@ -2729,6 +2729,10 @@ msgstr ""
 msgid "Auto-select layer"
 msgstr ""
 
+#: Pinta.Tools/Tools/MoveLayerTool.cs:81
+msgid "Show transform controls"
+msgstr ""
+
 #: Pinta.Tools/Tools/PaintBrushTool.cs:79
 msgid "Paintbrush"
 msgstr ""

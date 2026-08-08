@@ -1663,6 +1663,10 @@ msgstr "移动选择的像素"
 msgid "Move Selection"
 msgstr "移动选区"
 
+#: ../Pinta.Tools/Tools/MoveLayerTool.cs:81
+msgid "Show transform controls"
+msgstr "显示变换控件"
+
 #: ../Pinta.Core/Algorithms/PixelOps/UserBlendOps.cs:32
 msgid "Multiply"
 msgstr "正片叠加"

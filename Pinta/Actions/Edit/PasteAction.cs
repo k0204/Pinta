@@ -117,6 +117,21 @@ internal sealed class PasteAction : IActionHandler
 			return;
 
 		var cb = GdkExtensions.GetDefaultClipboard ();
+		string[]? fileUris = await cb.ReadFileUrisAsync ();
+		if (fileUris is { Length: > 0 }) {
+			Gio.File file = Gio.FileHelper.NewForUri (fileUris[0]);
+			try {
+				Cairo.ImageSurface image = file.LoadImageSurface ();
+				await PasteImage (actions, chrome, workspace, tools, doc, image, true, pastePosition, file.GetDisplayName ());
+			} catch (Exception exception) {
+				await chrome.ShowErrorDialog (
+					chrome.MainWindow,
+					Translations.GetString ("Failed to open image"),
+					exception.Message,
+					exception.ToString ());
+			}
+			return;
+		}
 
 		// See if the current tool wants to handle the paste
 		// operation (e.g., the text tool could paste text)
@@ -125,16 +140,28 @@ internal sealed class PasteAction : IActionHandler
 				return;
 		}
 
-		// Commit any unfinished tool actions
-		tools.Commit ();
-
 		Gdk.Texture? cb_texture = await cb.ReadTextureAsync ();
 		if (cb_texture is null) {
 			await ShowClipboardEmptyDialog (chrome);
 			return;
 		}
 
-		Cairo.ImageSurface cb_image = cb_texture.ToSurface ();
+		await PasteImage (actions, chrome, workspace, tools, doc, cb_texture.ToSurface (), toNewLayer, pastePosition, null);
+	}
+
+	private static async Task PasteImage (
+		ActionManager actions,
+		ChromeManager chrome,
+		WorkspaceManager workspace,
+		ToolManager tools,
+		Document doc,
+		Cairo.ImageSurface cb_image,
+		bool toNewLayer,
+		PointI pastePosition,
+		string? layerName)
+	{
+		tools.Commit ();
+
 		bool create_new_layer = toNewLayer || LayerHasContent (doc.Layers.CurrentUserLayer);
 		CompoundHistoryItem paste_action = new (
 			Resources.StandardIcons.EditPaste,
@@ -171,7 +198,7 @@ internal sealed class PasteAction : IActionHandler
 		);
 
 		if (create_new_layer) {
-			var l = doc.Layers.AddNewLayer (string.Empty);
+			var l = doc.Layers.AddNewLayer (layerName ?? string.Empty);
 			paste_action.Push (new AddLayerHistoryItem (Resources.Icons.LayerNew, Translations.GetString ("Add New Layer"), l, doc.Layers.GetPosition (l)));
 		}
 

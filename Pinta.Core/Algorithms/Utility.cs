@@ -495,6 +495,11 @@ public static class Utility
 	}
 
 	public static RectangleI GetAlphaBounds (ImageSurface image)
+		=> TryGetAlphaBounds (image, out RectangleI bounds)
+			? bounds
+			: image.GetBounds ();
+
+	public static bool TryGetAlphaBounds (ImageSurface image, out RectangleI bounds)
 	{
 		ReadOnlySpan<ColorBgra> pixels = image.GetReadOnlyPixelData ();
 		int left = image.Width;
@@ -516,9 +521,12 @@ public static class Utility
 			}
 		}
 
-		if (right < left || bottom < top)
-			return new RectangleI (0, 0, image.Width, image.Height);
+		if (right < left || bottom < top) {
+			bounds = RectangleI.Zero;
+			return false;
+		}
 
-		return new RectangleI (left, top, right - left + 1, bottom - top + 1);
+		bounds = new RectangleI (left, top, right - left + 1, bottom - top + 1);
+		return true;
 	}
 }

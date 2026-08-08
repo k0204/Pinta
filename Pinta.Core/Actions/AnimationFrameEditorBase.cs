@@ -164,8 +164,8 @@ internal abstract partial class AnimationFrameEditorBase
 				ClampGuidesAndRefresh ();
 			};
 		output_attempt.OnChanged += (_, _) => Refresh ();
-		columns.OnValueChanged += (_, _) => ResetAnalysisAndRebuildFrames ();
-		rows.OnValueChanged += (_, _) => ResetAnalysisAndRebuildFrames ();
+		columns.OnValueChanged += (_, _) => ResizeGridCellsAndRebuildFrames (true);
+		rows.OnValueChanged += (_, _) => ResizeGridCellsAndRebuildFrames (false);
 		frame_list.OnRowSelected += (_, args) => SelectFrame (GetFrameIndex (args.Row));
 		frame_x.OnValueChanged += (_, _) => UpdateSelectedPosition ();
 		frame_y.OnValueChanged += (_, _) => UpdateSelectedPosition ();
@@ -256,7 +256,7 @@ internal abstract partial class AnimationFrameEditorBase
 	{
 		ClearPositionHistory ();
 		while (frames.Count < count)
-			frames.Add (new EditableFrame { Visible = frames.Count < ExpectedFrameCount });
+			frames.Add (new EditableFrame { Visible = true });
 		if (frames.Count > count)
 			frames.RemoveRange (count, frames.Count - count);
 
@@ -280,6 +280,28 @@ internal abstract partial class AnimationFrameEditorBase
 		frame_list.SelectRow (frame_list.GetRowAtIndex (GetDisplayIndex (selected_frame)));
 		SelectFrame (selected_frame);
 		Refresh ();
+	}
+
+	private void ResizeGridCellsAndRebuildFrames (bool horizontal)
+	{
+		if (syncing)
+			return;
+
+		Gtk.SpinButton count = horizontal ? columns : rows;
+		Gtk.SpinButton size = horizontal ? cell_width : cell_height;
+		Gtk.SpinButton offset = horizontal ? offset_x : offset_y;
+		Gtk.SpinButton gap = horizontal ? gap_x : gap_y;
+		Gtk.SpinButton canvas = horizontal ? canvas_width : canvas_height;
+		int sourceSize = horizontal ? source.Surface.Width : source.Surface.Height;
+		bool resizeCanvas = canvas.Value == size.Value;
+		int available = sourceSize - (int) offset.Value - ((int) count.Value - 1) * (int) gap.Value;
+
+		syncing = true;
+		size.Value = Math.Max (1, available / (int) count.Value);
+		if (resizeCanvas)
+			canvas.Value = size.Value;
+		syncing = false;
+		ResetAnalysisAndRebuildFrames ();
 	}
 
 	private void AppendFrameRow (int displayIndex, int frameIndex, EditableFrame frame)

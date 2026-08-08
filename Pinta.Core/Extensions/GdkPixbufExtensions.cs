@@ -71,6 +71,19 @@ public static partial class GdkPixbufExtensions
 		return result;
 	}
 
+	public static Cairo.ImageSurface LoadImageSurface (this Gio.File file)
+	{
+		using Gio.FileInputStream stream = file.Read (null);
+		using Pixbuf image = Pixbuf.NewFromStream (stream, cancellable: null)!;
+		Cairo.ImageSurface surface = CairoExtensions.CreateImageSurface (
+			Cairo.Format.Argb32,
+			image.Width,
+			image.Height);
+		using Cairo.Context context = new (surface);
+		context.DrawPixbuf (image, PointD.Zero);
+		return surface;
+	}
+
 	[DllImport (PixbufLibraryName, EntryPoint = "gdk_pixbuf_get_formats")]
 	private static extern GLib.Internal.SListOwnedHandle GetFormatsNative ();
 

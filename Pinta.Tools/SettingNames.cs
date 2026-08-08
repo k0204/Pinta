@@ -31,6 +31,7 @@ internal static class SettingNames
 	internal const string LASSO_MODE = "lasso-mode";
 
 	internal const string MOVE_LAYER_AUTO_SELECT_LAYER = "move-layer-auto-select-layer";
+	internal const string SHOW_TRANSFORM_CONTROLS = "show-transform-controls";
 
 	internal static string Arrow1 (string prefix)
 		=> $"{prefix}-arrow1";

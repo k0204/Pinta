@@ -25,6 +25,7 @@
 // THE SOFTWARE.
 
 using System;
+using System.Collections.Generic;
 using Pinta.Core;
 
 namespace Pinta.Tools;
@@ -32,16 +33,30 @@ namespace Pinta.Tools;
 public sealed class MoveLayerTool : BaseTool
 {
 	private Gtk.CheckButton? auto_select_layer;
+	private Gtk.CheckButton? show_transform_controls;
 	private UserLayer? dragged_layer;
+	private UserLayer? resized_layer;
 	private PointD drag_start_point;
 	private PointD applied_drag_delta;
+	private RectangleD resize_start_bounds;
+	private RectangleD resize_current_bounds;
 
+	private readonly IWorkspaceService workspace;
 	private readonly SystemManager system_manager;
+	private readonly RectangleHandle transform_handle;
+
 	public MoveLayerTool (IServiceProvider services) : base (services)
 	{
+		workspace = services.GetService<IWorkspaceService> ();
 		system_manager = services.GetService<SystemManager> ();
+		transform_handle = new (workspace) {
+			DrawOutline = true,
+			InvertIfNegative = true,
+			PreserveAspectRatio = true,
+		};
 	}
 
+	public override IEnumerable<IToolHandle> Handles => [transform_handle];
 	public override string Name => Translations.GetString ("Move Layer");
 	public override string Icon => Pinta.Resources.Icons.ToolMove;
 	// Translators: {0} is 'Ctrl', or a platform-specific key such as 'Command' on macOS.
@@ -62,7 +77,46 @@ public sealed class MoveLayerTool : BaseTool
 		auto_select_layer.Active = Settings.GetSetting (SettingNames.MOVE_LAYER_AUTO_SELECT_LAYER, false);
 		toolbar.Append (auto_select_layer);
 
+		if (show_transform_controls is null) {
+			show_transform_controls = Gtk.CheckButton.NewWithLabel (Translations.GetString ("Show transform controls"));
+			show_transform_controls.Active = Settings.GetSetting (SettingNames.SHOW_TRANSFORM_CONTROLS, true);
+			show_transform_controls.OnToggled += HandleTransformControlsToggled;
+		}
+
+		toolbar.Append (show_transform_controls);
 		base.OnBuildToolBar (toolbar);
+	}
+
+	protected override void OnActivated (Document? document)
+	{
+		base.OnActivated (document);
+		workspace.ActiveDocumentChanged += HandleTransformTargetChanged;
+		workspace.SelectedLayerChanged += HandleTransformTargetChanged;
+		workspace.LayerTreeChanged += HandleTransformTargetChanged;
+		UpdateTransformHandle (document);
+	}
+
+	protected override void OnDeactivated (Document? document, BaseTool? newTool)
+	{
+		FinishResize (document);
+		FinishLayerDrag (document);
+		workspace.ActiveDocumentChanged -= HandleTransformTargetChanged;
+		workspace.SelectedLayerChanged -= HandleTransformTargetChanged;
+		workspace.LayerTreeChanged -= HandleTransformTargetChanged;
+		document?.FinishSelection ();
+		base.OnDeactivated (document, newTool);
+	}
+
+	protected override void OnAfterUndo (Document document)
+	{
+		base.OnAfterUndo (document);
+		UpdateTransformHandle (document);
+	}
+
+	protected override void OnAfterRedo (Document document)
+	{
+		base.OnAfterRedo (document);
+		UpdateTransformHandle (document);
 	}
 
 	protected override void OnMouseDown (Document document, ToolMouseEventArgs e)
@@ -70,12 +124,15 @@ public sealed class MoveLayerTool : BaseTool
 		if (e.MouseButton != MouseButton.Left)
 			return;
 
+		if (StartResize (document, e))
+			return;
+
 		if (!document.Workspace.PointInCanvas (e.PointDouble)) {
 			document.Layers.ClearCurrentUserLayer ();
 			return;
 		}
 
-		if (auto_select_layer?.Active == true && e.MouseButton == MouseButton.Left) {
+		if (auto_select_layer?.Active == true) {
 			UserLayer? layer = document.Layers.FindTopmostLayerAtPoint (e.PointDouble);
 			if (layer is null) {
 				document.Layers.ClearCurrentUserLayer ();
@@ -100,22 +157,32 @@ public sealed class MoveLayerTool : BaseTool
 
 	protected override void OnMouseMove (Document document, ToolMouseEventArgs e)
 	{
+		if (resized_layer is not null) {
+			UpdateResize (document, e);
+			return;
+		}
+
 		if (dragged_layer is null) {
-			base.OnMouseMove (document, e);
+			UpdateCursor (e.WindowPoint);
 			return;
 		}
 
 		PointD totalDelta = GetDragDelta (e.PointDouble);
-		document.Layers.TranslateLayerTree (dragged_layer, totalDelta - applied_drag_delta);
+		PointD delta = totalDelta - applied_drag_delta;
+		document.Layers.TranslateLayerTree (dragged_layer, delta);
 		applied_drag_delta = totalDelta;
+		TranslateTransformHandle (delta);
 	}
 
 	protected override void OnMouseUp (Document document, ToolMouseEventArgs e)
 	{
-		if (dragged_layer is null) {
-			base.OnMouseUp (document, e);
+		if (resized_layer is not null) {
+			FinishResize (document);
 			return;
 		}
+
+		if (dragged_layer is null)
+			return;
 
 		FinishLayerDrag (document);
 	}
@@ -134,7 +201,59 @@ public sealed class MoveLayerTool : BaseTool
 		UserLayer layer = document.Layers.CurrentUserLayer;
 		document.Layers.TranslateLayerTree (layer, delta);
 		document.History.PushNewItem (new MoveLayerTreeHistoryItem (Icon, Name, document, layer, delta));
+		TranslateTransformHandle (delta);
 		return true;
+	}
+
+	private bool StartResize (Document document, ToolMouseEventArgs e)
+	{
+		if (!transform_handle.Active || !transform_handle.BeginDrag (e.PointDouble, document.ImageSize))
+			return false;
+
+		if (!document.Layers.TryGetResizableLayerTreeBounds (document.Layers.CurrentUserLayer, out resize_start_bounds)) {
+			transform_handle.EndDrag ();
+			return false;
+		}
+
+		document.FinishSelection ();
+		resized_layer = document.Layers.CurrentUserLayer;
+		resize_current_bounds = resize_start_bounds;
+		return true;
+	}
+
+	private void UpdateResize (Document document, ToolMouseEventArgs e)
+	{
+		transform_handle.UpdateDrag (e.PointDouble, e.IsShiftPressed);
+		RectangleD target = transform_handle.Rectangle;
+		if (target.Width < 1 || target.Height < 1)
+			return;
+
+		document.Layers.ResizeLayerTree (resized_layer!, resize_current_bounds, target);
+		resize_current_bounds = target;
+	}
+
+	private void FinishResize (Document? document)
+	{
+		if (resized_layer is null)
+			return;
+
+		if (transform_handle.IsDragging)
+			transform_handle.EndDrag ();
+
+		if (document is not null && resize_start_bounds != resize_current_bounds)
+			document.History.PushNewItem (new ResizeLayerTreeHistoryItem (
+				Pinta.Resources.Icons.ImageResize,
+				Translations.GetString ("Resize Layer"),
+				document,
+				resized_layer,
+				resize_start_bounds,
+				resize_current_bounds));
+
+		resized_layer = null;
+		resize_start_bounds = RectangleD.Zero;
+		resize_current_bounds = RectangleD.Zero;
+		if (document is not null)
+			UpdateTransformHandle (document);
 	}
 
 	private void StartLayerDrag (Document document, PointD point)
@@ -148,9 +267,7 @@ public sealed class MoveLayerTool : BaseTool
 	}
 
 	private PointD GetDragDelta (PointD point)
-		=> new (
-			Math.Floor (point.X - drag_start_point.X),
-			Math.Floor (point.Y - drag_start_point.Y));
+		=> new (Math.Floor (point.X - drag_start_point.X), Math.Floor (point.Y - drag_start_point.Y));
 
 	private static PointD GetKeyDelta (ToolKeyEventArgs e)
 	{
@@ -164,9 +281,9 @@ public sealed class MoveLayerTool : BaseTool
 		};
 	}
 
-	private void FinishLayerDrag (Document document)
+	private void FinishLayerDrag (Document? document)
 	{
-		if (dragged_layer is not null && applied_drag_delta != PointD.Zero)
+		if (document is not null && dragged_layer is not null && applied_drag_delta != PointD.Zero)
 			document.History.PushNewItem (new MoveLayerTreeHistoryItem (
 				Icon,
 				Name,
@@ -180,28 +297,58 @@ public sealed class MoveLayerTool : BaseTool
 
 	protected override void OnCommit (Document? document)
 	{
-		if (document is null)
-			return;
-
+		FinishResize (document);
 		FinishLayerDrag (document);
-		document.FinishSelection ();
+		document?.FinishSelection ();
 	}
 
 	protected override void OnSaveSettings (ISettingsService settings)
 	{
 		base.OnSaveSettings (settings);
-
 		if (auto_select_layer is not null)
 			settings.PutSetting (SettingNames.MOVE_LAYER_AUTO_SELECT_LAYER, auto_select_layer.Active);
+		if (show_transform_controls is not null)
+			settings.PutSetting (SettingNames.SHOW_TRANSFORM_CONTROLS, show_transform_controls.Active);
 	}
 
-	protected override void OnDeactivated (Document? document, BaseTool? newTool)
+	private void HandleTransformControlsToggled (Gtk.CheckButton sender, EventArgs e)
 	{
-		base.OnDeactivated (document, newTool);
+		UpdateTransformHandle (workspace.HasOpenDocuments ? workspace.ActiveDocument : null);
+		workspace.Invalidate ();
+	}
 
-		if (document is not null) {
-			FinishLayerDrag (document);
-			document.FinishSelection ();
+	private void HandleTransformTargetChanged (object? sender, EventArgs e)
+	{
+		if (resized_layer is null)
+			UpdateTransformHandle (workspace.HasOpenDocuments ? workspace.ActiveDocument : null);
+	}
+
+	private void UpdateTransformHandle (Document? document)
+	{
+		if (document is null
+			|| show_transform_controls?.Active != true
+			|| !document.Layers.TryGetResizableLayerTreeBounds (document.Layers.CurrentUserLayer, out RectangleD bounds)) {
+			transform_handle.Active = false;
+			return;
 		}
+
+		transform_handle.Rectangle = bounds;
+		transform_handle.Active = bounds.Width > 0 && bounds.Height > 0;
+	}
+
+	private void TranslateTransformHandle (PointD delta)
+	{
+		if (!transform_handle.Active)
+			return;
+
+		RectangleD bounds = transform_handle.Rectangle;
+		transform_handle.Rectangle = bounds with { X = bounds.X + delta.X, Y = bounds.Y + delta.Y };
+	}
+
+	private void UpdateCursor (in PointD windowPoint)
+	{
+		SetCursor (transform_handle.Active
+			? transform_handle.GetCursorAtPoint (windowPoint) ?? DefaultCursor
+			: DefaultCursor);
 	}
 }

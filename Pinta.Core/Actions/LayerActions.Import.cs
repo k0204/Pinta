@@ -48,10 +48,6 @@ public sealed partial class LayerActions
 
 	private async void HandlePintaCoreActionsLayersImportFromFileActivated (object sender, EventArgs e)
 	{
-		Document doc = workspace.ActiveDocument;
-
-		tools.Commit ();
-
 		// Add image files filter
 		using Gtk.FileFilter imagesFilter = CreateImagesFileFilter ();
 
@@ -73,30 +69,35 @@ public sealed partial class LayerActions
 		if (directory is not null)
 			recent_files.LastDialogDirectory = directory;
 
-		// Open the image and add it to the layers
-		UserLayer layer = doc.Layers.AddNewLayer (choice.GetDisplayName ());
-
-		using (Gio.FileInputStream fs = choice.Read (null)) {
-			try {
-				using GdkPixbuf.Pixbuf bg = GdkPixbuf.Pixbuf.NewFromStream (fs, cancellable: null)!; // NRT: only nullable when an error is thrown
-				using Cairo.Context context = new (layer.Surface);
-				context.DrawPixbuf (bg, PointD.Zero);
-			} finally {
-				fs.Close (null);
-			}
+		tools.Commit ();
+		try {
+			ImportFile (workspace.ActiveDocument, choice);
+		} catch (Exception exception) {
+			await chrome.ShowErrorDialog (
+				chrome.MainWindow,
+				Translations.GetString ("Failed to open image"),
+				exception.Message,
+				exception.ToString ());
 		}
+	}
 
-		AddLayerHistoryItem hist = new (
+	private static void ImportFile (Document document, Gio.File file)
+	{
+		using Cairo.ImageSurface image = file.LoadImageSurface ();
+		UserLayer layer = document.Layers.AddNewLayer (file.GetDisplayName ());
+		using Cairo.Context context = new (layer.Surface);
+		context.SetSourceSurface (image, 0, 0);
+		context.Paint ();
+
+		AddLayerHistoryItem history = new (
 			Resources.Icons.LayerImport,
 			Translations.GetString ("Import From File"),
 			layer,
-			doc.Layers.GetPosition (layer));
+			document.Layers.GetPosition (layer));
 
-		// --- Changes to document go after everything else is completed successfully
-
-		doc.Layers.SetCurrentUserLayer (layer);
-		doc.History.PushNewItem (hist);
-		doc.Workspace.Invalidate ();
+		document.Layers.SetCurrentUserLayer (layer);
+		document.History.PushNewItem (history);
+		document.Workspace.Invalidate ();
 	}
 
 }

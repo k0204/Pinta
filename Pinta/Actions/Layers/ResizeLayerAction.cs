@@ -66,11 +66,10 @@ internal sealed class ResizeLayerAction : IActionHandler
 	private async void Activated (object sender, EventArgs e)
 	{
 		Document doc = workspace.ActiveDocument;
+		tools.Commit ();
 		UserLayer layer = doc.Layers.CurrentUserLayer;
 		if (!TryGetLayerSize (layer, out Size layerSize))
 			return;
-
-		tools.Commit ();
 
 		Size canvasSize = layer is AnimationOutputLayer animation
 			? new Size (animation.CanvasWidth, animation.CanvasHeight)
@@ -119,19 +118,42 @@ internal sealed class ResizeLayerAction : IActionHandler
 			return false;
 		}
 
-		size = new Size (layer.Surface.Width, layer.Surface.Height);
+		size = Utility.GetAlphaBounds (layer.Surface).Size;
 		return true;
 	}
 
 	private static BaseHistoryItem ResizeUserLayer (UserLayer layer, ResizeLayerOptions resizing)
 	{
 		ImageSurface oldSurface = layer.Surface.Clone ();
-		layer.Resize (resizing.NewSize, resizing.ResamplingMode);
+		if (resizing.UseCanvasSizeAsOriginal)
+			layer.Resize (resizing.NewSize, resizing.ResamplingMode);
+		else
+			ResizeLayerContent (layer, resizing.NewSize, resizing.ResamplingMode);
 		return new SimpleHistoryItem (
 			Resources.Icons.ImageResize,
 			Translations.GetString ("Resize Layer"),
 			oldSurface,
 			layer);
+	}
+
+	private static void ResizeLayerContent (UserLayer layer, Size newSize, ResamplingMode resamplingMode)
+	{
+		RectangleI bounds = Utility.GetAlphaBounds (layer.Surface);
+		using ImageSurface content = CairoExtensions.CreateImageSurface (Format.Argb32, bounds.Width, bounds.Height);
+		using (Context cropContext = new (content)) {
+			cropContext.SetSourceSurface (layer.Surface, -bounds.X, -bounds.Y);
+			cropContext.Paint ();
+		}
+
+		int surfaceWidth = Math.Max (layer.Surface.Width, checked (bounds.X + newSize.Width));
+		int surfaceHeight = Math.Max (layer.Surface.Height, checked (bounds.Y + newSize.Height));
+		ImageSurface resized = CairoExtensions.CreateImageSurface (Format.Argb32, surfaceWidth, surfaceHeight);
+		using Context context = new (resized);
+		context.Translate (bounds.X, bounds.Y);
+		context.Scale (newSize.Width / (double) bounds.Width, newSize.Height / (double) bounds.Height);
+		context.SetSourceSurface (content, resamplingMode);
+		context.Paint ();
+		layer.Surface = resized;
 	}
 
 	private static BaseHistoryItem ResizeAnimationLayer (Document document, AnimationOutputLayer layer, ResizeLayerOptions resizing)

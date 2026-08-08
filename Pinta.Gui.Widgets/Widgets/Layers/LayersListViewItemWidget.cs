@@ -35,8 +35,6 @@ namespace Pinta.Gui.Widgets;
 [GObject.Subclass<GObject.Object>]
 public sealed partial class LayersListViewItem
 {
-	private CanvasRenderer? canvas_renderer;
-
 	// NRT - GObject requires a parameterless constructor, and these don't have simple defaults
 	private Document? document;
 	public UserLayer? UserLayer { get; private set; }
@@ -63,30 +61,18 @@ public sealed partial class LayersListViewItem
 		if (document is null || UserLayer is null)
 			throw new InvalidOperationException ($"{nameof (LayersListViewItem)} is not initialized");
 
-		ImageSurface surface = CairoExtensions.CreateImageSurface (Format.Argb32, widthRequest, heightRequest);
 		if (UserLayer is AnimationOutputLayer animationOutput)
-			return animationOutput.CreateThumbnailSurface () ?? surface;
+			return animationOutput.CreateThumbnailSurface ()
+				?? CairoExtensions.CreateImageSurface (Format.Argb32, widthRequest, heightRequest);
 		if (UserLayer is GroupLayer)
-			return surface;
+			return CairoExtensions.CreateImageSurface (Format.Argb32, widthRequest, heightRequest);
 
 		List<Layer> layers = UserLayer.GetLayersToPaint ().ToList ();
 		// For the current layer, show the selection layer too (e.g. when moving the selection's contents).
 		if (UserLayer == document.Layers.CurrentUserLayer && document.Layers.ShowSelectionLayer)
 			layers.Add (document.Layers.SelectionLayer);
 
-		// Directly use the layer's surface if there isn't any blending required.
-		if (layers.Count == 1)
-			return layers[0].Surface;
-
-		canvas_renderer ??= new CanvasRenderer (
-			PintaCore.LivePreview,
-			PintaCore.Workspace,
-			enableLivePreview: false,
-			enableBackgroundPattern: true);
-		canvas_renderer.Initialize (document.ImageSize, new Size (widthRequest, heightRequest));
-		canvas_renderer.Render (layers, surface, PointI.Zero);
-
-		return surface;
+		return LayerActions.RenderLayers (layers);
 	}
 
 	public void HandleVisibilityToggled (bool visible)
@@ -473,6 +459,8 @@ public sealed partial class LayersListViewItemWidget
 
 		Gio.Menu operationsSection = Gio.Menu.New ();
                 operationsSection.AppendItem (actions.AddNewGroup.CreateMenuItem ());
+		if (item.UserLayer.GetType () == typeof (UserLayer))
+			operationsSection.AppendItem (actions.ImportFromFile.CreateMenuItem ());
 		operationsSection.AppendItem (actions.GenerateImage.CreateMenuItem ());
 		operationsSection.AppendItem (actions.GenerateVideo.CreateMenuItem ());
 		operationsSection.AppendItem (actions.Cutout.CreateMenuItem ());
@@ -570,6 +558,7 @@ public sealed partial class LayersListViewItemWidget
 			? Translations.GetString ("Hide Layer")
 			: Translations.GetString ("Show Layer");
 
+		thumbnail_surface?.Dispose ();
 		thumbnail_surface = null;
 		item_thumbnail.QueueDraw ();
 	}
@@ -626,6 +615,13 @@ public sealed partial class LayersListViewItemWidget
 		g.Stroke ();
 
 		g.Dispose ();
+	}
+
+	public override void Dispose ()
+	{
+		thumbnail_surface?.Dispose ();
+		thumbnail_surface = null;
+		base.Dispose ();
 	}
 }
 
