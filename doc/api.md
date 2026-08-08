@@ -126,13 +126,14 @@ The client stores background prompts in `config/gpt-image-prompts.json` and read
   - `prompt`: required video prompt text
   - `provider`: optional video provider ID; omitted values use the server default
   - `model`: optional video model ID; omitted values use the provider default model
+  - `mode`: optional generation mode: `first_frame` requires one image, `first_last_frame` requires two ordered images, and `multi_image` accepts 2-10 ordered images. Pinta always sends this field; omission retains the provider's legacy image-input behavior.
   - `parameters`: optional JSON object string containing provider-specific video parameters
 - Response: `202 Accepted` with a video job object containing `id`, `status`, `operation`, and job metadata.
 - Client behavior: polls `GET /api/videos/jobs/{id}` while status is `queued` or `processing`. When status is `completed`, it reads `GET /api/videos/jobs/{id}/result`.
-- Result JSON includes `operation`, `provider`, `model`, `prompt`, `task_id`, `request_id`, and `video_url`.
-- Pinta sends the selected layer first, followed by any selected reference files, as repeated `reference_image` fields. It downloads `video_url` after the job completes and saves the result through the user's `.mp4` file selection.
+- Result JSON includes `operation`, `provider`, `model`, `prompt`, `video_mode`, `task_id`, `request_id`, and `video_url`.
+- Pinta sends the selected layer first, followed by any selected reference files, as repeated `reference_image` fields. The server maps those ordered files to the selected mode's typed media input. Pinta downloads `video_url` after the job completes and saves the result through the user's `.mp4` file selection.
 - Failed jobs return `status: failed` and an `error_message` from the video job status endpoint.
-- Blank prompts and unsupported image content types are rejected with `400 Bad Request` before the job is queued or balance is deducted.
+- Blank prompts, unsupported image content types, invalid modes, and image counts that do not match the mode are rejected with `400 Bad Request` before the job is queued or balance is deducted.
 
 ## Chat and Sprite Analysis
 
@@ -141,10 +142,10 @@ All requests in this section include `Authorization: Bearer <token>`.
 ### Provider Catalog
 
 - Method: `GET`
-- Path: `/api/providers`
+- Path: `/api/providers/catalog`
 - Auth: none
-- Response: an array containing public provider metadata: `id`, `name`, `supports_chat`, `supports_image`, `models`, `image_type`, `channel`, `image_sizes`, `image_resolutions`, and `image_cost`. `image_sizes` and `image_resolutions` are service-specific capabilities; `image_cost` is the configured cost for one `/api/images` generation. Credentials, URLs, and model configuration are never returned.
-- Client behavior: Pinta refreshes this catalog once during startup and caches the last successful response. Chat features show only providers with `supports_chat=true`; image features can use the same catalog filtered by `supports_image=true`. Generation dialogs use the cached provider-specific sizes and cost without making a per-request capability query.
+- Response: an object with separate `image_providers` and `video_providers` arrays. Image entries contain `id`, `name`, `supports_chat`, `supports_image`, `models`, `image_type`, `channel`, `image_sizes`, `image_resolutions`, and `image_cost`. Video entries contain `id`, `name`, `models`, `default_model`, `supports_video`, `supports_image_to_video`, `supports_reference_video`, and `video_cost`. Credentials and provider URLs are never returned.
+- Client behavior: Pinta refreshes this catalog once during startup and caches the last successful response. Chat and image features filter `image_providers`; the image-to-video dialog lists `video_providers` as channels and excludes reference-video (`r2v`) models. Generation dialogs use cached costs and capabilities without making a per-request query.
 
 ### Create Chat Job
 

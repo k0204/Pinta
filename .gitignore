@@ -37,3 +37,6 @@ xdg/pinta.desktop
 xdg/pinta.appdata.xml
 .vs
 .vscode
+/ffmpeg-8.1-full_build-shared
+/tmp
+/tmp

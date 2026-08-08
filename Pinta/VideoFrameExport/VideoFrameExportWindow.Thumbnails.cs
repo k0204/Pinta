@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using Pinta.Core;
 
@@ -11,23 +12,40 @@ internal sealed partial class VideoFrameExportWindow
 		while (filmstrip.GetFirstChild () is Gtk.Widget child)
 			filmstrip.Remove (child);
 
-		foreach (VideoFramePreview preview in previews)
-			filmstrip.Append (CreateThumbnailButton (preview));
-		UpdateSelectionSummary ();
+		IEnumerable<VideoFramePreview> visible = selectedFramesButton.Active
+			? previews.Where (preview => selectedIndices.Contains (preview.SourceIndex))
+			: previews;
+		VideoFramePreview[] visiblePreviews = visible.ToArray ();
+		for (int index = 0; index < visiblePreviews.Length; index++)
+			filmstrip.Attach (CreateThumbnailButton (visiblePreviews[index]), index % 3, index / 3, 1, 1);
+		UpdateSelectionSummary (visiblePreviews.Length);
 	}
 
 	private Gtk.ToggleButton CreateThumbnailButton (VideoFramePreview preview)
 	{
 		Gtk.ToggleButton button = Gtk.ToggleButton.New ();
-		button.WidthRequest = 116;
-		button.HeightRequest = 122;
-		button.Active = selectedIndices.Contains (preview.SourceIndex);
+		button.WidthRequest = 0;
+		button.HeightRequest = 132;
+		button.Hexpand = true;
+		Gtk.CheckButton selectedIndicator = Gtk.CheckButton.New ();
+		selectedIndicator.SetCanTarget (false);
+		selectedIndicator.Valign = Gtk.Align.Start;
+		selectedIndicator.Halign = Gtk.Align.Start;
+		selectedIndicator.SetMarginTop (6);
+		selectedIndicator.SetMarginStart (6);
+		selectedIndicator.Active = selectedIndices.Contains (preview.SourceIndex);
+		button.Active = selectedIndicator.Active;
 		button.SetTooltipText (Translations.GetString ("Frame {0} at {1}", preview.SourceIndex + 1, FormatTime (preview.Time.TotalSeconds)));
 		button.OnToggled += (_, _) => {
-			if (button.Active)
+			selectedIndicator.Active = button.Active;
+			if (button.Active) {
 				selectedIndices.Add (preview.SourceIndex);
-			else
+				SetFrameIndex (preview.SourceIndex);
+			} else {
 				selectedIndices.Remove (preview.SourceIndex);
+				if (preview.SourceIndex == currentFrameIndex)
+					MoveToSelectedNeighbor (preview.SourceIndex);
+			}
 			UpdateSelectionSummary ();
 		};
 
@@ -35,10 +53,13 @@ internal sealed partial class VideoFrameExportWindow
 		Gtk.Picture picture = Gtk.Picture.New ();
 		picture.SetPaintable (preview.Texture);
 		picture.ContentFit = Gtk.ContentFit.Contain;
-		picture.SetSizeRequest (104, 82);
+		picture.SetSizeRequest (-1, 96);
 		picture.Hexpand = true;
 		picture.Vexpand = true;
-		content.Append (picture);
+		Gtk.Overlay imageArea = Gtk.Overlay.New ();
+		imageArea.SetChild (picture);
+		imageArea.AddOverlay (selectedIndicator);
+		content.Append (imageArea);
 
 		Gtk.Label frameLabel = Gtk.Label.New (Translations.GetString ("F{0}", preview.SourceIndex + 1));
 		frameLabel.AddCssClass ("monospace");
@@ -52,12 +73,13 @@ internal sealed partial class VideoFrameExportWindow
 		return button;
 	}
 
-	private void UpdateSelectionSummary ()
+	private void UpdateSelectionSummary (int? visibleCount = null)
 	{
-		int total = metadata?.TotalFrames ?? 0;
-		string summary = Translations.GetString ("{0} selected / {1}", selectedIndices.Count, total);
+		int shown = visibleCount ?? previews.Count;
+		string summary = Translations.GetString ("{0} shown · {1} selected", shown, selectedIndices.Count);
 		selectionLabel.SetText (summary);
 		filmstripSummary.SetText (summary);
+		playButton.Sensitive = previews.Count >= 2 && selectedIndices.Count >= 2;
 		UpdateExportState ();
 	}
 
@@ -85,5 +107,20 @@ internal sealed partial class VideoFrameExportWindow
 		for (int index = start; index <= end; index++)
 			selectedIndices.Add (index);
 		RebuildFilmstrip ();
+	}
+
+	private void MoveToSelectedNeighbor (int sourceIndex)
+	{
+		int? next = previews
+			.Where (preview => preview.SourceIndex > sourceIndex && selectedIndices.Contains (preview.SourceIndex))
+			.Select (preview => (int?) preview.SourceIndex)
+			.FirstOrDefault ();
+		int? previous = previews
+			.Where (preview => preview.SourceIndex < sourceIndex && selectedIndices.Contains (preview.SourceIndex))
+			.Select (preview => (int?) preview.SourceIndex)
+			.LastOrDefault ();
+		int? replacement = next ?? previous;
+		if (replacement is int index)
+			SetFrameIndex (index);
 	}
 }

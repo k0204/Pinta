@@ -374,7 +374,17 @@ internal sealed partial class MainWindow
 			useMenuBar: IsUsingMenuBar ());
 
 #if WINDOWS
-		WindowsWindowPlacement.Restore (x, y, width, height);
+		bool placement_restored = false;
+		window_shell.Window.OnMap += (_, _) => {
+			if (placement_restored)
+				return;
+
+			placement_restored = true;
+			GLib.Functions.IdleAdd (0, () => {
+				WindowsWindowPlacement.Restore (x, y, width, height);
+				return false;
+			});
+		};
 #endif
 		if (maximize)
 			window_shell.Window.Maximize ();

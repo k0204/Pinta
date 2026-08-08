@@ -4162,3 +4162,234 @@ msgstr ""
 #: Pinta/Pads/LayersPad.cs
 msgid "No video imported"
 msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Background.cs:851
+msgid "Frames per direction:"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Background.cs:926
+#, csharp-format
+msgid "{0} directions / {1} x {2} grid"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Background.cs:928
+#, csharp-format
+msgid "{0} frames / {1} x {2} grid"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Background.cs:930
+#, csharp-format
+msgid "{0} direction(s) x {1} frames = {2} frames / {3} x {4} grid"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Background.cs:1006
+#, csharp-format
+msgid "{0}  {1} x {2} px"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.Background.cs:1030
+#, csharp-format
+msgid "{0} x {1} px"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.ImageSize.cs:50
+#: Pinta.Core/Actions/LayerActions.ImageSplitPreview.cs:142
+#: Pinta.Core/Actions/LayerActions.VideoDialog.cs:213
+msgid "Resolution:"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.ImageSize.cs:52
+#: Pinta.Core/Actions/LayerActions.VideoDialog.cs:113
+msgid "Aspect ratio:"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.ImageSize.cs:140
+#, csharp-format
+msgid "Detected resolution: {0}"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.ImageSize.cs:157
+msgid "1K"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.ImageSize.cs:158
+msgid "2K"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.ImageSize.cs:159
+msgid "4K"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.VideoDialog.cs:62
+msgid "No video generation channel is available."
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.VideoDialog.cs:109
+msgid "Choose Images..."
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.VideoDialog.cs:116
+msgid "Generate audio"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.VideoDialog.cs:117
+msgid "Add watermark"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.VideoDialog.cs:170
+msgid "Model Settings"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.VideoDialog.cs:173
+msgid "Input Media"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.VideoDialog.cs:177
+msgid "Video Prompt"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.VideoDialog.cs:179
+msgid "Output Settings"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.VideoDialog.cs:197
+msgid "Channel:"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.VideoDialog.cs:199
+msgid "Model:"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.VideoDialog.cs:201
+msgid "Generation mode:"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.VideoDialog.cs:217
+msgid "Duration (seconds):"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.VideoDialog.cs:241
+#, csharp-format
+msgid "{0} credits"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.VideoDialog.cs:248
+msgid "First frame"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.VideoDialog.cs:249
+msgid "First and last frames"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.VideoDialog.cs:250
+msgid "Multiple images"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.VideoDialog.cs:251
+msgid ""
+"Supports a first frame, first and last frames, or up to 10 reference images."
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.VideoDialog.cs:262
+msgid "Choose Last Frame..."
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.VideoDialog.cs:263
+msgid "Choose Reference Images..."
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.VideoDialog.cs:266
+msgid "No last frame selected"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.VideoDialog.cs:267
+msgid "No reference images selected"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.VideoDialog.cs:290
+#, csharp-format
+msgid "{0} image(s) selected"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.VideoDialog.cs:312
+msgid "Current layer"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.VideoDialog.cs:318
+msgid "Last frame"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.VideoDialog.cs:319
+#, csharp-format
+msgid "Reference {0}"
+msgstr ""
+
+#: Pinta.Core/ai/BackgroundCutoutService.cs:274
+#, csharp-format
+msgid "Generating {0} ({1})..."
+msgstr ""
+
+#: Pinta.Core/ImageFormats/PintaDocumentFormat.cs:569
+msgid "The Pinta project video resource is invalid."
+msgstr ""
+
+#: Pinta.Core/ImageFormats/PintaDocumentFormat.Resources.cs:67
+msgid "The imported video file could not be found."
+msgstr ""
+
+#: Pinta.Gui.Widgets/Widgets/Layers/LayersListViewItemWidget.cs:570
+msgid "Edit Video"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportProcess.cs:35
+msgid "Choose a valid FFmpeg directory."
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportProcess.cs:43
+msgid "The selected directory must contain ffmpeg and ffprobe."
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportProcess.cs:47
+msgid "The selected FFmpeg directory is missing required shared libraries."
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportProcess.cs:177
+msgid "Select an FFmpeg directory before editing video."
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.Ffmpeg.cs:26
+msgid "FFmpeg directory not configured"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.Ffmpeg.cs:29
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.Ffmpeg.cs:92
+msgid "Select FFmpeg Directory..."
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.Ffmpeg.cs:46
+msgid "FFmpeg is ready."
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.Ffmpeg.cs:47
+msgid "Select the folder containing FFmpeg before editing video."
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.Ffmpeg.cs:65
+msgid "Select FFmpeg Directory"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.Ffmpeg.cs:78
+msgid "FFmpeg directory verified and saved."
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.Ffmpeg.cs:91
+msgid "Update FFmpeg Directory..."
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:207
+msgid "Frame sequence"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:208
+msgid "Source video"
+msgstr ""

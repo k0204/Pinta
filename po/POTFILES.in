@@ -37,6 +37,7 @@ Pinta.Core/Actions/LayerActions.Spritesheet.cs
 Pinta.Core/Actions/LayerActions.SpritesheetAlignment.cs
 Pinta.Core/Actions/LayerActions.SpritesheetSplit.cs
 Pinta.Core/Actions/LayerActions.Video.cs
+Pinta.Core/Actions/LayerActions.VideoDialog.cs
 Pinta.Core/Actions/MultiDirectionAnimationEditor.cs
 Pinta.Core/Actions/SingleDirectionAnimationEditor.cs
 Pinta.Core/Actions/ViewActions.cs
@@ -237,6 +238,7 @@ Pinta.Core/ImageFormats/JpegFormat.cs
 Pinta.Core/ImageFormats/NetpbmPortablePixmap.cs
 Pinta.Core/ImageFormats/OraFormat.cs
 Pinta.Core/ImageFormats/PintaDocumentFormat.cs
+Pinta.Core/ImageFormats/PintaDocumentFormat.Resources.cs
 Pinta.Core/ImageFormats/PintaDocumentManifest.cs
 Pinta.Core/ImageFormats/TgaExporter.cs
 Pinta.Core/Managers/ActionManager.cs
@@ -505,7 +507,10 @@ Pinta/VideoFrameExport/VideoFrameExportModels.cs
 Pinta/VideoFrameExport/VideoFrameExportProcess.cs
 Pinta/VideoFrameExport/VideoFrameExportWindow.cs
 Pinta/VideoFrameExport/VideoFrameExportWindow.Export.cs
+Pinta/VideoFrameExport/VideoFrameExportWindow.Ffmpeg.cs
+Pinta/VideoFrameExport/VideoFrameExportWindow.Fullscreen.cs
 Pinta/VideoFrameExport/VideoFrameExportWindow.Media.cs
+Pinta/VideoFrameExport/VideoFrameExportWindow.Playback.cs
 Pinta/VideoFrameExport/VideoFrameExportWindow.Thumbnails.cs
 Pinta/WindowShell.cs
 Pinta/WindowsWindowPlacement.cs

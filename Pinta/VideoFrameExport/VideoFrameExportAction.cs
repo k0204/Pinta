@@ -24,11 +24,31 @@ internal sealed class VideoFrameExportAction
 
 	public Command Command { get; }
 
-	public void ImportVideoForLayer (VideoEditingLayer layer)
+	public async void ImportVideoForLayer (VideoEditingLayer layer)
+	{
+		using Gtk.FileDialog dialog = Gtk.FileDialog.New ();
+		dialog.SetTitle (Translations.GetString ("Open Video"));
+		using Gtk.FileFilter filter = Gtk.FileFilter.New ();
+		filter.Name = Translations.GetString ("Video files");
+		foreach (string pattern in new[] { "*.mp4", "*.mov", "*.mkv", "*.avi", "*.webm", "*.m4v" })
+			filter.AddPattern (pattern);
+		using Gio.ListStore filters = Gio.ListStore.New (Gtk.FileFilter.GetGType ());
+		filters.Append (filter);
+		dialog.SetFilters (filters);
+
+		Gio.File? file = await dialog.OpenFileAsync (PintaCore.Chrome.MainWindow);
+		string? filename = file?.GetPath ();
+		if (string.IsNullOrWhiteSpace (filename))
+			return;
+
+		layer.VideoPath = filename;
+		VideoImported?.Invoke (this, EventArgs.Empty);
+	}
+
+	public void EditVideoLayer (VideoEditingLayer layer)
 	{
 		EnsureWindow (layer);
 		window!.Present ();
-		window!.ImportVideo ();
 	}
 
 	public void Register (Gtk.Application app, Gio.Menu menu)
@@ -48,10 +68,11 @@ internal sealed class VideoFrameExportAction
 
 	private void EnsureWindow (VideoEditingLayer? videoLayer)
 	{
-		if (window is not null) {
+		if (window is not null && window.IsForLayer (videoLayer)) {
 			window.Present ();
 			return;
 		}
+		window?.Close ();
 
 		window = new VideoFrameExportWindow (application, PintaCore.Chrome.MainWindow, videoLayer);
 		window.Closed += HandleWindowClosed;
@@ -66,7 +87,8 @@ internal sealed class VideoFrameExportAction
 		if (sender is VideoFrameExportWindow closedWindow) {
 			closedWindow.VideoLoaded -= HandleVideoLoaded;
 			closedWindow.Closed -= HandleWindowClosed;
+			if (ReferenceEquals (window, closedWindow))
+				window = null;
 		}
-		window = null;
 	}
 }

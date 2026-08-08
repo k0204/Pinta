@@ -50,7 +50,7 @@ public sealed partial class LayersListView
 	private LayersListViewItemWidget? drag_preview_source;
 	private readonly List<LayersListViewItemWidget> row_widgets = [];
 	private readonly List<LayerPreviewWindow> layer_preview_windows = [];
-	public event EventHandler? VideoImportRequested;
+	public event EventHandler? VideoEditorRequested;
 
 	public static new LayersListView New ()
 		=> NewWithProperties ([]);
@@ -149,7 +149,7 @@ public sealed partial class LayersListView
 		widget.LayerDragCanceled += HandleLayerDragCanceled;
 		widget.LayerSelectionRequested += HandleLayerSelectionRequested;
 		widget.LayerPreviewRequested += HandleLayerPreviewRequested;
-		widget.VideoImportRequested += (_, args) => VideoImportRequested?.Invoke (this, args);
+		widget.VideoEditorRequested += (_, args) => VideoEditorRequested?.Invoke (this, args);
 		row_widgets.Add (widget);
 		item.SetChild (widget);
 	}

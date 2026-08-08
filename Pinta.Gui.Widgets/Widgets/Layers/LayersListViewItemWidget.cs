@@ -161,7 +161,7 @@ public sealed partial class LayersListViewItemWidget
 	public event EventHandler? LayerDragCanceled;
 	public event EventHandler<LayerSelectionEventArgs>? LayerSelectionRequested;
 	public event EventHandler<LayerPreviewRequestedEventArgs>? LayerPreviewRequested;
-	public event EventHandler? VideoImportRequested;
+	public event EventHandler? VideoEditorRequested;
 	public int Depth => item?.Depth ?? 0;
 	public UserLayer? UserLayer => item?.UserLayer;
 
@@ -227,7 +227,7 @@ public sealed partial class LayersListViewItemWidget
 		importVideoButton.TooltipText = Translations.GetString ("Import Video");
 		importVideoButton.OnClicked += (_, _) => {
 			SelectCurrentLayer ();
-			VideoImportRequested?.Invoke (this, EventArgs.Empty);
+			VideoEditorRequested?.Invoke (this, EventArgs.Empty);
 		};
 
                 Gtk.Image visibleButton = Gtk.Image.New ();
@@ -560,10 +560,15 @@ public sealed partial class LayersListViewItemWidget
 				? item.UserLayer!.ReferenceMissing ? Translations.GetString ("Referenced image is missing") : Translations.GetString ("Referenced layer is locked")
 				: null;
 			layer_icon.Visible = isGroup || isReference;
-			bool showVideoActions = item.UserLayer is VideoEditingLayer videoLayer
-				&& string.IsNullOrWhiteSpace (videoLayer.VideoPath);
-			generate_video_button.Visible = showVideoActions;
-			import_video_button.Visible = showVideoActions;
+			bool isVideoLayer = item.UserLayer is VideoEditingLayer;
+			bool hasVideo = item.UserLayer is VideoEditingLayer videoLayer
+				&& !string.IsNullOrWhiteSpace (videoLayer.VideoPath);
+			generate_video_button.Visible = isVideoLayer && !hasVideo;
+			import_video_button.Visible = isVideoLayer;
+			import_video_button.SetIconName (hasVideo ? "document-edit-symbolic" : Resources.Icons.LayerImport);
+			import_video_button.TooltipText = hasVideo
+				? Translations.GetString ("Edit Video")
+				: Translations.GetString ("Import Video");
 			cutout_button.Sensitive = item.UserLayer?.IsEditable == true;
                 visible_button.IconName = item.Visible ? Resources.StandardIcons.ViewReveal : Resources.StandardIcons.ViewConceal;
 		visible_button.TooltipText = item.Visible

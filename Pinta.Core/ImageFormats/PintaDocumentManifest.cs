@@ -36,6 +36,7 @@ public sealed class PintaDocumentLayerNode
 	public int? SurfaceWidth { get; set; }
 	public int? SurfaceHeight { get; set; }
 	public string? ReferencePath { get; set; }
+	public string? Video { get; set; }
 	public Dictionary<string, string> Metadata { get; set; } = [];
 	public SpritesheetSplitData? SpritesheetSplit { get; set; }
 	public PintaDocumentMatrix Transform { get; set; } = new ();

@@ -24,98 +24,19 @@ public sealed partial class LayerActions
 		EnableOrDisableLayerActions (null, EventArgs.Empty);
 		try {
 			UserLayer layer = document.Layers.CurrentUserLayer;
-			(string Prompt, IReadOnlyList<Gio.File> ReferenceFiles)? request =
-				await PromptVideoRequestAsync (layer);
+			VideoGenerationRequestOptions? request = await PromptVideoRequestAsync (layer);
 			if (request is not null)
-				await GenerateVideoAsync (layer, request.Value.Prompt, request.Value.ReferenceFiles);
+				await GenerateVideoAsync (document, layer, request);
 		} finally {
 			video_running = false;
 			EnableOrDisableLayerActions (null, EventArgs.Empty);
 		}
 	}
 
-	private async Task<(string Prompt, IReadOnlyList<Gio.File> ReferenceFiles)?> PromptVideoRequestAsync (UserLayer layer)
-	{
-		using Gtk.Dialog dialog = Gtk.Dialog.New ();
-		dialog.Title = Translations.GetString ("Generate Video");
-		dialog.TransientFor = chrome.MainWindow;
-		dialog.Modal = true;
-		dialog.DefaultWidth = 520;
-
-		Gtk.Label sourceLabel = Gtk.Label.New (
-			Translations.GetString ("Source layer: {0}", layer.Name));
-		sourceLabel.Halign = Gtk.Align.Start;
-
-		Gtk.TextView promptView = Gtk.TextView.New ();
-		promptView.WrapMode = Gtk.WrapMode.WordChar;
-		promptView.SetSizeRequest (-1, 130);
-		promptView.Buffer!.SetText (string.Empty, -1);
-
-		List<Gio.File> referenceFiles = [];
-		Gtk.Label referenceLabel = Gtk.Label.New (Translations.GetString ("No files selected"));
-		referenceLabel.Halign = Gtk.Align.Start;
-		referenceLabel.Wrap = true;
-		Gtk.Button chooseReferencesButton = Gtk.Button.NewWithLabel (
-			Translations.GetString ("Choose Reference Images"));
-		chooseReferencesButton.Halign = Gtk.Align.Start;
-		chooseReferencesButton.OnClicked += async (_, _) => {
-			using Gtk.FileFilter imagesFilter = CreateImagesFileFilter ();
-			using Gio.ListStore fileFilters = Gio.ListStore.New (Gtk.FileFilter.GetGType ());
-			fileFilters.Append (imagesFilter);
-			using Gtk.FileDialog fileDialog = Gtk.FileDialog.New ();
-			fileDialog.SetTitle (Translations.GetString ("Choose Reference Images"));
-			fileDialog.SetFilters (fileFilters);
-			if (recent_files.GetDialogDirectory () is Gio.File directory && directory.QueryExists (null))
-				fileDialog.SetInitialFolder (directory);
-
-			IReadOnlyList<Gio.File>? choices = await fileDialog.OpenFilesAsync (dialog);
-			if (choices is null)
-				return;
-
-			referenceFiles.Clear ();
-			referenceFiles.AddRange (choices);
-			referenceLabel.SetText (referenceFiles.Count == 0
-				? Translations.GetString ("No files selected")
-				: string.Join (", ", referenceFiles.ConvertAll (file => file.GetDisplayName ())));
-			if (referenceFiles.Count > 0 && referenceFiles[0].GetParent () is Gio.File parent)
-				recent_files.LastDialogDirectory = parent;
-		};
-
-		Gtk.Box content = dialog.GetContentAreaBox ();
-		content.Spacing = 8;
-		content.SetAllMargins (12);
-		content.Append (sourceLabel);
-		content.Append (chooseReferencesButton);
-		content.Append (referenceLabel);
-		content.Append (Gtk.Label.New (Translations.GetString ("Video prompt:")));
-		content.Append (promptView);
-
-		dialog.AddButton (Translations.GetString ("_Cancel"), (int) Gtk.ResponseType.Cancel);
-		dialog.AddButton (Translations.GetString ("_Generate"), (int) Gtk.ResponseType.Ok);
-		dialog.SetDefaultResponse (Gtk.ResponseType.Ok);
-
-		Gtk.ResponseType response = await dialog.RunAsync ();
-		dialog.Hide ();
-		if (response != Gtk.ResponseType.Ok)
-			return null;
-
-		Gtk.TextBuffer buffer = promptView.Buffer!;
-		buffer.GetBounds (out Gtk.TextIter start, out Gtk.TextIter end);
-		string prompt = buffer.GetText (start, end, includeHiddenChars: true).Trim ();
-		if (!string.IsNullOrWhiteSpace (prompt))
-			return (prompt, referenceFiles);
-
-		await chrome.ShowMessageDialog (
-			chrome.MainWindow,
-			Translations.GetString ("Generate Video"),
-			Translations.GetString ("Enter a video prompt before generating."));
-		return null;
-	}
-
 	private async Task GenerateVideoAsync (
+		Document document,
 		UserLayer layer,
-		string prompt,
-		IReadOnlyList<Gio.File> referenceFiles)
+		VideoGenerationRequestOptions request)
 	{
 		using CancellationTokenSource cts = new ();
 		IProgressDialog progress = chrome.ProgressDialog;
@@ -130,15 +51,8 @@ public sealed partial class LayerActions
 
 		try {
 			SetProgress (Translations.GetString ("Preparing source layer..."), 0.15);
-			List<(byte[] Data, string FileName)> references = [(CreateLayerPng (layer), "pinta.png")];
-			foreach (Gio.File referenceFile in referenceFiles)
-				references.Add (LoadReferenceImage (referenceFile));
 			SetProgress (Translations.GetString ("Generating video..."), 0.25);
-
-			using JsonDocument result = await video_jobs.RunVideoFromImageAsync (
-				references,
-				prompt,
-				cancellationToken: cts.Token);
+			using JsonDocument result = await SubmitVideoRequestAsync (layer, request, cts.Token);
 			string videoUrl = ReadVideoUrl (result.RootElement);
 
 			SetProgress (Translations.GetString ("Downloading generated video..."), 0.75);
@@ -158,6 +72,11 @@ public sealed partial class LayerActions
 			chrome.MainWindowBusy = true;
 			SetProgress (Translations.GetString ("Saving video..."), 0.9);
 			await Task.Run (() => SaveVideo (file, video), cts.Token);
+			if (layer is VideoEditingLayer videoLayer && file.GetPath () is string videoPath) {
+				videoLayer.VideoPath = videoPath;
+				document.IsDirty = true;
+				document.Layers.NotifyLayerTreeChanged ();
+			}
 			recent_files.LastDialogDirectory = file.GetParent ();
 			SetProgress (Translations.GetString ("Refreshing balance..."), 0.95);
 			await RefreshVideoBalanceAsync (cts.Token);
@@ -190,6 +109,45 @@ public sealed partial class LayerActions
 			chrome.SetStatusBarText (text);
 		}
 	}
+
+	private Task<JsonDocument> SubmitVideoRequestAsync (
+		UserLayer layer,
+		VideoGenerationRequestOptions request,
+		CancellationToken cancellationToken)
+	{
+		Dictionary<string, object> parameters = CreateVideoParameters (request);
+		List<(byte[] Data, string FileName)> references = [(CreateLayerPng (layer), "pinta.png")];
+		foreach (Gio.File file in request.ReferenceFiles)
+			references.Add (LoadReferenceImage (file));
+		return video_jobs.RunVideoFromImageAsync (
+			references,
+			request.Prompt,
+			request.Provider.Id,
+			request.Model,
+			GetVideoModeValue (request.Mode),
+			parameters,
+			cancellationToken: cancellationToken);
+	}
+
+	private static Dictionary<string, object> CreateVideoParameters (VideoGenerationRequestOptions request)
+	{
+		Dictionary<string, object> parameters = new () {
+			["resolution"] = request.Resolution,
+			["duration"] = request.Duration,
+			["watermark"] = request.Watermark,
+			["ratio"] = request.Ratio,
+			["audio"] = request.Audio,
+		};
+		return parameters;
+	}
+
+	private static string GetVideoModeValue (VideoGenerationMode mode)
+		=> mode switch {
+			VideoGenerationMode.FirstFrame => "first_frame",
+			VideoGenerationMode.FirstLastFrame => "first_last_frame",
+			VideoGenerationMode.MultiImage => "multi_image",
+			_ => throw new ArgumentOutOfRangeException (nameof (mode)),
+		};
 
 	private static async Task RefreshVideoBalanceAsync (CancellationToken cancellationToken)
 	{
