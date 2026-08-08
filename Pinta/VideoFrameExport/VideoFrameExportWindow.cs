@@ -13,7 +13,11 @@ namespace Pinta;
 internal sealed partial class VideoFrameExportWindow : IDisposable
 {
 	private readonly Adw.ApplicationWindow window;
-	private readonly Gtk.Video player;
+	private readonly Gtk.Picture player;
+	private readonly Gtk.Picture sourceVideo;
+	private readonly Gtk.Stack playerStack;
+	private readonly Gtk.ToggleButton sequenceTab;
+	private readonly Gtk.ToggleButton sourceTab;
 	private readonly Gtk.Label playerStatus;
 	private readonly Gtk.Button playButton;
 	private readonly Gtk.Scale seekScale;
@@ -26,7 +30,7 @@ internal sealed partial class VideoFrameExportWindow : IDisposable
 	private readonly Gtk.Label sourceDurationLabel;
 	private readonly Gtk.Label sourceFramesLabel;
 	private readonly Gtk.Label selectionLabel;
-	private readonly Gtk.Box filmstrip;
+	private readonly Gtk.Grid filmstrip;
 	private readonly Gtk.Label filmstripSummary;
 	private readonly Gtk.Button exportButton;
 	private readonly Gtk.Button cancelExportButton;
@@ -46,12 +50,10 @@ internal sealed partial class VideoFrameExportWindow : IDisposable
 	private readonly HashSet<int> selectedIndices = [];
 	private readonly CancellationTokenSource lifetime = new ();
 
-	private Gtk.MediaFile? mediaFile;
 	private DirectoryInfo? previewDirectory;
 	private string? videoFilename;
 	private VideoMetadata? metadata;
 	private int currentFrameIndex;
-	private int speedIndex = 1;
 	private bool disposed;
 	private readonly VideoEditingLayer? videoLayer;
 
@@ -70,41 +72,66 @@ internal sealed partial class VideoFrameExportWindow : IDisposable
 		window.DefaultHeight = 900;
 		window.Title = Translations.GetString ("Video Frame Exporter");
 		window.OnCloseRequest += HandleCloseRequest;
+		InitializeFullscreen ();
 
 		Gtk.Box root = Gtk.Box.New (Gtk.Orientation.Vertical, 0);
 		Gtk.Box header = CreateHeader ();
 		root.Append (header);
 
-		Gtk.Box main = Gtk.Box.New (Gtk.Orientation.Horizontal, 0);
-		main.Hexpand = true;
-		main.Vexpand = true;
+		Gtk.Box workspace = Gtk.Box.New (Gtk.Orientation.Horizontal, 0);
+		workspace.Hexpand = true;
+		workspace.Vexpand = true;
 
-		(player, playerStatus, playButton, seekScale, timeLabel, speedButton, muteButton) = CreatePlayerPanel ();
-		main.Append (CreatePlayerLayout ());
-
+			(player, sourceVideo, playerStack, sequenceTab, sourceTab, playerStatus, playButton, seekScale, timeLabel, speedButton, muteButton) = CreatePlayerPanel ();
 		(sourceFileLabel, sourceResolutionLabel, sourceRateLabel, sourceDurationLabel, sourceFramesLabel,
 			selectionLabel, allFramesButton, selectedFramesButton, outputFolderEntry, prefixEntry, digitsSpinner,
 			rangeStartSpinner, rangeEndSpinner, rangeButton, exportButton, cancelExportButton, exportProgress) = CreateInspectorPanel ();
-		main.Append (CreateInspectorLayout ());
-		root.Append (main);
+
+		Gtk.Box leftContent = Gtk.Box.New (Gtk.Orientation.Vertical, 0);
+		leftContent.Append (CreatePlayerLayout ());
+		leftContent.Append (CreateInspectorLayout ());
+		Gtk.ScrolledWindow leftScroll = Gtk.ScrolledWindow.New ();
+		leftScroll.Hexpand = true;
+		leftScroll.Vexpand = true;
+		leftScroll.SetPolicy (Gtk.PolicyType.Never, Gtk.PolicyType.Automatic);
+		leftScroll.SetChild (leftContent);
+		workspace.Append (leftScroll);
 
 		(filmstrip, filmstripSummary, Gtk.Box filmstripPanel) = CreateFilmstrip ();
-		root.Append (filmstripPanel);
+		filmstripPanel.WidthRequest = 680;
+		filmstripPanel.Hexpand = true;
+		filmstripPanel.Vexpand = true;
+		workspace.Append (filmstripPanel);
+		root.Append (workspace);
 		window.SetContent (root);
+		InitializeFfmpeg ();
 		ResetView ();
-		if (videoLayer?.VideoPath is string path && File.Exists (path))
-			_ = LoadVideoAsync (path);
+		if (videoLayer?.VideoPath is string path && File.Exists (path)) {
+			if (ffmpeg_ready)
+				_ = LoadVideoAsync (path);
+			else
+				pending_video_filename = path;
+		}
 	}
 
-	public void Present () => window.Present ();
+	public void Present ()
+	{
+		window.Present ();
+		PromptForFfmpegIfNeeded ();
+	}
+
+	public bool IsForLayer (VideoEditingLayer? layer)
+		=> ReferenceEquals (videoLayer, layer);
+
+	public void Close () => window.Close ();
 
 	public void Dispose ()
 	{
 		if (disposed)
 			return;
 		disposed = true;
+		StopPlayback ();
 		lifetime.Cancel ();
-		mediaFile?.Dispose ();
 		foreach (VideoFramePreview preview in previews)
 			preview.Dispose ();
 		previews.Clear ();
@@ -146,21 +173,50 @@ internal sealed partial class VideoFrameExportWindow : IDisposable
 		metadataLabel.Halign = Gtk.Align.End;
 		metadataLabel.AddCssClass (AdwaitaStyles.DimLabel);
 		header.Append (metadataLabel);
+		header.Append (CreateFfmpegControls ());
+		header.Append (CreateFullscreenButton ());
 
-		Gtk.Button openButton = Gtk.Button.NewWithLabel (Translations.GetString ("Open Video..."));
-		openButton.AddCssClass (AdwaitaStyles.SuggestedAction);
-		openButton.OnClicked += HandleOpenVideoClicked;
-		header.Append (openButton);
+		open_video_button = Gtk.Button.NewWithLabel (Translations.GetString ("Open Video..."));
+		open_video_button.AddCssClass (AdwaitaStyles.SuggestedAction);
+		open_video_button.OnClicked += HandleOpenVideoClicked;
+		header.Append (open_video_button);
 		return header;
 	}
 
-	private (Gtk.Video, Gtk.Label, Gtk.Button, Gtk.Scale, Gtk.Label, Gtk.Button, Gtk.ToggleButton) CreatePlayerPanel ()
+	private (Gtk.Picture, Gtk.Picture, Gtk.Stack, Gtk.ToggleButton, Gtk.ToggleButton, Gtk.Label, Gtk.Button, Gtk.Scale, Gtk.Label, Gtk.Button, Gtk.ToggleButton) CreatePlayerPanel ()
 	{
-		Gtk.Video video = Gtk.Video.New ();
-		video.Autoplay = false;
-		video.Loop = false;
+		Gtk.Picture video = Gtk.Picture.New ();
+		video.ContentFit = Gtk.ContentFit.Contain;
 		video.Hexpand = true;
 		video.Vexpand = true;
+		Gtk.Picture source = Gtk.Picture.New ();
+		source.ContentFit = Gtk.ContentFit.Contain;
+		source.Hexpand = true;
+		source.Vexpand = true;
+		Gtk.Stack stack = Gtk.Stack.New ();
+		stack.Hexpand = true;
+		stack.Vexpand = true;
+		stack.AddNamed (video, "sequence");
+		stack.AddNamed (source, "source");
+		stack.SetVisibleChildName ("sequence");
+
+		Gtk.ToggleButton sequence = Gtk.ToggleButton.NewWithLabel (Translations.GetString ("Frame sequence"));
+		Gtk.ToggleButton sourceTab = Gtk.ToggleButton.NewWithLabel (Translations.GetString ("Source video"));
+		sequence.Active = true;
+		sequence.OnToggled += (_, _) => {
+			if (!sequence.Active)
+				return;
+			sourceTab.Active = false;
+			StopPlayback ();
+			stack.SetVisibleChildName ("sequence");
+		};
+		sourceTab.OnToggled += (_, _) => {
+			if (!sourceTab.Active)
+				return;
+			sequence.Active = false;
+			StopPlayback ();
+			stack.SetVisibleChildName ("source");
+		};
 
 		Gtk.Label status = Gtk.Label.New (Translations.GetString ("Open a video to preview frames"));
 		status.Halign = Gtk.Align.Center;
@@ -170,6 +226,7 @@ internal sealed partial class VideoFrameExportWindow : IDisposable
 		Gtk.Button play = Gtk.Button.NewFromIconName ("media-playback-start-symbolic");
 		play.SetTooltipText (Translations.GetString ("Play"));
 		play.OnClicked += HandlePlayClicked;
+		play.Sensitive = false;
 
 		Gtk.Scale seek = Gtk.Scale.NewWithRange (Gtk.Orientation.Horizontal, 0, 1, 1);
 		seek.DrawValue = false;
@@ -182,13 +239,14 @@ internal sealed partial class VideoFrameExportWindow : IDisposable
 		Gtk.Button speed = Gtk.Button.NewWithLabel (Translations.GetString ("1x"));
 		speed.SetTooltipText (Translations.GetString ("Playback speed"));
 		speed.OnClicked += HandleSpeedClicked;
+		speed.Sensitive = false;
 
 		Gtk.ToggleButton mute = Gtk.ToggleButton.New ();
 		mute.SetChild (Gtk.Image.NewFromIconName ("audio-volume-muted-symbolic"));
 		mute.SetTooltipText (Translations.GetString ("Mute"));
-		mute.OnToggled += HandleMuteToggled;
+		mute.Sensitive = false;
 
-		return (video, status, play, seek, time, speed, mute);
+		return (video, source, stack, sequence, sourceTab, status, play, seek, time, speed, mute);
 	}
 
 	private Gtk.Box CreatePlayerLayout ()
@@ -196,14 +254,20 @@ internal sealed partial class VideoFrameExportWindow : IDisposable
 		Gtk.Box panel = Gtk.Box.New (Gtk.Orientation.Vertical, 8);
 		panel.SetAllMargins (12);
 		panel.Hexpand = true;
-		panel.Vexpand = true;
+		panel.Vexpand = false;
+
+		Gtk.Box tabs = Gtk.Box.New (Gtk.Orientation.Horizontal, 0);
+		tabs.AddCssClass (AdwaitaStyles.Linked);
+		tabs.Append (sequenceTab);
+		tabs.Append (sourceTab);
+		panel.Append (tabs);
 
 		Gtk.Overlay videoArea = Gtk.Overlay.New ();
-		videoArea.SetChild (player);
+		videoArea.SetChild (playerStack);
 		videoArea.AddOverlay (playerStatus);
 		videoArea.AddCssClass (AdwaitaStyles.Osd);
 		videoArea.Hexpand = true;
-		videoArea.Vexpand = true;
+		videoArea.HeightRequest = 360;
 		panel.Append (videoArea);
 
 		Gtk.Box controls = Gtk.Box.New (Gtk.Orientation.Horizontal, 8);
@@ -232,9 +296,19 @@ internal sealed partial class VideoFrameExportWindow : IDisposable
 
 		Gtk.ToggleButton allFrames = Gtk.ToggleButton.NewWithLabel (Translations.GetString ("All frames"));
 		Gtk.ToggleButton selectedFrames = Gtk.ToggleButton.NewWithLabel (Translations.GetString ("Selected frames"));
-		selectedFrames.Active = true;
-		allFrames.OnToggled += (_, _) => { if (allFrames.Active) selectedFrames.Active = false; };
-		selectedFrames.OnToggled += (_, _) => { if (selectedFrames.Active) allFrames.Active = false; };
+		allFrames.Active = true;
+		allFrames.OnToggled += (_, _) => {
+			if (allFrames.Active)
+				selectedFrames.Active = false;
+			if (metadata is not null)
+				RebuildFilmstrip ();
+		};
+		selectedFrames.OnToggled += (_, _) => {
+			if (selectedFrames.Active)
+				allFrames.Active = false;
+			if (metadata is not null)
+				RebuildFilmstrip ();
+		};
 
 		Gtk.Entry folder = Gtk.Entry.New ();
 		folder.Hexpand = true;
@@ -280,7 +354,8 @@ internal sealed partial class VideoFrameExportWindow : IDisposable
 	private Gtk.Box CreateInspectorLayout ()
 	{
 		Gtk.Box inspector = Gtk.Box.New (Gtk.Orientation.Vertical, 10);
-		inspector.WidthRequest = 340;
+		inspector.Hexpand = true;
+		inspector.Vexpand = true;
 		inspector.SetAllMargins (12);
 
 		inspector.Append (CreateSection (
@@ -330,14 +405,16 @@ internal sealed partial class VideoFrameExportWindow : IDisposable
 		return inspector;
 	}
 
-	private (Gtk.Box Frames, Gtk.Label Summary, Gtk.Box Panel) CreateFilmstrip ()
+	private (Gtk.Grid Frames, Gtk.Label Summary, Gtk.Box Panel) CreateFilmstrip ()
 	{
 		Gtk.Box panel = Gtk.Box.New (Gtk.Orientation.Vertical, 6);
-		panel.SetAllMargins (10);
+		panel.SetAllMargins (8);
 		panel.AddCssClass (AdwaitaStyles.Toolbar);
+		panel.Hexpand = true;
+		panel.Vexpand = true;
 
 		Gtk.Box header = Gtk.Box.New (Gtk.Orientation.Horizontal, 8);
-		Gtk.Label title = Gtk.Label.New (Translations.GetString ("Frame preview"));
+		Gtk.Label title = Gtk.Label.New (Translations.GetString ("Choose frames"));
 		title.Halign = Gtk.Align.Start;
 		title.AddCssClass (AdwaitaStyles.Heading);
 		header.Append (title);
@@ -353,10 +430,13 @@ internal sealed partial class VideoFrameExportWindow : IDisposable
 		panel.Append (header);
 
 		Gtk.ScrolledWindow scroll = Gtk.ScrolledWindow.New ();
-		scroll.HscrollbarPolicy = Gtk.PolicyType.Automatic;
-		scroll.VscrollbarPolicy = Gtk.PolicyType.Never;
-		scroll.HeightRequest = 148;
-		Gtk.Box frames = Gtk.Box.New (Gtk.Orientation.Horizontal, 8);
+		scroll.HscrollbarPolicy = Gtk.PolicyType.Never;
+		scroll.VscrollbarPolicy = Gtk.PolicyType.Automatic;
+		scroll.Hexpand = true;
+		scroll.Vexpand = true;
+		Gtk.Grid frames = Gtk.Grid.New ();
+		frames.ColumnSpacing = 6;
+		frames.RowSpacing = 6;
 		frames.SetAllMargins (2);
 		scroll.SetChild (frames);
 		panel.Append (scroll);
@@ -437,7 +517,7 @@ internal sealed partial class VideoFrameExportWindow : IDisposable
 
 	private void UpdateExportState ()
 	{
-		bool ready = metadata is not null && !string.IsNullOrEmpty (videoFilename);
+		bool ready = ffmpeg_ready && metadata is not null && !string.IsNullOrEmpty (videoFilename);
 		exportButton.Sensitive = ready && (allFramesButton.Active || selectedIndices.Count > 0);
 		int count = allFramesButton.Active ? metadata?.TotalFrames ?? 0 : selectedIndices.Count;
 		exportButton.SetLabel (Translations.GetString ("Export {0} Frames", count));

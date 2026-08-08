@@ -80,7 +80,7 @@ internal sealed class LayersPad : IDockPad
 		content.Append (actionGenerationButton);
 		content.Append (opacityRow);
 		content.Append (layers);
-		layers.VideoImportRequested += HandleImportVideoClicked;
+		layers.VideoEditorRequested += HandleVideoEditorClicked;
 
 		DockItem layers_item = DockItem.New (
 			child: content,
@@ -146,18 +146,24 @@ internal sealed class LayersPad : IDockPad
 		UpdateOpacityControl ();
 	}
 
-	private void HandleImportVideoClicked (object? sender, EventArgs args)
+	private void HandleVideoEditorClicked (object? sender, EventArgs args)
 	{
 		if (PintaCore.Workspace.ActiveDocumentOrDefault is Document document
 			&& document.Layers.HasSelectedLayer
-			&& document.Layers.CurrentUserLayer is VideoEditingLayer layer)
-			video_frame_export.ImportVideoForLayer (layer);
+			&& document.Layers.CurrentUserLayer is VideoEditingLayer layer) {
+			if (string.IsNullOrWhiteSpace (layer.VideoPath))
+				video_frame_export.ImportVideoForLayer (layer);
+			else
+				video_frame_export.EditVideoLayer (layer);
+		}
 	}
 
 	private void HandleVideoImported (object? sender, EventArgs args)
 	{
-		if (PintaCore.Workspace.ActiveDocumentOrDefault is Document document)
+		if (PintaCore.Workspace.ActiveDocumentOrDefault is Document document) {
+			document.IsDirty = true;
 			document.Layers.NotifyLayerTreeChanged ();
+		}
 	}
 
 	private void HandleOpacityChanged (object? sender, EventArgs e)

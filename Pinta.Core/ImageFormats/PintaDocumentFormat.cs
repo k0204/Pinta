@@ -1,10 +1,7 @@
 using System;
-using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Runtime.InteropServices;
-using System.Security.Cryptography;
 using System.Text.Json;
 using Cairo;
 using ClipperLib;
@@ -13,7 +10,7 @@ using Path = System.IO.Path;
 
 namespace Pinta.Core;
 
-public sealed class PintaDocumentFormat : IImageImporter, IImageExporter
+public sealed partial class PintaDocumentFormat : IImageImporter, IImageExporter
 {
 	public const string FormatName = "pinta-document";
 	public const string Extension = "pintaproject";
@@ -28,8 +25,6 @@ public sealed class PintaDocumentFormat : IImageImporter, IImageExporter
 		PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
 		WriteIndented = true,
 	};
-
-	private readonly record struct PendingResource (string RelativePath, ImageSurface Surface);
 
 	public Document Import (Gio.File file)
 	{
@@ -73,17 +68,20 @@ public sealed class PintaDocumentFormat : IImageImporter, IImageExporter
 		string saveId = Guid.NewGuid ().ToString ("N");
 		string stagingRoot = Path.Combine (root, staging_directory, saveId);
 		List<PendingResource> pending = [];
+		List<PendingFile> pendingFiles = [];
 		List<string> createdResources = [];
 		bool manifestCommitted = false;
 
 		try {
 			AssignLayerGuids (document.Layers.RootLayers);
-			PintaDocumentManifest manifest = CreateManifest (document, root, previous, saveId, pending);
+			PintaDocumentManifest manifest = CreateManifest (document, root, previous, saveId, pending, pendingFiles);
 			progress?.Report (0);
 
 			WritePendingResources (root, stagingRoot, pending, createdResources, progress);
+			WritePendingFiles (root, stagingRoot, pendingFiles, createdResources);
 			WriteManifest (root, stagingRoot, manifest);
 			manifestCommitted = true;
+			ApplyVideoPaths (document.Layers.RootLayers, manifest.Layers, root);
 			DeleteUnreferencedResources (root, previous, manifest);
 		} finally {
 			if (!manifestCommitted)
@@ -150,36 +148,13 @@ public sealed class PintaDocumentFormat : IImageImporter, IImageExporter
 			File.Move (source, destination);
 	}
 
-	private static void WritePendingResources (
-		string root,
-		string stagingRoot,
-		IReadOnlyList<PendingResource> pending,
-		ICollection<string> createdResources,
-		IProgress<double>? progress)
-	{
-		for (int index = 0; index < pending.Count; index++) {
-			PendingResource resource = pending[index];
-			string stagingPath = Path.Combine (stagingRoot, ToSystemPath (resource.RelativePath));
-			string finalPath = Path.Combine (root, ToSystemPath (resource.RelativePath));
-			Directory.CreateDirectory (Path.GetDirectoryName (stagingPath)!);
-			Directory.CreateDirectory (Path.GetDirectoryName (finalPath)!);
-
-			CairoExtensions.SaveToPng (resource.Surface, stagingPath);
-			File.Move (stagingPath, finalPath);
-			createdResources.Add (resource.RelativePath);
-			progress?.Report (pending.Count == 0 ? 0.9 : 0.9 * (index + 1) / pending.Count);
-		}
-	}
-
-	private static string ToSystemPath (string relativePath)
-		=> relativePath.Replace ('/', Path.DirectorySeparatorChar);
-
 	private static PintaDocumentManifest CreateManifest (
 		Document document,
 		string root,
 		PintaDocumentManifest? previous,
 		string saveId,
-		ICollection<PendingResource> pending)
+		ICollection<PendingResource> pending,
+		ICollection<PendingFile> pendingFiles)
 	{
 		UserLayer selectedLayer = document.Layers.CurrentUserLayer;
 		return new () {
@@ -195,7 +170,7 @@ public sealed class PintaDocumentFormat : IImageImporter, IImageExporter
 			})],
 			Selection = CreateSelectionModel (document.Selection),
 			Layers = [.. document.Layers.RootLayers.Select (
-				layer => CreateLayerModel (layer, root, previous?.Layers, saveId, pending))],
+				layer => CreateLayerModel (layer, root, previous?.Layers, saveId, pending, pendingFiles))],
 		};
 	}
 
@@ -204,7 +179,8 @@ public sealed class PintaDocumentFormat : IImageImporter, IImageExporter
 		string root,
 		IReadOnlyList<PintaDocumentLayerNode>? previousLayers,
 		string saveId,
-		ICollection<PendingResource> pending)
+		ICollection<PendingResource> pending,
+		ICollection<PendingFile> pendingFiles)
 	{
 		PintaDocumentLayerNode? previous = previousLayers?.FirstOrDefault (node => node.Id == layer.DocumentId);
 		PointD origin = layer.Transform.TransformPoint (PointD.Zero);
@@ -228,7 +204,9 @@ public sealed class PintaDocumentFormat : IImageImporter, IImageExporter
 			SurfaceWidth = layer is GroupLayer || layer is AnimationOutputLayer ? null : layer.Surface.Width,
 			SurfaceHeight = layer is GroupLayer || layer is AnimationOutputLayer ? null : layer.Surface.Height,
 			ReferencePath = layer.ReferencePath,
-			Metadata = new (layer.Metadata),
+			Metadata = layer is VideoEditingLayer
+				? new (layer.Metadata.Where (item => item.Key != VideoEditingLayer.VideoPathMetadataKey))
+				: new (layer.Metadata),
 			SpritesheetSplit = layer.SpritesheetSplit,
 			PositionOffsetX = layer is AnimationOutputLayer animation ? animation.PositionOffset.X : 0,
 			PositionOffsetY = layer is AnimationOutputLayer animationLayer ? animationLayer.PositionOffset.Y : 0,
@@ -241,8 +219,11 @@ public sealed class PintaDocumentFormat : IImageImporter, IImageExporter
 				Y0 = origin.Y,
 			},
 			Children = [.. layer.Children.Select (child => CreateLayerModel (
-				child, root, previous?.Children, saveId, pending))],
+				child, root, previous?.Children, saveId, pending, pendingFiles))],
 		};
+
+		if (layer is VideoEditingLayer videoLayer)
+			result.Video = GetVideoResource (videoLayer, root, previous?.Video, saveId, pendingFiles);
 
 		if (layer is SpriteSheetLayer spriteSheet)
 			result.SpriteSheetAnimations = CreateSpriteSheetAnimations (spriteSheet, root, previous, saveId, pending);
@@ -344,41 +325,6 @@ public sealed class PintaDocumentFormat : IImageImporter, IImageExporter
 		})];
 	}
 
-	private static (string? Path, string Hash) GetResource (
-		ImageSurface surface,
-		string root,
-		string? previousPath,
-		string? previousHash,
-		string newPath,
-		ICollection<PendingResource> pending)
-	{
-		string hash = HashSurface (surface);
-		if (previousPath is not null
-			&& previousHash == hash
-			&& File.Exists (Path.Combine (root, ToSystemPath (previousPath))))
-			return (previousPath, hash);
-
-		pending.Add (new PendingResource (newPath, surface));
-		return (newPath, hash);
-	}
-
-	private static string HashSurface (ImageSurface surface)
-	{
-		surface.Flush ();
-		using IncrementalHash hash = IncrementalHash.CreateHash (HashAlgorithmName.SHA256);
-		Span<byte> dimensions = stackalloc byte[sizeof (int) * 2];
-		BinaryPrimitives.WriteInt32LittleEndian (dimensions, surface.Width);
-		BinaryPrimitives.WriteInt32LittleEndian (dimensions[sizeof (int)..], surface.Height);
-		hash.AppendData (dimensions);
-		ReadOnlySpan<ColorBgra> pixels = surface.GetReadOnlyPixelData ();
-		for (int y = 0; y < surface.Height; y++) {
-			ReadOnlySpan<ColorBgra> row = pixels.Slice (y * surface.Width, surface.Width);
-			hash.AppendData (MemoryMarshal.AsBytes (row));
-		}
-
-		return Convert.ToHexString (hash.GetHashAndReset ());
-	}
-
 	private static PintaDocumentSelection CreateSelectionModel (DocumentSelection selection)
 		=> new () {
 			Visible = selection.Visible,
@@ -424,6 +370,8 @@ public sealed class PintaDocumentFormat : IImageImporter, IImageExporter
 			layer.Expanded = node.Expanded;
 			foreach ((string key, string value) in node.Metadata)
 				layer.Metadata.Add (key, value);
+			if (layer is VideoEditingLayer videoLayer && node.Video is string video)
+				videoLayer.VideoPath = ResolveManagedResourcePath (root, video);
 			layer.SpritesheetSplit = node.SpritesheetSplit;
 			layer.Transform = CairoExtensions.CreateMatrix (
 				node.Transform.Xx,
@@ -554,6 +502,14 @@ public sealed class PintaDocumentFormat : IImageImporter, IImageExporter
 		return Path.Combine (root, ToSystemPath (relativePath));
 	}
 
+	private static string ResolveManagedResourcePath (string root, string relativePath)
+	{
+		if (!IsValidManagedPath (relativePath))
+			throw new InvalidDataException (Translations.GetString ("The Pinta project contains an invalid resource path."));
+
+		return Path.Combine (root, ToSystemPath (relativePath));
+	}
+
 	private static void AssignLayerGuids (IReadOnlyList<UserLayer> roots)
 	{
 		List<UserLayer> layers = [.. roots.SelectMany (layer => layer.GetSelfAndDescendants ())];
@@ -612,9 +568,14 @@ public sealed class PintaDocumentFormat : IImageImporter, IImageExporter
 				|| node.Storage is not ("embedded" or "reference"))
 				throw new InvalidDataException (Translations.GetString ("The Pinta project contains an invalid layer type."));
 
-			if (node.Kind is "group" or "video-editing")
+			if (node.Kind is "group" or "video-editing") {
 				ValidateGroup (node);
-			else if (node.Kind == "layer")
+				if (node.Kind == "video-editing" && node.Video is string video
+					&& (!IsValidManagedPath (video)
+						|| !video.StartsWith ($"{resources_directory}/videos/{node.Id}/", StringComparison.Ordinal)
+						|| !File.Exists (ResolveManagedResourcePath (root, video))))
+					throw new InvalidDataException (Translations.GetString ("The Pinta project video resource is invalid."));
+			} else if (node.Kind == "layer")
 				ValidateRegularLayer (node, root);
 			else if (node.Kind == "spritesheet")
 				ValidateSpriteSheetNode (node, root);
@@ -706,12 +667,15 @@ public sealed class PintaDocumentFormat : IImageImporter, IImageExporter
 		=> nodes.Any (node => node.Storage == "reference" || ContainsReferencedLayer (node.Children));
 
 	private static bool IsValidResourcePath (string path)
+		=> IsValidManagedPath (path)
+		&& path.EndsWith (".png", StringComparison.OrdinalIgnoreCase);
+
+	private static bool IsValidManagedPath (string path)
 		=> !string.IsNullOrWhiteSpace (path)
 		&& !Path.IsPathRooted (path)
 		&& !path.Contains ('\\')
 		&& path.Split ('/').All (part => !string.IsNullOrEmpty (part) && part is not ("." or ".."))
-		&& path.StartsWith ($"{resources_directory}/", StringComparison.Ordinal)
-		&& path.EndsWith (".png", StringComparison.OrdinalIgnoreCase);
+		&& path.StartsWith ($"{resources_directory}/", StringComparison.Ordinal);
 
 	private static bool IsValidReferencePath (string? path)
 		=> path is not null
@@ -733,7 +697,7 @@ public sealed class PintaDocumentFormat : IImageImporter, IImageExporter
 			if (currentPaths.Contains (oldPath))
 				continue;
 
-			string path = ResolveResourcePath (root, oldPath);
+			string path = ResolveManagedResourcePath (root, oldPath);
 			TryDeleteFile (path);
 		}
 	}
@@ -741,7 +705,7 @@ public sealed class PintaDocumentFormat : IImageImporter, IImageExporter
 	private static void DeleteCreatedResources (string root, IEnumerable<string> paths)
 	{
 		foreach (string relativePath in paths) {
-			string path = ResolveResourcePath (root, relativePath);
+			string path = ResolveManagedResourcePath (root, relativePath);
 			TryDeleteFile (path);
 		}
 	}
@@ -773,6 +737,8 @@ public sealed class PintaDocumentFormat : IImageImporter, IImageExporter
 	{
 		if (node.Surface is not null)
 			yield return node.Surface;
+		if (node.Video is not null)
+			yield return node.Video;
 		foreach (PintaDocumentSpriteSheetFrame frame in node.SpriteSheetAnimations.SelectMany (
 			animation => animation.Directions.SelectMany (direction => direction.Frames)))
 			yield return frame.Surface;

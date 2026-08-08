@@ -14,6 +14,71 @@ namespace Pinta;
 internal static class VideoFrameExportProcess
 {
 	private const int MaxPreviewFrames = 240;
+	private static string? tools_directory;
+
+	public static string? FindToolsDirectory ()
+	{
+		string bundled = Path.Combine (AppContext.BaseDirectory, "ffmpeg");
+		if (TryResolveToolsDirectory (bundled, out string? resolved, out _))
+			return tools_directory = resolved;
+
+		string saved = PintaCore.Settings.GetSetting (SettingNames.FFMPEG_DIRECTORY, string.Empty);
+		return TryResolveToolsDirectory (saved, out resolved, out _)
+			? tools_directory = resolved
+			: null;
+	}
+
+	public static bool TryResolveToolsDirectory (string directory, out string? resolved, out string error)
+	{
+		resolved = null;
+		if (string.IsNullOrWhiteSpace (directory) || !Directory.Exists (directory)) {
+			error = Translations.GetString ("Choose a valid FFmpeg directory.");
+			return false;
+		}
+
+		string fullPath = Path.GetFullPath (directory);
+		string? candidate = GetToolsDirectoryCandidates (fullPath).FirstOrDefault (HasExecutables);
+		if (candidate is null) {
+			error = Translations.GetString ("The selected directory must contain ffmpeg and ffprobe.");
+			return false;
+		}
+		if (OperatingSystem.IsWindows () && !HasWindowsLibraries (candidate)) {
+			error = Translations.GetString ("The selected FFmpeg directory is missing required shared libraries.");
+			return false;
+		}
+
+		resolved = candidate;
+		error = string.Empty;
+		return true;
+	}
+
+	private static IEnumerable<string> GetToolsDirectoryCandidates (string directory)
+	{
+		yield return directory;
+		yield return Path.Combine (directory, "bin");
+	}
+
+	public static void SaveToolsDirectory (string directory)
+	{
+		tools_directory = directory;
+		PintaCore.Settings.PutSetting (SettingNames.FFMPEG_DIRECTORY, directory);
+		PintaCore.Settings.DoSaveSettingsBeforeQuit ();
+	}
+
+	private static bool HasExecutables (string directory)
+		=> File.Exists (Path.Combine (directory, ToolFileName ("ffmpeg")))
+		&& File.Exists (Path.Combine (directory, ToolFileName ("ffprobe")));
+
+	private static bool HasWindowsLibraries (string directory)
+	{
+		string[] libraries = [
+			"avcodec-*.dll", "avdevice-*.dll", "avfilter-*.dll", "avformat-*.dll",
+			"avutil-*.dll", "swresample-*.dll", "swscale-*.dll"];
+		return libraries.All (pattern => Directory.EnumerateFiles (directory, pattern).Any ());
+	}
+
+	private static string ToolFileName (string tool)
+		=> OperatingSystem.IsWindows () ? $"{tool}.exe" : tool;
 
 	public static async Task<VideoMetadata> ProbeAsync (string filename, CancellationToken cancellationToken)
 	{
@@ -55,9 +120,9 @@ internal static class VideoFrameExportProcess
 		string outputDirectory,
 		CancellationToken cancellationToken)
 	{
-		int[] indices = GetPreviewIndices (metadata.TotalFrames, Math.Min (metadata.TotalFrames, MaxPreviewFrames));
-		string selection = string.Join ('+', indices.Select (index => $"eq(n\\,{index})"));
-		string filter = $"select='{selection}',scale=320:-2:force_original_aspect_ratio=decrease";
+		int previewCount = Math.Min (metadata.TotalFrames, MaxPreviewFrames);
+		double previewRate = previewCount / metadata.Duration;
+		string filter = $"fps={previewRate.ToString ("R", CultureInfo.InvariantCulture)},scale=320:-2:force_original_aspect_ratio=decrease";
 		string outputPattern = Path.Combine (outputDirectory, "%06d.png");
 
 		await RunToolAsync (
@@ -113,8 +178,10 @@ internal static class VideoFrameExportProcess
 		IEnumerable<string> arguments,
 		CancellationToken cancellationToken)
 	{
+		string directory = tools_directory ?? FindToolsDirectory ()
+			?? throw new VideoFrameExportException (Translations.GetString ("Select an FFmpeg directory before editing video."));
 		ProcessStartInfo startInfo = new () {
-			FileName = tool,
+			FileName = Path.Combine (directory, ToolFileName (tool)),
 			UseShellExecute = false,
 			RedirectStandardOutput = true,
 			RedirectStandardError = true,
@@ -122,6 +189,7 @@ internal static class VideoFrameExportProcess
 		};
 		foreach (string argument in arguments)
 			startInfo.ArgumentList.Add (argument);
+		Console.WriteLine ($"Video tool starting: {startInfo.FileName} {string.Join (' ', startInfo.ArgumentList)}");
 
 		using Process process = new () { StartInfo = startInfo };
 		try {
@@ -144,6 +212,9 @@ internal static class VideoFrameExportProcess
 
 		string output = await outputTask;
 		string error = await errorTask;
+		Console.WriteLine ($"Video tool exited: {tool}, code {process.ExitCode}.");
+		if (!string.IsNullOrWhiteSpace (error))
+			Console.Error.WriteLine ($"Video tool stderr ({tool}):{Environment.NewLine}{error.TrimEnd ()}");
 		if (process.ExitCode != 0)
 			throw new VideoFrameExportException (
 				Translations.GetString ("The video tool could not process this file."),

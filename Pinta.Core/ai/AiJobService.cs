@@ -49,10 +49,20 @@ public sealed class AiJobService
 	public Task<JsonDocument> RunVideoFromImageAsync (
 		IEnumerable<(byte[] Data, string FileName)> references,
 		string prompt,
+		string provider,
+		string model,
+		string mode,
+		object parameters,
 		Action<string>? log = null,
 		CancellationToken cancellationToken = default)
 	{
-		List<KeyValuePair<string, string>> fields = [new ("prompt", prompt)];
+		List<KeyValuePair<string, string>> fields = [
+			new ("prompt", prompt),
+			new ("provider", provider),
+			new ("model", model),
+			new ("mode", mode),
+			new ("parameters", JsonSerializer.Serialize (parameters)),
+		];
 		IEnumerable<(byte[] Data, string FormName, string FileName)> files = references.Select (
 			reference => (reference.Data, "reference_image", reference.FileName));
 		return RunAsync (

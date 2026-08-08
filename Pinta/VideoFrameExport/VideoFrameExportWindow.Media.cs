@@ -11,11 +11,7 @@ namespace Pinta;
 internal sealed partial class VideoFrameExportWindow
 {
 	private CancellationTokenSource? load_cts;
-	private bool is_playing;
 	private bool updating_seek;
-
-	public void ImportVideo ()
-		=> HandleOpenVideoClicked (this, EventArgs.Empty);
 
 	private async void HandleOpenVideoClicked (object sender, EventArgs args)
 	{
@@ -37,6 +33,11 @@ internal sealed partial class VideoFrameExportWindow
 
 	private async Task LoadVideoAsync (string filename)
 	{
+		if (!ffmpeg_ready) {
+			pending_video_filename = filename;
+			PromptForFfmpegIfNeeded ();
+			return;
+		}
 		load_cts?.Cancel ();
 		load_cts?.Dispose ();
 		load_cts = CancellationTokenSource.CreateLinkedTokenSource (lifetime.Token);
@@ -63,34 +64,26 @@ internal sealed partial class VideoFrameExportWindow
 			NotifyVideoLoaded ();
 			metadata = loadedMetadata;
 			previewDirectory = directory;
-			LoadMedia (filename);
 			LoadPreviews (paths, sourceIndices, loadedMetadata.FrameRate);
-			selectedIndices.UnionWith (previews.Take (3).Select (preview => preview.SourceIndex));
+			selectedIndices.UnionWith (previews.Select (preview => preview.SourceIndex));
 			currentFrameIndex = previews[0].SourceIndex;
 			playerStatus.Hide ();
 			player.Show ();
 			playButton.Sensitive = true;
+			speedButton.Sensitive = true;
 			seekScale.Sensitive = true;
 			seekScale.SetRange (0, Math.Max (1, loadedMetadata.TotalFrames - 1));
 			UpdateMetadataLabels ();
-			UpdateCurrentFrame (seekMedia: true);
+			UpdateCurrentFrame ();
 			RebuildFilmstrip ();
 		} catch (OperationCanceledException) {
 		} catch (VideoFrameExportException ex) {
 			SetErrorState (ex.Message);
+			Console.Error.WriteLine ($"Video loading failed: {ex.Message}{Environment.NewLine}{ex.Details}");
 		} catch (Exception ex) {
 			SetErrorState (Translations.GetString ("Could not open this video."));
 			Console.Error.WriteLine (ex);
 		}
-	}
-
-	private void LoadMedia (string filename)
-	{
-		mediaFile?.Dispose ();
-		mediaFile = Gtk.MediaFile.NewForFilename (filename);
-		player.SetMediaStream (mediaFile);
-		is_playing = false;
-		SetPlayIcon (playing: false);
 	}
 
 	private void LoadPreviews (IReadOnlyList<string> paths, IReadOnlyList<int> sourceIndices, double frameRate)
@@ -105,10 +98,9 @@ internal sealed partial class VideoFrameExportWindow
 
 	private void ResetLoadedVideo ()
 	{
-		is_playing = false;
-		SetPlayIcon (playing: false);
-		mediaFile?.Dispose ();
-		mediaFile = null;
+		StopPlayback ();
+		player.SetPaintable (null);
+		sourceVideo.SetPaintable (null);
 		videoFilename = null;
 		metadata = null;
 		selectedIndices.Clear ();
@@ -131,6 +123,7 @@ internal sealed partial class VideoFrameExportWindow
 
 	private void ClearPreviews (bool deleteDirectory)
 	{
+		player.SetPaintable (null);
 		while (filmstrip.GetFirstChild () is Gtk.Widget child)
 			filmstrip.Remove (child);
 		foreach (VideoFramePreview preview in previews)
@@ -150,21 +143,8 @@ internal sealed partial class VideoFrameExportWindow
 		playerStatus.Show ();
 		player.Hide ();
 		playButton.Sensitive = false;
+		speedButton.Sensitive = false;
 		seekScale.Sensitive = false;
-	}
-
-	private void HandlePlayClicked (object sender, EventArgs args)
-	{
-		if (mediaFile is null)
-			return;
-		if (is_playing) {
-			mediaFile.Pause ();
-			is_playing = false;
-		} else {
-			mediaFile.Play ();
-			is_playing = true;
-		}
-		SetPlayIcon (is_playing);
 	}
 
 	private void HandlePreviousFrameClicked (object sender, EventArgs args)
@@ -197,38 +177,21 @@ internal sealed partial class VideoFrameExportWindow
 		if (metadata is null)
 			return;
 		currentFrameIndex = Math.Clamp (sourceIndex, 0, Math.Max (0, metadata.TotalFrames - 1));
-		UpdateCurrentFrame (seekMedia: true);
+		UpdateCurrentFrame ();
 		RebuildFilmstrip (); 
 	}
 
-	private void UpdateCurrentFrame (bool seekMedia)
+	private void UpdateCurrentFrame ()
 	{
 		if (metadata is not VideoMetadata data)
 			return;
-		if (seekMedia && mediaFile is not null)
-			mediaFile.Seek ((long) (currentFrameIndex / data.FrameRate * 1_000_000));
+		VideoFramePreview? preview = previews.MinBy (item => Math.Abs (item.SourceIndex - currentFrameIndex));
+		player.SetPaintable (preview?.Texture);
+		sourceVideo.SetPaintable (preview?.Texture);
 		updating_seek = true;
 		seekScale.SetValue (currentFrameIndex);
 		updating_seek = false;
 		timeLabel.SetText (Translations.GetString ("{0} / {1}", FormatTime (currentFrameIndex / data.FrameRate), FormatTime (data.Duration)));
 	}
 
-	private void SetPlayIcon (bool playing)
-	{
-		playButton.SetChild (Gtk.Image.NewFromIconName (playing ? "media-playback-pause-symbolic" : "media-playback-start-symbolic"));
-		playButton.SetTooltipText (Translations.GetString (playing ? "Pause" : "Play"));
-	}
-
-	private void HandleSpeedClicked (object sender, EventArgs args)
-	{
-		double[] speeds = [0.5, 1, 1.5, 2];
-		speedIndex = (speedIndex + 1) % speeds.Length;
-		speedButton.SetLabel (Translations.GetString ("{0:0.#}x", speeds[speedIndex]));
-	}
-
-	private void HandleMuteToggled (object sender, EventArgs args)
-	{
-		if (mediaFile is not null)
-			mediaFile.Muted = muteButton.Active;
-	}
 }

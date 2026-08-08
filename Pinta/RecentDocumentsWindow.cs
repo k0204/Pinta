@@ -15,7 +15,6 @@ internal sealed class RecentDocumentsWindow
 	private readonly Gtk.Button new_button;
 	private readonly Gtk.Button open_button;
 	private readonly Dictionary<Gtk.ListBoxRow, string> row_uris = [];
-	private bool continuing_to_main_window;
 
 	public event EventHandler? ContinuedToMainWindow;
 
@@ -167,8 +166,11 @@ internal sealed class RecentDocumentsWindow
 
 	private void CreateNewDocument ()
 	{
+		window.Hide ();
 		if (create_new_document ())
 			ContinueToMainWindow ();
+		else
+			window.Present ();
 	}
 
 	private void OpenRow (Gtk.ListBoxRow row)
@@ -176,8 +178,11 @@ internal sealed class RecentDocumentsWindow
 		if (!row_uris.TryGetValue (row, out string? uri))
 			return;
 
-		if (!open_document (uri))
+		window.Hide ();
+		if (!open_document (uri)) {
+			window.Present ();
 			return;
+		}
 
 		recent_files.AddFile (Gio.FileHelper.NewForUri (uri));
 		ContinueToMainWindow ();
@@ -185,16 +190,12 @@ internal sealed class RecentDocumentsWindow
 
 	private void ContinueToMainWindow ()
 	{
-		continuing_to_main_window = true;
+		application.RemoveWindow (window);
 		ContinuedToMainWindow?.Invoke (this, EventArgs.Empty);
-		window.Close ();
 	}
 
 	private bool HandleCloseRequest (Gtk.Window sender, EventArgs args)
 	{
-		if (continuing_to_main_window)
-			return false;
-
 		application.Quit ();
 		return true;
 	}
