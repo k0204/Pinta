@@ -1,10 +1,7 @@
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.Diagnostics;
 using System.IO;
 using System.Reflection;
-using System.Text;
 using System.Text.Json;
 using Cairo;
 using GdkPixbuf;
@@ -13,14 +10,16 @@ using IOPath = System.IO.Path;
 
 namespace Pinta.PsdAddin;
 
-internal sealed class PsdToolsImporter : IImageImporter
+internal sealed partial class PsdToolsImporter : IImageImporter
 {
-        private const string helper_directory_name = "python";
+	private const string helper_directory_name = "python";
 	private const string helper_script_name = "psd_tools_helper.py";
 	private const string requirements_file_name = "requirements.txt";
 	private const string python_env_var = "PINTA_PSDTOOLS_PYTHON";
 	private const string helper_env_var = "PINTA_PSDTOOLS_HELPER";
-        private const string keep_output_env_var = "PINTA_PSDTOOLS_KEEP_OUTPUT";
+	private const string keep_output_env_var = "PINTA_PSDTOOLS_KEEP_OUTPUT";
+	private const string dot_env_file_name = ".env";
+	private const string python_environment_directory_name = "psd-python";
 
 	private static readonly JsonSerializerOptions json_options = new () {
 		PropertyNameCaseInsensitive = true,
@@ -31,13 +30,17 @@ internal sealed class PsdToolsImporter : IImageImporter
 		string? path = file.GetPath ();
 		if (string.IsNullOrWhiteSpace (path))
 			throw new InvalidOperationException (Translations.GetString ("PSD import currently requires a local file path."));
+		if (!IOPath.GetExtension (path).Equals (".psd", StringComparison.OrdinalIgnoreCase))
+			throw new InvalidOperationException (Translations.GetString ("The PSD importer only accepts PSD files."));
 
+		LoadDotEnv ();
+		PythonCommand python = EnsurePythonEnvironment ();
 		string helperScript = ResolveHelperScriptPath ();
 		string outputDirectory = IOPath.Combine (IOPath.GetTempPath (), $"pinta-psd-{Guid.NewGuid ():N}");
 
 		try {
 			Directory.CreateDirectory (outputDirectory);
-			RunHelper (helperScript, path, outputDirectory);
+			RunHelper (python, helperScript, path, outputDirectory);
 
 			PsdImportManifest manifest = LoadManifest (outputDirectory);
 			ValidateManifest (manifest);
@@ -185,68 +188,6 @@ internal sealed class PsdToolsImporter : IImageImporter
 		}
 	}
 
-	private static void RunHelper (string helperScript, string inputPath, string outputDirectory)
-	{
-		var attempts = EnumeratePythonCommands (helperScript, inputPath, outputDirectory);
-		List<string> errors = [];
-
-		foreach (var command in attempts) {
-			try {
-				ProcessStartInfo startInfo = new () {
-					FileName = command.FileName,
-					Arguments = command.Arguments,
-					UseShellExecute = false,
-					CreateNoWindow = true,
-					RedirectStandardError = true,
-					RedirectStandardOutput = true,
-					StandardErrorEncoding = Encoding.UTF8,
-					StandardOutputEncoding = Encoding.UTF8,
-					WorkingDirectory = IOPath.GetDirectoryName (helperScript) ?? AppContext.BaseDirectory,
-				};
-
-				using Process process = Process.Start (startInfo)
-					?? throw new InvalidOperationException ("Failed to start the PSD helper process.");
-
-				string stdout = process.StandardOutput.ReadToEnd ();
-				string stderr = process.StandardError.ReadToEnd ();
-				process.WaitForExit ();
-
-				if (process.ExitCode == 0)
-					return;
-
-				errors.Add ($"{command.DisplayName}: {stderr.Trim ()}{(string.IsNullOrWhiteSpace (stdout) ? string.Empty : Environment.NewLine + stdout.Trim ())}");
-			} catch (Exception e) when (e is Win32Exception or InvalidOperationException) {
-				errors.Add ($"{command.DisplayName}: {e.Message}");
-			}
-		}
-
-		string requirementsPath = ResolveRequirementsPath ();
-		string details = string.Join (Environment.NewLine + Environment.NewLine, errors);
-		throw new InvalidOperationException (
-			Translations.GetString (
-				"Failed to run the PSD helper. Set '{0}' to a Python executable with psd-tools installed, or install the dependencies listed in '{1}'.{2}{3}",
-				python_env_var,
-				requirementsPath,
-				string.IsNullOrWhiteSpace (details) ? string.Empty : Environment.NewLine + Environment.NewLine,
-				details));
-	}
-
-	private static IEnumerable<PythonCommand> EnumeratePythonCommands (string helperScript, string inputPath, string outputDirectory)
-	{
-		string helperArgument = Quote (helperScript);
-		string inputArgument = Quote (inputPath);
-		string outputArgument = Quote (outputDirectory);
-		string commandTail = $"{helperArgument} --input {inputArgument} --output-dir {outputArgument}";
-
-		string? configuredPython = Environment.GetEnvironmentVariable (python_env_var);
-		if (!string.IsNullOrWhiteSpace (configuredPython))
-			yield return new PythonCommand (configuredPython, commandTail, configuredPython);
-
-		yield return new PythonCommand ("py", $"-3 {commandTail}", "py -3");
-		yield return new PythonCommand ("python", commandTail, "python");
-		yield return new PythonCommand ("python3", commandTail, "python3");
-	}
-
 	private static string ResolveHelperScriptPath ()
 	{
 		string? configured = Environment.GetEnvironmentVariable (helper_env_var);
@@ -298,5 +239,4 @@ internal sealed class PsdToolsImporter : IImageImporter
 		} catch { }
 	}
 
-	private readonly record struct PythonCommand (string FileName, string Arguments, string DisplayName);
 }

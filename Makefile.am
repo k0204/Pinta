@@ -74,6 +74,7 @@ updatepotfiles:
 		Pinta.Effects \
 		Pinta.Gui.Addins \
 		Pinta.Gui.Widgets \
+		Pinta.PsdAddin \
 		Pinta.Resources \
 		Pinta.Tools \
 		-name \*.cs -not -path '*/obj/*' | sort >> po/POTFILES.in
