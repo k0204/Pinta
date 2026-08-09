@@ -51,7 +51,6 @@ internal sealed partial class VideoFrameExportWindow : IDisposable
 	private Gtk.Button clearFramesButton = null!;
 	private Gtk.Button regenerateFramesButton = null!;
 	private readonly List<VideoFramePreview> previews = [];
-	private readonly List<string> previewPaths = [];
 	private readonly List<VideoFramePreview> visible_previews = [];
 	private readonly Dictionary<Gtk.ListItem, ThumbnailBinding> thumbnail_bindings = [];
 	private readonly ThumbnailCache thumbnail_cache = new ();
@@ -548,7 +547,7 @@ internal sealed partial class VideoFrameExportWindow : IDisposable
 		regenerateFramesButton.Sensitive = !string.IsNullOrWhiteSpace (videoFilename);
 		openAtlasButton.Sensitive = ready && (allFramesButton.Active
 			? previews.Count > 0
-			: selectedIndices.Any (index => index >= 0 && index < previewPaths.Count));
+			: previews.Any (preview => selectedIndices.Contains (preview.SourceIndex)));
 		int count = allFramesButton.Active ? metadata?.TotalFrames ?? 0 : selectedIndices.Count;
 		exportButton.SetLabel (Translations.GetString ("Export {0} Frames", count));
 	}

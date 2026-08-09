@@ -7,15 +7,14 @@ internal sealed partial class VideoFrameExportWindow
 {
 	private void HandleOpenAtlasClicked (object sender, EventArgs args)
 	{
-		if (videoFilename is null || previewPaths.Count == 0)
+		if (videoFilename is null || previews.Count == 0)
 			return;
 
 		string[] paths = allFramesButton.Active
-			? previewPaths.ToArray ()
-			: selectedIndices
-				.Where (index => index >= 0 && index < previewPaths.Count)
-				.Order ()
-				.Select (index => previewPaths[index])
+			? previews.Select (preview => preview.SourcePath).ToArray ()
+			: previews
+				.Where (preview => selectedIndices.Contains (preview.SourceIndex))
+				.Select (preview => preview.SourcePath)
 				.ToArray ();
 		if (paths.Length == 0)
 			return;

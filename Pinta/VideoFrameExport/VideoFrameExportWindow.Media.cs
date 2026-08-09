@@ -66,8 +66,6 @@ internal sealed partial class VideoFrameExportWindow
 			NotifyVideoLoaded ();
 			metadata = loadedMetadata;
 			previewDirectory = directory;
-			previewPaths.Clear ();
-			previewPaths.AddRange (paths);
 			LoadPreviews (paths, sourceIndices, loadedMetadata.FrameRate);
 			RestoreSelection (loadedMetadata.TotalFrames);
 			currentFrameIndex = previews[0].SourceIndex;
@@ -194,7 +192,6 @@ internal sealed partial class VideoFrameExportWindow
 		player.SetPaintable (null);
 		sourceVideo.SetPaintable (null);
 		previews.Clear ();
-		previewPaths.Clear ();
 		thumbnail_cache.Clear ();
 		if (deleteDirectory) {
 			previewDirectory?.Delete (recursive: true);

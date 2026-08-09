@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using GdkPixbuf;
 using Pinta.Core;
 using Pinta.Resources;
@@ -107,7 +109,100 @@ internal sealed partial class AtlasPackingWindow
 
 		RebuildSourcePreview ();
 		UpdateAtlasPreview (Array.Empty<string> ());
+		RequestAtlasPreview ();
 		UpdateState ();
+	}
+
+	private async void RequestAtlasPreview ()
+	{
+		if (disposed)
+			return;
+
+		CancelAtlasPreviewBuild ();
+		if (paths.Count == 0) {
+			UpdateAtlasPreview (Array.Empty<string> ());
+			progress.Hide ();
+			return;
+		}
+
+		preview_cts = CancellationTokenSource.CreateLinkedTokenSource (lifetime.Token);
+		CancellationToken cancellationToken = preview_cts.Token;
+		int previewVersion = preview_version;
+		string[] inputPaths = paths.ToArray ();
+		int scalePercent = (int) scaleSpinner.GetValue ();
+		int minWidth = (int) minWidthSpinner.GetValue ();
+		int maxWidth = (int) maxWidthSpinner.GetValue ();
+		int minHeight = (int) minHeightSpinner.GetValue ();
+		int maxHeight = (int) maxHeightSpinner.GetValue ();
+		int spacing = (int) spacingSpinner.GetValue ();
+		bool trimTransparent = trimToggle.Active;
+		string previewDirectory = Path.Combine (
+			Path.GetTempPath (),
+			"Pinta",
+			$"atlas-preview-{Guid.NewGuid ():N}");
+		progress.Fraction = 0;
+		progress.Text = Translations.GetString ("Building atlas: {0} frames", inputPaths.Length);
+		progress.Show ();
+
+		try {
+			AtlasBuildResult result = await Task.Run (() => VideoAtlasBuilder.Build (
+				inputPaths,
+				previewDirectory,
+				"preview",
+				scalePercent,
+				minWidth,
+				maxWidth,
+				minHeight,
+				maxHeight,
+				spacing,
+				trimTransparent,
+				cancellationToken,
+				drawPreviewBorders: true), cancellationToken);
+			if (!IsCurrentPreview (previewVersion, cancellationToken))
+				return;
+
+			UpdateAtlasPreview (result.ImagePaths);
+			progress.Fraction = 1;
+			progress.Text = Translations.GetString ("Ready");
+			progress.Hide ();
+		} catch (OperationCanceledException) {
+		} catch (VideoFrameExportException ex) {
+			if (IsCurrentPreview (previewVersion, cancellationToken)) {
+				progress.Fraction = 0;
+				progress.Text = ex.Message;
+			}
+		} catch (Exception ex) {
+			if (IsCurrentPreview (previewVersion, cancellationToken)) {
+				progress.Fraction = 0;
+				progress.Text = Translations.GetString ("Atlas build failed.");
+			}
+			Console.Error.WriteLine (ex);
+		} finally {
+			DeletePreviewDirectory (previewDirectory);
+			if (IsCurrentPreview (previewVersion, cancellationToken))
+				UpdateState ();
+		}
+	}
+
+	private void CancelAtlasPreviewBuild ()
+	{
+		preview_version++;
+		preview_cts?.Cancel ();
+		preview_cts?.Dispose ();
+		preview_cts = null;
+	}
+
+	private bool IsCurrentPreview (int version, CancellationToken cancellationToken)
+		=> !disposed && version == preview_version && !cancellationToken.IsCancellationRequested;
+
+	private static void DeletePreviewDirectory (string directory)
+	{
+		try {
+			if (Directory.Exists (directory))
+				Directory.Delete (directory, recursive: true);
+		} catch (Exception ex) {
+			Console.Error.WriteLine ($"Atlas preview cleanup failed: {ex}");
+		}
 	}
 
 	private async void HandleAddFilesClicked (object sender, EventArgs args)

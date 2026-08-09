@@ -26,6 +26,8 @@ internal sealed partial class AtlasPackingWindow : IDisposable
 	private readonly List<string> paths = [];
 	private readonly CancellationTokenSource lifetime = new ();
 	private CancellationTokenSource? build_cts;
+	private CancellationTokenSource? preview_cts;
+	private int preview_version;
 	private bool disposed;
 
 	public event EventHandler? Closed;
@@ -75,6 +77,7 @@ internal sealed partial class AtlasPackingWindow : IDisposable
 		disposed = true;
 		build_cts?.Cancel ();
 		build_cts?.Dispose ();
+		CancelAtlasPreviewBuild ();
 		lifetime.Cancel ();
 		lifetime.Dispose ();
 	}
@@ -120,6 +123,7 @@ internal sealed partial class AtlasPackingWindow : IDisposable
 
 		scaleSpinner = Gtk.SpinButton.NewWithRange (1, 100, 1);
 		scaleSpinner.Value = 100;
+		scaleSpinner.OnValueChanged += (_, _) => RequestAtlasPreview ();
 		content.Append (CreateEntryRow (Translations.GetString ("Scale (%)"), scaleSpinner));
 
 		minWidthSpinner = Gtk.SpinButton.NewWithRange (0, 16384, 1);
@@ -128,6 +132,10 @@ internal sealed partial class AtlasPackingWindow : IDisposable
 		maxHeightSpinner = Gtk.SpinButton.NewWithRange (1, 16384, 1);
 		maxWidthSpinner.Value = 2048;
 		maxHeightSpinner.Value = 2048;
+		minWidthSpinner.OnValueChanged += (_, _) => RequestAtlasPreview ();
+		maxWidthSpinner.OnValueChanged += (_, _) => RequestAtlasPreview ();
+		minHeightSpinner.OnValueChanged += (_, _) => RequestAtlasPreview ();
+		maxHeightSpinner.OnValueChanged += (_, _) => RequestAtlasPreview ();
 		content.Append (CreateEntryRow (Translations.GetString ("Minimum atlas width (0 = automatic)"), minWidthSpinner));
 		content.Append (CreateEntryRow (Translations.GetString ("Maximum atlas width"), maxWidthSpinner));
 		content.Append (CreateEntryRow (Translations.GetString ("Minimum atlas height (0 = automatic)"), minHeightSpinner));
@@ -135,10 +143,12 @@ internal sealed partial class AtlasPackingWindow : IDisposable
 
 		spacingSpinner = Gtk.SpinButton.NewWithRange (0, 256, 1);
 		spacingSpinner.Value = 2;
+		spacingSpinner.OnValueChanged += (_, _) => RequestAtlasPreview ();
 		content.Append (CreateEntryRow (Translations.GetString ("Spacing"), spacingSpinner));
 
 		trimToggle = Gtk.ToggleButton.NewWithLabel (Translations.GetString ("Trim transparent pixels"));
 		trimToggle.Active = true;
+		trimToggle.OnToggled += (_, _) => RequestAtlasPreview ();
 		content.Append (trimToggle);
 
 		buildButton = Gtk.Button.NewWithLabel (Translations.GetString ("Build atlas"));
@@ -179,6 +189,7 @@ internal sealed partial class AtlasPackingWindow : IDisposable
 
 		build_cts?.Cancel ();
 		build_cts?.Dispose ();
+		CancelAtlasPreviewBuild ();
 		build_cts = CancellationTokenSource.CreateLinkedTokenSource (lifetime.Token);
 		CancellationToken cancellationToken = build_cts.Token;
 		buildButton.Sensitive = false;

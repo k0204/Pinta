@@ -36,7 +36,8 @@ internal static class VideoAtlasBuilder
 		int maxHeight,
 		int spacing,
 		bool trimTransparent,
-		CancellationToken cancellationToken = default)
+		CancellationToken cancellationToken = default,
+		bool drawPreviewBorders = false)
 	{
 		ValidateInput (paths, outputDirectory, filename, scalePercent, minWidth, maxWidth, minHeight, maxHeight, spacing);
 		string baseName = Path.GetFileNameWithoutExtension (filename);
@@ -50,7 +51,7 @@ internal static class VideoAtlasBuilder
 			}
 
 			List<AtlasPage> pages = PackItems (items, minWidth, maxWidth, minHeight, maxHeight, spacing, cancellationToken);
-			List<string> imagePaths = SavePages (pages, outputDirectory, baseName, cancellationToken);
+			List<string> imagePaths = SavePages (pages, outputDirectory, baseName, cancellationToken, drawPreviewBorders);
 			string metadataPath = Path.Combine (outputDirectory, baseName + ".json");
 			AtlasManifest manifest = CreateManifest (baseName, scalePercent, imagePaths, pages, items);
 			File.WriteAllText (metadataPath, JsonSerializer.Serialize (manifest, json_options));
@@ -170,7 +171,8 @@ internal static class VideoAtlasBuilder
 		IReadOnlyList<AtlasPage> pages,
 		string outputDirectory,
 		string baseName,
-		CancellationToken cancellationToken)
+		CancellationToken cancellationToken,
+		bool drawPreviewBorders)
 	{
 		List<string> imagePaths = [];
 		for (int index = 0; index < pages.Count; index++) {
@@ -185,12 +187,37 @@ internal static class VideoAtlasBuilder
 				context.Operator = Operator.Over;
 				foreach (AtlasItem item in page.Items)
 					context.DrawPixbuf (item.Pixbuf, item.X - item.TrimLeft, item.Y - item.TrimTop);
+				if (drawPreviewBorders)
+					DrawPreviewBorders (context, page);
 			}
 			surface.SaveToPng (path);
 			imagePaths.Add (path);
 		}
 
 		return imagePaths;
+	}
+
+	private static void DrawPreviewBorders (Context context, AtlasPage page)
+	{
+		context.LineWidth = 2;
+		context.SetSourceRgba (0.15, 0.35, 0.85, 0.95);
+		context.Rectangle (
+			1,
+			1,
+			Math.Max (1, page.Width - 2),
+			Math.Max (1, page.Height - 2));
+		context.Stroke ();
+
+		context.LineWidth = 1;
+		context.SetSourceRgba (0.95, 0.55, 0.1, 0.95);
+		foreach (AtlasItem item in page.Items) {
+			context.Rectangle (
+				item.X + 0.5,
+				item.Y + 0.5,
+				Math.Max (1, item.PackedWidth) - 1,
+				Math.Max (1, item.PackedHeight) - 1);
+			context.Stroke ();
+		}
 	}
 
 	private static AtlasManifest CreateManifest (
