@@ -48,13 +48,15 @@ internal sealed partial class VideoFrameExportWindow
 
 		try {
 			VideoMetadata loadedMetadata = await VideoFrameExportProcess.ProbeAsync (filename, cancellationToken);
-			DirectoryInfo directory = Directory.CreateTempSubdirectory ("pinta-video-frames-");
-			IReadOnlyList<string> paths = await VideoFrameExportProcess.ExtractPreviewFilesAsync (
+			DirectoryInfo directory = GetFrameDirectory (filename);
+			ClearFrameFiles (directory);
+			IProgress<int> progress = new Progress<int> (count => UpdateAnalysisProgress (count, loadedMetadata.TotalFrames));
+			IReadOnlyList<string> paths = await VideoFrameExportProcess.ExtractFrameFilesAsync (
 				filename,
-				loadedMetadata,
 				directory.FullName,
+				progress,
 				cancellationToken);
-			int[] sourceIndices = VideoFrameExportProcess.GetPreviewIndices (loadedMetadata.TotalFrames, paths.Count);
+			int[] sourceIndices = Enumerable.Range (0, paths.Count).ToArray ();
 			if (paths.Count == 0 || sourceIndices.Length == 0)
 				throw new VideoFrameExportException (Translations.GetString ("No video frames were found."));
 
@@ -64,8 +66,10 @@ internal sealed partial class VideoFrameExportWindow
 			NotifyVideoLoaded ();
 			metadata = loadedMetadata;
 			previewDirectory = directory;
+			previewPaths.Clear ();
+			previewPaths.AddRange (paths);
 			LoadPreviews (paths, sourceIndices, loadedMetadata.FrameRate);
-			selectedIndices.UnionWith (previews.Select (preview => preview.SourceIndex));
+			RestoreSelection (loadedMetadata.TotalFrames);
 			currentFrameIndex = previews[0].SourceIndex;
 			playerStatus.Hide ();
 			player.Show ();
@@ -76,6 +80,7 @@ internal sealed partial class VideoFrameExportWindow
 			UpdateMetadataLabels ();
 			UpdateCurrentFrame ();
 			RebuildFilmstrip ();
+			exportProgress.Hide ();
 		} catch (OperationCanceledException) {
 		} catch (VideoFrameExportException ex) {
 			SetErrorState (ex.Message);
@@ -86,13 +91,69 @@ internal sealed partial class VideoFrameExportWindow
 		}
 	}
 
+	private void RestoreSelection (int totalFrames)
+	{
+		selectedIndices.Clear ();
+		string? saved = videoLayer?.SelectedFrames;
+		if (saved is "*") {
+			selectedIndices.UnionWith (previews.Select (preview => preview.SourceIndex));
+			return;
+		}
+		if (saved is null) {
+			selectedIndices.UnionWith (previews.Select (preview => preview.SourceIndex));
+			return;
+		}
+		foreach (string value in saved.Split (',', StringSplitOptions.RemoveEmptyEntries))
+			if (int.TryParse (value, out int index) && index >= 0 && index < totalFrames)
+				selectedIndices.Add (index);
+	}
+
+	private void UpdateAnalysisProgress (int current, int total)
+	{
+		exportProgress.Fraction = total > 0 ? Math.Clamp ((double) current / total, 0, 1) : 0;
+		exportProgress.Text = Translations.GetString ("Analyzing frames: {0} / {1}", current, total);
+		exportProgress.Show ();
+	}
+
+	private DirectoryInfo GetFrameDirectory (string filename)
+	{
+		string? projectPath = (PintaCore.Workspace.ActiveDocumentOrDefault as Document)?.File?.GetPath ();
+		string root = projectPath ?? Path.GetDirectoryName (filename)!;
+		return Directory.CreateDirectory (Path.Combine (root, "resources", "video-frames"));
+	}
+
+	private static void ClearFrameFiles (DirectoryInfo directory)
+	{
+		foreach (FileInfo file in directory.EnumerateFiles ("*.png"))
+			file.Delete ();
+	}
+
+	private void ClearGeneratedFrames ()
+	{
+		StopPlayback ();
+		ClearPreviews (deleteDirectory: true);
+		selectedIndices.Clear ();
+		SaveSelection ();
+		playerStatus.SetText (Translations.GetString ("Generated frames cleared."));
+		playerStatus.Show ();
+		player.Hide ();
+		UpdateSelectionSummary (0);
+	}
+
+	private async void RegenerateVideoFrames ()
+	{
+		if (videoFilename is string filename)
+			await LoadVideoAsync (filename);
+	}
+
 	private void LoadPreviews (IReadOnlyList<string> paths, IReadOnlyList<int> sourceIndices, double frameRate)
 	{
 		ClearPreviews (deleteDirectory: false);
 		for (int i = 0; i < Math.Min (paths.Count, sourceIndices.Count); i++) {
-			using GdkPixbuf.Pixbuf pixbuf = GdkPixbuf.Pixbuf.NewFromFile (paths[i])!;
-			Gdk.Texture texture = Gdk.Texture.NewForPixbuf (pixbuf);
-			previews.Add (new VideoFramePreview (sourceIndices[i], TimeSpan.FromSeconds (sourceIndices[i] / frameRate), texture));
+			previews.Add (new VideoFramePreview (
+				sourceIndices[i],
+				TimeSpan.FromSeconds (sourceIndices[i] / frameRate),
+				paths[i]));
 		}
 	}
 
@@ -123,12 +184,18 @@ internal sealed partial class VideoFrameExportWindow
 
 	private void ClearPreviews (bool deleteDirectory)
 	{
+		current_frame_load_version++;
+		current_frame_cts?.Cancel ();
+		current_frame_cts?.Dispose ();
+		current_frame_cts = null;
+		ClearThumbnailBindings ();
+		thumbnail_model.Splice (0, thumbnail_model.NItems, Array.Empty<string> ());
+		visible_previews.Clear ();
 		player.SetPaintable (null);
-		while (filmstrip.GetFirstChild () is Gtk.Widget child)
-			filmstrip.Remove (child);
-		foreach (VideoFramePreview preview in previews)
-			preview.Dispose ();
+		sourceVideo.SetPaintable (null);
 		previews.Clear ();
+		previewPaths.Clear ();
+		thumbnail_cache.Clear ();
 		if (deleteDirectory) {
 			previewDirectory?.Delete (recursive: true);
 			previewDirectory = null;
@@ -186,12 +253,12 @@ internal sealed partial class VideoFrameExportWindow
 		if (metadata is not VideoMetadata data)
 			return;
 		VideoFramePreview? preview = previews.MinBy (item => Math.Abs (item.SourceIndex - currentFrameIndex));
-		player.SetPaintable (preview?.Texture);
-		sourceVideo.SetPaintable (preview?.Texture);
 		updating_seek = true;
 		seekScale.SetValue (currentFrameIndex);
 		updating_seek = false;
 		timeLabel.SetText (Translations.GetString ("{0} / {1}", FormatTime (currentFrameIndex / data.FrameRate), FormatTime (data.Duration)));
+		if (preview is not null)
+			StartCurrentFrameLoad (preview);
 	}
 
 }

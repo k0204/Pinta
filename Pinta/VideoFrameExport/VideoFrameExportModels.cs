@@ -12,10 +12,7 @@ internal sealed record VideoMetadata (
 internal sealed record VideoFramePreview (
 	int SourceIndex,
 	TimeSpan Time,
-	Gdk.Texture Texture) : IDisposable
-{
-	public void Dispose () => Texture.Dispose ();
-}
+	string SourcePath);
 
 internal sealed class VideoFrameExportException : Exception
 {

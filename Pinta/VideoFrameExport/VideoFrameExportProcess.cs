@@ -13,7 +13,6 @@ namespace Pinta;
 
 internal static class VideoFrameExportProcess
 {
-	private const int MaxPreviewFrames = 240;
 	private static string? tools_directory;
 
 	public static string? FindToolsDirectory ()
@@ -114,34 +113,39 @@ internal static class VideoFrameExportProcess
 		}
 	}
 
-	public static async Task<IReadOnlyList<string>> ExtractPreviewFilesAsync (
+	public static async Task<IReadOnlyList<string>> ExtractFrameFilesAsync (
 		string filename,
-		VideoMetadata metadata,
 		string outputDirectory,
+		IProgress<int>? progress,
 		CancellationToken cancellationToken)
 	{
-		int previewCount = Math.Min (metadata.TotalFrames, MaxPreviewFrames);
-		double previewRate = previewCount / metadata.Duration;
-		string filter = $"fps={previewRate.ToString ("R", CultureInfo.InvariantCulture)},scale=320:-2:force_original_aspect_ratio=decrease";
 		string outputPattern = Path.Combine (outputDirectory, "%06d.png");
 
-		await RunToolAsync (
+		Task<ProcessResult> extraction = RunToolAsync (
 			"ffmpeg",
 			[
 				"-hide_banner", "-loglevel", "error", "-y",
 				"-i", filename,
 				"-map", "0:v:0",
-				"-vf", filter,
 				"-fps_mode", "vfr",
 				"-start_number", "0",
-				"-q:v", "6",
+				"-an", "-sn", "-dn",
+				"-c:v", "png",
+				"-compression_level", "3",
 				outputPattern
 			],
 			cancellationToken);
+		while (!extraction.IsCompleted) {
+			progress?.Report (Directory.EnumerateFiles (outputDirectory, "*.png").Count ());
+			await Task.Delay (200, CancellationToken.None);
+		}
+		await extraction;
 
-		return Directory.GetFiles (outputDirectory, "*.png")
+		string[] paths = Directory.GetFiles (outputDirectory, "*.png")
 			.OrderBy (path => path, StringComparer.OrdinalIgnoreCase)
 			.ToArray ();
+		progress?.Report (paths.Length);
+		return paths;
 	}
 
 	public static async Task ExportAsync (
@@ -230,20 +234,6 @@ internal static class VideoFrameExportProcess
 				process.Kill (entireProcessTree: true);
 		} catch (InvalidOperationException) {
 		}
-	}
-
-	internal static int[] GetPreviewIndices (int totalFrames, int previewCount)
-	{
-		previewCount = Math.Clamp (previewCount, 0, Math.Min (totalFrames, MaxPreviewFrames));
-		if (previewCount == 0)
-			return [];
-		if (previewCount == totalFrames)
-			return Enumerable.Range (0, totalFrames).ToArray ();
-
-		return Enumerable.Range (0, previewCount)
-			.Select (index => (int) Math.Round (index * (totalFrames - 1d) / (previewCount - 1d)))
-			.Distinct ()
-			.ToArray ();
 	}
 
 	private static double ParseDuration (JsonElement stream, JsonElement root)

@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Cairo;
 
 namespace Pinta.Core;
@@ -8,6 +9,7 @@ namespace Pinta.Core;
 public sealed class VideoEditingLayer : GroupLayer
 {
 	internal const string VideoPathMetadataKey = "video.path";
+	internal const string SelectedFramesMetadataKey = "video.selected-frames";
 
 	internal VideoEditingLayer (ImageSurface surface, string name)
 		: base (surface)
@@ -22,6 +24,16 @@ public sealed class VideoEditingLayer : GroupLayer
 				Metadata.Remove (VideoPathMetadataKey);
 			else
 				Metadata[VideoPathMetadataKey] = value;
+		}
+	}
+
+	public string? SelectedFrames {
+		get => Metadata.TryGetValue (SelectedFramesMetadataKey, out string? value) ? value : null;
+		set {
+			if (value is null)
+				Metadata.Remove (SelectedFramesMetadataKey);
+			else
+				Metadata[SelectedFramesMetadataKey] = value;
 		}
 	}
 }

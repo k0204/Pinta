@@ -4193,3 +4193,230 @@ msgstr ""
 #, csharp-format
 msgid "Split {0}"
 msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.Media.cs:91
+msgid "Analyzing frames: {0} / {1}"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:432
+msgid "Clear generated frames"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:433
+msgid "Regenerate video frames"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.Media.cs:132
+msgid "Generated frames cleared."
+msgstr ""
+
+#: Pinta/VideoFrameExport/AtlasPackingWindow.cs:251
+msgid "{0} image frames selected"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoAtlasBuilder.cs:110
+msgid "A frame is too large for the atlas page."
+msgstr ""
+
+#: Pinta/VideoFrameExport/AtlasPackingWindow.cs:182
+msgid "Add image frames"
+msgstr ""
+
+#: Pinta/VideoFrameExport/AtlasPackingWindow.cs:91
+msgid "Add image frames..."
+msgstr ""
+
+#: Pinta/VideoFrameExport/AtlasPackingWindow.cs:235
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.Atlas.cs:108
+msgid "Atlas build canceled."
+msgstr ""
+
+#: Pinta/VideoFrameExport/AtlasPackingWindow.cs:241
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.Atlas.cs:114
+msgid "Atlas build failed."
+msgstr ""
+
+#: Pinta/VideoFrameExport/AtlasPackingWindow.cs:127
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:448
+msgid "Atlas filename"
+msgstr ""
+
+#: Pinta/VideoFrameExport/AtlasPackingWindow.cs:120
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:447
+msgid "Atlas folder"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoAtlasBuilder.cs:85
+msgid "Atlas height limits are invalid."
+msgstr ""
+
+#: Pinta/VideoFrameExport/AtlasPackingWindow.cs:229
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.Atlas.cs:102
+msgid "Atlas saved: {0} page(s), metadata: {1}"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoAtlasBuilder.cs:87
+msgid "Atlas spacing must be between 0 and 256 pixels."
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoAtlasBuilder.cs:83
+msgid "Atlas width limits are invalid."
+msgstr ""
+
+#: Pinta/VideoFrameExport/AtlasPackingWindow.cs:148
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:386
+msgid "Build atlas"
+msgstr ""
+
+#: Pinta/VideoFrameExport/AtlasPackingWindow.cs:213
+msgid "Building atlas: {0} frames"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.Atlas.cs:86
+msgid "Building atlas: {0} original frames"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.Atlas.cs:65
+msgid "Choose an atlas folder and filename."
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoAtlasBuilder.cs:75
+msgid "Choose an atlas output folder."
+msgstr ""
+
+#: Pinta/VideoFrameExport/AtlasPackingWindow.cs:168
+#: Pinta/VideoFrameExport/AtlasPackingWindow.cs:171
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.Atlas.cs:32
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.Atlas.cs:41
+msgid "Choose atlas output folder"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:476
+msgid "Choose frames"
+msgstr ""
+
+#: Pinta/VideoFrameExport/AtlasPackingWindow.cs:254
+msgid "Choose image frames to build an atlas."
+msgstr ""
+
+#: Pinta/VideoFrameExport/AtlasPackingWindow.cs:94
+msgid "Clear image frames"
+msgstr ""
+
+#: Pinta/VideoFrameExport/AtlasPackingWindow.cs:74
+msgid "Close Texture Atlas Packer"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:452
+msgid "Maximum atlas height"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:450
+msgid "Maximum atlas width"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:451
+msgid "Minimum atlas height (0 = automatic)"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:449
+msgid "Minimum atlas width (0 = automatic)"
+msgstr ""
+
+#: Pinta/VideoFrameExport/AtlasPackingWindow.cs:251
+msgid "No image frames selected"
+msgstr ""
+
+#: Pinta/VideoFrameExport/AtlasPackingAction.cs:18
+msgid "Pack image frames into texture atlas pages"
+msgstr ""
+
+#: Pinta/VideoFrameExport/AtlasPackingWindow.cs:142
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:453
+msgid "Spacing"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoAtlasBuilder.cs:73
+msgid "Select at least one frame for the atlas."
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.Atlas.cs:57
+msgid "Select frames before building an atlas."
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:457
+msgid "Texture atlas"
+msgstr ""
+
+#: Pinta/VideoFrameExport/AtlasPackingWindow.cs:40
+#: Pinta/VideoFrameExport/AtlasPackingWindow.cs:78
+msgid "Texture Atlas Packer"
+msgstr ""
+
+#: Pinta/VideoFrameExport/AtlasPackingAction.cs:17
+msgid "Texture Atlas Packer..."
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoAtlasBuilder.cs:81
+msgid "The atlas filename is not valid."
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoAtlasBuilder.cs:219
+msgid "The selected image file could not be found."
+msgstr ""
+
+#: Pinta/VideoFrameExport/AtlasPackingWindow.cs:144
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:357
+msgid "Trim transparent pixels"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoAtlasBuilder.cs:80
+msgid "Atlas scale must be between 1 and 100 percent."
+msgstr ""
+
+#: Pinta/VideoFrameExport/AtlasPackingWindow.cs:132
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:452
+msgid "Scale (%)"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoAtlasBuilder.cs:270
+msgid "The scaled frame exceeds the maximum atlas dimension."
+msgstr ""
+
+#: Pinta/VideoFrameExport/AtlasPackingWindow.Preview.cs:66
+msgid "Atlas preview"
+msgstr ""
+
+#: Pinta/VideoFrameExport/AtlasPackingWindow.Preview.cs:88
+#: Pinta/VideoFrameExport/AtlasPackingWindow.Preview.cs:189
+msgid "Build an atlas to preview the result."
+msgstr ""
+
+#: Pinta/VideoFrameExport/AtlasPackingWindow.Preview.cs:165
+msgid "F{0}: {1}"
+msgstr ""
+
+#: Pinta/VideoFrameExport/AtlasPackingWindow.Preview.cs:27
+msgid "Input frames"
+msgstr ""
+
+#: Pinta/VideoFrameExport/AtlasPackingWindow.Preview.cs:79
+msgid "Next atlas page"
+msgstr ""
+
+#: Pinta/VideoFrameExport/AtlasPackingWindow.Preview.cs:75
+#: Pinta/VideoFrameExport/AtlasPackingWindow.Preview.cs:213
+msgid "No atlas preview"
+msgstr ""
+
+#: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:361
+msgid "Open Atlas Packer"
+msgstr ""
+
+#: Pinta/VideoFrameExport/AtlasPackingWindow.Preview.cs:222
+msgid "Page {0} of {1}"
+msgstr ""
+
+#: Pinta/VideoFrameExport/AtlasPackingWindow.Preview.cs:72
+msgid "Previous atlas page"
+msgstr ""
