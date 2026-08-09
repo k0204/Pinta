@@ -13,6 +13,8 @@ public sealed partial class LayerActions
 		private readonly Size sourceSize;
 		private readonly Cairo.ImageSurface sourceSurface;
 		private readonly Gdk.Texture sourceTexture;
+		private Cairo.ImageSurface? adaptedSurface;
+		private Gdk.Texture? adaptedTexture;
 		private readonly Gtk.Box content;
 		private readonly Gtk.Box resolutionChoices;
 		private readonly Gtk.CheckButton lowerButton;
@@ -107,10 +109,6 @@ public sealed partial class LayerActions
 				out adaptedPicture,
 				out adaptedBackdrop,
 				out adaptedBorder);
-			adaptedPicture.Hexpand = false;
-			adaptedPicture.Vexpand = false;
-			adaptedPicture.Halign = Gtk.Align.Center;
-			adaptedPicture.Valign = Gtk.Align.Center;
 			adaptedBackdrop.SetDrawFunc ((_, context, width, height)
 				=> DrawPreviewBackground (
 					context,
@@ -119,7 +117,6 @@ public sealed partial class LayerActions
 					!paddingButton.Active));
 			adaptedBorder.SetDrawFunc ((_, context, width, height)
 				=> DrawPreviewBorder (context, width, height, GetSelectedSize ()));
-			adaptedBackdrop.OnResize += (_, args) => UpdateAdaptedPictureSize (args.Width, args.Height);
 			comparison = Gtk.Grid.New ();
 			comparison.ColumnSpacing = 12;
 			comparison.RowSpacing = 6;
@@ -197,6 +194,7 @@ public sealed partial class LayerActions
 
 		public void Dispose ()
 		{
+			ClearAdaptedPreview ();
 			sourceTexture.Dispose ();
 			sourceSurface.Dispose ();
 		}
@@ -290,19 +288,19 @@ public sealed partial class LayerActions
 			infoGrid.Visible = !directMatch;
 			paddingButton.Visible = !directMatch;
 			if (directMatch) {
-				adaptedPicture.Visible = false;
+				ClearAdaptedPreview ();
 				adaptedBorder.QueueDraw ();
 				return;
 			}
 			if (selected is not Size requestSize || error is not null) {
-				adaptedPicture.Visible = false;
+				ClearAdaptedPreview ();
 				adaptedBackdrop.QueueDraw ();
 				adaptedBorder.QueueDraw ();
 				return;
 			}
 
 			AI.ImageFitInfo fit = AI.BackgroundCutoutService.GetImageFitInfo (sourceSize, requestSize);
-			UpdateAdaptedPictureSize (adaptedBackdrop.GetWidth (), adaptedBackdrop.GetHeight (), requestSize, fit);
+			UpdateAdaptedPreview (requestSize);
 			adaptedPicture.Visible = true;
 			requestSizeLabel.SetText (FormatSize (requestSize));
 			scaleLabel.SetText (Translations.GetString ("{0:P1}", fit.Scale));
@@ -311,28 +309,22 @@ public sealed partial class LayerActions
 			adaptedBorder.QueueDraw ();
 		}
 
-		private void UpdateAdaptedPictureSize (int width, int height)
+		private void UpdateAdaptedPreview (Size requestSize)
 		{
-			if (GetSelectedSize () is not Size requestSize)
-				return;
-			AI.ImageFitInfo fit = AI.BackgroundCutoutService.GetImageFitInfo (sourceSize, requestSize);
-			UpdateAdaptedPictureSize (width, height, requestSize, fit);
+			ClearAdaptedPreview ();
+			adaptedSurface = CreatePreviewSurface (
+				CreateFittedSourcePng (sourceSurface, requestSize, paddingButton.Active));
+			adaptedTexture = adaptedSurface.ToTexture ();
+			adaptedPicture.Paintable = adaptedTexture;
 		}
 
-		private void UpdateAdaptedPictureSize (
-			int width,
-			int height,
-			Size requestSize,
-			AI.ImageFitInfo fit)
+		private void ClearAdaptedPreview ()
 		{
-			width = width > 0 ? width : 430;
-			height = height > 0 ? height : 300;
-			double scale = Math.Min (
-				width / (double) requestSize.Width,
-				height / (double) requestSize.Height);
-			int contentWidth = Math.Max (1, (int) Math.Round (fit.ContentSize.Width * scale));
-			int contentHeight = Math.Max (1, (int) Math.Round (fit.ContentSize.Height * scale));
-			adaptedPicture.SetSizeRequest (contentWidth, contentHeight);
+			adaptedPicture.Paintable = sourceTexture;
+			adaptedTexture?.Dispose ();
+			adaptedTexture = null;
+			adaptedSurface?.Dispose ();
+			adaptedSurface = null;
 		}
 
 		private static byte[] CreateFittedSourcePng (

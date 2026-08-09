@@ -159,9 +159,10 @@ public sealed partial class LayersListViewItemWidget
 	[MemberNotNull (nameof (cutout_button))]
 	[MemberNotNull (nameof (generate_video_button))]
 	[MemberNotNull (nameof (import_video_button))]
-        [MemberNotNull (nameof (layer_icon))]
+	[MemberNotNull (nameof (layer_icon))]
 	[MemberNotNull (nameof (visible_button))]
 	[MemberNotNull (nameof (lock_button))]
+	[MemberNotNull (nameof (lock_icon))]
 	[MemberNotNull (nameof (disclosure_button))]
         [MemberNotNull (nameof (hierarchy_content))]
 	[MemberNotNull (nameof (drop_preview))]
@@ -457,8 +458,12 @@ public sealed partial class LayersListViewItemWidget
 		Gtk.GestureClick.PressedSignalArgs args)
 	{
 		gesture.SetState (Gtk.EventSequenceState.Claimed);
-		if (item is null || item.UserLayer is null || item.UserLayer.Locked || !PintaCore.Workspace.HasOpenDocuments)
+		if (item is null || item.UserLayer is null || !PintaCore.Workspace.HasOpenDocuments)
 			return;
+		if (item.UserLayer.Locked) {
+			ShowLockedLayerMenu ();
+			return;
+		}
 
 		Document doc = PintaCore.Workspace.ActiveDocument;
 		// Ensure this is the current layer before opening the menu, since the menu actions
@@ -494,6 +499,8 @@ public sealed partial class LayersListViewItemWidget
 		operationsSection.AppendItem (actions.MergeSelectedLayers.CreateMenuItem ());
 		operationsSection.AppendItem (actions.MoveLayerUp.CreateMenuItem ());
 		operationsSection.AppendItem (actions.MoveLayerDown.CreateMenuItem ());
+		if (item.UserLayer is AnimationOutputLayer)
+			operationsSection.AppendItem (actions.ResetLayerPosition.CreateMenuItem ());
 
 		Gio.Menu flipSection = Gio.Menu.New ();
 		flipSection.AppendItem (actions.FlipHorizontal.CreateMenuItem ());

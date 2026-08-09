@@ -41,6 +41,9 @@ public static class NanoBananaImageConfig
 			: throw new InvalidOperationException ($"Nano Banana config has no resolutions: {GetConfigPath ()}");
 	}
 
+	internal static NanoBananaImageOption? FindImageGenerationOption (Size size)
+		=> GetImageGenerationOptions ().FirstOrDefault (option => option.Size == size);
+
 	private static NanoBananaConfig ReadConfig ()
 	{
 		string path = GetConfigPath ();

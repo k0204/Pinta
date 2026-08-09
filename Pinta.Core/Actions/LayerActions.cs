@@ -59,6 +59,7 @@ public sealed partial class LayerActions
 	public Command RotateZoom { get; }
 	public Command MoveLayerUp { get; }
 	public Command MoveLayerDown { get; }
+	public Command ResetLayerPosition { get; }
 	public Command Properties { get; }
 	public Command UnlockReference { get; }
 
@@ -258,6 +259,12 @@ public sealed partial class LayerActions
 			null,
 			Resources.StandardIcons.LayerMoveDown);
 
+		ResetLayerPosition = new Command (
+			"resetlayerposition",
+			Translations.GetString ("Reset Layer Position"),
+			null,
+			Resources.StandardIcons.ViewRefresh);
+
 		Properties = new Command (
 			"properties",
 			Translations.GetString ("Layer Properties..."),
@@ -320,7 +327,8 @@ public sealed partial class LayerActions
 			UnlockReference,
 
 			MoveLayerDown,
-			MoveLayerUp]);
+			MoveLayerUp,
+			ResetLayerPosition]);
 	}
 
 	public void RegisterHandlers ()
@@ -342,6 +350,7 @@ public sealed partial class LayerActions
 		MergeLayerDown.Activated += HandlePintaCoreActionsLayersMergeLayerDownActivated;
 		MoveLayerDown.Activated += HandlePintaCoreActionsLayersMoveLayerDownActivated;
 		MoveLayerUp.Activated += HandlePintaCoreActionsLayersMoveLayerUpActivated;
+		ResetLayerPosition.Activated += HandleResetLayerPositionActivated;
 		FlipHorizontal.Activated += HandlePintaCoreActionsLayersFlipHorizontalActivated;
 		FlipVertical.Activated += HandlePintaCoreActionsLayersFlipVerticalActivated;
 		ImportFromFile.Activated += HandlePintaCoreActionsLayersImportFromFileActivated;
@@ -395,6 +404,8 @@ public sealed partial class LayerActions
 		MoveLayerDown.Sensitive = canMergeDown;
 
 		MoveLayerUp.Sensitive = activeDoc?.Layers.CanMoveCurrentLayerUp () ?? false;
+		ResetLayerPosition.Sensitive = activeDoc?.Layers.CurrentUserLayer is AnimationOutputLayer animationLayer
+			&& animationLayer.CanMoveOnCanvas;
 		Properties.Sensitive = hasSelectedLayer;
 		SaveLayerImage.Sensitive = hasSelectedLayer && !save_layer_running;
 		FlipHorizontal.Sensitive = currentEditable;

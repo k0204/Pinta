@@ -155,6 +155,9 @@ public sealed class BackgroundCutoutService
 		string imageService,
 		string? provider = null)
 	{
+		if (imageService == AiRequestSettings.NanoBananaService)
+			return NanoBananaImageConfig.GetImageGenerationSizes ();
+
 		if (!string.IsNullOrWhiteSpace (provider) &&
 			PintaCore.AiProviders.FindImageProvider (provider) is AiProviderInfo info) {
 			IReadOnlyList<string>? configuredValues = info.ImageSizes is { Count: > 0 }
@@ -174,7 +177,6 @@ public sealed class BackgroundCutoutService
 
 		return imageService switch {
 			AiRequestSettings.AgnesService => agnes_image_sizes,
-			AiRequestSettings.NanoBananaService => NanoBananaImageConfig.GetImageGenerationSizes (),
 			_ => gpt_image_generation_sizes,
 		};
 	}
@@ -257,11 +259,12 @@ public sealed class BackgroundCutoutService
 		PointI contentOffset = PointI.Zero;
 		bool sourceResized = false;
 		string provider = AiRequestSettings.GetImageProvider (PintaCore.Settings);
-		KeyValuePair<string, string>[] fields = [
-			new ("size", size),
-			new ("provider", provider),
-			new ("prompt", prompt),
-		];
+		KeyValuePair<string, string>[] fields = CreateImageRequestFields (
+			imageService,
+			requestSize,
+			provider,
+			prompt,
+			size);
 
 		int sourceCount = sourcePng is null ? 0 : 1;
 		(byte[] Data, string FormName, string FileName)[] files = new (byte[], string, string)[sourceCount + referenceImages.Count];
@@ -339,6 +342,29 @@ public sealed class BackgroundCutoutService
 			AiRequestSettings.NanoBananaService => GetNanoBananaImageRequestSize (imageSize),
 			_ => GetGptImageRequestSize (imageSize),
 		};
+	}
+
+	private static KeyValuePair<string, string>[] CreateImageRequestFields (
+		string imageService,
+		Size requestSize,
+		string provider,
+		string prompt,
+		string formattedSize)
+	{
+		if (imageService == AiRequestSettings.NanoBananaService &&
+			NanoBananaImageConfig.FindImageGenerationOption (requestSize) is NanoBananaImageOption option)
+			return [
+				new ("size", option.AspectRatio),
+				new ("resolution", option.Resolution),
+				new ("provider", provider),
+				new ("prompt", prompt),
+			];
+
+		return [
+			new ("size", formattedSize),
+			new ("provider", provider),
+			new ("prompt", prompt),
+		];
 	}
 
 	private static Size? TryParseSize (string value)

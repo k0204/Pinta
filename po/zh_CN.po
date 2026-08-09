@@ -2280,6 +2280,11 @@ msgstr "变换"
 msgid "Reset"
 msgstr "重置"
 
+#: ../Pinta.Core/Actions/LayerActions.Position.cs:21
+#: ../Pinta.Core/Actions/LayerActions.cs:264
+msgid "Reset Layer Position"
+msgstr "坐标归零"
+
 #: ../Pinta.Core/Actions/EditActions.cs:182
 msgid "Reset to Default"
 msgstr "重置为默认值"
