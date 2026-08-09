@@ -1584,6 +1584,11 @@ msgstr "曼德勃罗分形"
 msgid "Martian Lava"
 msgstr ""
 
+#: ../Pinta.Core/Actions/AutoSplitDialog.cs:55
+#: ../Pinta.Core/Actions/LayerActions.cs:150
+msgid "Auto Split Image"
+msgstr "AI 场景拆分"
+
 #: ../Pinta.Core/Actions/LayerActions.cs:128
 #: ../Pinta.Core/Actions/LayerActions.ImageSplit.cs:50
 msgid "Split Image"

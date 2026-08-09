@@ -41,6 +41,8 @@ public sealed class MoveLayerTool : BaseTool
 	private readonly Gdk.Cursor marquee_cursor;
 	private PointD drag_start_point;
 	private PointD applied_drag_delta;
+	private RectangleD drag_start_bounds;
+	private bool has_drag_start_bounds;
 	private PointD last_window_point;
 	private bool marquee_active;
 	private bool shift_pressed;
@@ -195,6 +197,8 @@ public sealed class MoveLayerTool : BaseTool
 		}
 
 		PointD totalDelta = GetDragDelta (e.PointDouble);
+		if (has_drag_start_bounds)
+			totalDelta = ClampMoveDelta (document, drag_start_bounds, totalDelta);
 		PointD delta = totalDelta - applied_drag_delta;
 		foreach (UserLayer layer in dragged_layers)
 			document.Layers.TranslateLayerTree (layer, delta);
@@ -236,6 +240,11 @@ public sealed class MoveLayerTool : BaseTool
 			return false;
 
 		PointD delta = GetKeyDelta (e);
+		if (delta == PointD.Zero)
+			return false;
+
+		if (document.Layers.TryGetSelectedLayerTreeBounds (out RectangleD bounds))
+			delta = ClampMoveDelta (document, bounds, delta);
 		if (delta == PointD.Zero)
 			return false;
 
@@ -313,6 +322,7 @@ public sealed class MoveLayerTool : BaseTool
 		dragged_layers.AddRange (document.Layers.GetSelectedLayerRoots ());
 		drag_start_point = point;
 		applied_drag_delta = PointD.Zero;
+		has_drag_start_bounds = document.Layers.TryGetSelectedLayerTreeBounds (out drag_start_bounds);
 		document.Workspace.Invalidate ();
 	}
 
@@ -402,6 +412,22 @@ public sealed class MoveLayerTool : BaseTool
 
 		dragged_layers.Clear ();
 		applied_drag_delta = PointD.Zero;
+		drag_start_bounds = RectangleD.Zero;
+		has_drag_start_bounds = false;
+	}
+
+	private static PointD ClampMoveDelta (Document document, RectangleD bounds, PointD requestedDelta)
+	{
+		double targetX = ClampMovePosition (bounds.X + requestedDelta.X, bounds.Width, document.ImageSize.Width);
+		double targetY = ClampMovePosition (bounds.Y + requestedDelta.Y, bounds.Height, document.ImageSize.Height);
+		return new PointD (targetX - bounds.X, targetY - bounds.Y);
+	}
+
+	private static double ClampMovePosition (double position, double contentSize, int canvasSize)
+	{
+		double min = Math.Min (0, canvasSize - contentSize);
+		double max = Math.Max (0, canvasSize - contentSize);
+		return Math.Clamp (position, min, max);
 	}
 
 	private void PushMoveHistory (Document document, IReadOnlyList<UserLayer> layers, PointD delta)

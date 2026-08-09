@@ -85,12 +85,15 @@ public sealed partial class LayerActions
 		tools.Commit ();
 		using Cairo.ImageSurface image = file.LoadImageSurface ();
 		UserLayer layer = document.Layers.AddNewLayer (file.GetDisplayName ());
-		PointI position = center is PointD dropCenter
-			? (dropCenter - new PointD (image.Width / 2.0, image.Height / 2.0)).ToInt ()
-			: PointI.Zero;
-		using Cairo.Context context = new (layer.Surface);
-		context.SetSourceSurface (image, position.X, position.Y);
-		context.Paint ();
+		layer.Surface.Dispose ();
+		layer.Surface = image.Clone ();
+
+		PointD position = center is PointD dropCenter
+			? dropCenter - new PointD (image.Width / 2.0, image.Height / 2.0)
+			: PointD.Zero;
+		Cairo.Matrix transform = CairoExtensions.CreateIdentityMatrix ();
+		transform.Translate (position.X, position.Y);
+		layer.Transform = transform;
 
 		AddLayerHistoryItem history = new (
 			Resources.Icons.LayerImport,

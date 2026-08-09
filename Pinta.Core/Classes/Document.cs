@@ -267,9 +267,12 @@ public sealed class Document
 				return false;
 			}
 
-			layer.Surface.Clear ();
-			using Context context = new (layer.Surface);
+			ImageSurface surface = CairoExtensions.CreateImageSurface (Format.Argb32, pixbuf.Width, pixbuf.Height);
+			using Context context = new (surface);
 			context.DrawPixbuf (pixbuf, PointD.Zero);
+			ImageSurface oldSurface = layer.Surface;
+			layer.Surface = surface;
+			oldSurface.Dispose ();
 			layer.ReferenceSize = new Size (pixbuf.Width, pixbuf.Height);
 			layer.ReferenceMissing = false;
 			return true;
@@ -287,6 +290,13 @@ public sealed class Document
 			? new Size (Math.Min (128, ImageSize.Width), Math.Min (128, ImageSize.Height))
 			: layer.ReferenceSize;
 		layer.ReferenceSize = size;
+
+		if (layer.Surface.Width != size.Width || layer.Surface.Height != size.Height) {
+			layer.Surface.Dispose ();
+			layer.Surface = CairoExtensions.CreateImageSurface (Format.Argb32, size.Width, size.Height);
+		} else {
+			layer.Surface.Clear ();
+		}
 
 		using Context context = new (layer.Surface);
 		context.SetSourceColor (new Color (0.85, 0.15, 0.15, 0.8));

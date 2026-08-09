@@ -226,16 +226,16 @@ public sealed partial class LayersListViewItemWidget
 				item.HandleVisibilityToggled (!item.Visible);
                 });
 
-		Gtk.Image lockButton = CreateLockButton ();
+		Gtk.Button lockButton = CreateLockButton ();
 
 		Gtk.GestureClick menuGesture = Gtk.GestureClick.New ();
 		menuGesture.SetButton (Gdk.Constants.BUTTON_SECONDARY);
+		menuGesture.SetPropagationPhase (Gtk.PropagationPhase.Capture);
 		menuGesture.OnPressed += MenuGesture_OnPressed;
 
 		// --- Initialization (Gtk.Widget)
 
                 this.SetAllMargins (2);
-                this.AddController (menuGesture);
 
 		// --- Initialization (Gtk.Box)
 
@@ -244,6 +244,7 @@ public sealed partial class LayersListViewItemWidget
 		itemRow.Append (visibleButton);
 		itemRow.Append (lockButton);
 		AddSelectLayerGesture (itemRow);
+		itemRow.AddController (menuGesture);
 
                 Gtk.Box dragContent = Gtk.Box.New (Gtk.Orientation.Horizontal, 4);
 		dragContent.Hexpand = true;
@@ -452,9 +453,10 @@ public sealed partial class LayersListViewItemWidget
 	}
 
 	private void MenuGesture_OnPressed (
-		Gtk.GestureClick _,
+		Gtk.GestureClick gesture,
 		Gtk.GestureClick.PressedSignalArgs args)
 	{
+		gesture.SetState (Gtk.EventSequenceState.Claimed);
 		if (item is null || item.UserLayer is null || item.UserLayer.Locked || !PintaCore.Workspace.HasOpenDocuments)
 			return;
 
@@ -482,6 +484,7 @@ public sealed partial class LayersListViewItemWidget
 			operationsSection.AppendItem (actions.GenerateSingleDirectionAnimation.CreateMenuItem ());
 			operationsSection.AppendItem (actions.CreateMultiDirectionAnimation.CreateMenuItem ());
 			operationsSection.AppendItem (actions.ImageSplit.CreateMenuItem ());
+			operationsSection.AppendItem (actions.AutoSplit.CreateMenuItem ());
 			operationsSection.AppendItem (actions.CreateSingleDirectionAnimation.CreateMenuItem ());
 		}
 		operationsSection.AppendItem (actions.SaveLayerImage.CreateMenuItem ());
@@ -552,7 +555,7 @@ public sealed partial class LayersListViewItemWidget
 			bool isGroup = item.UserLayer is GroupLayer && item.UserLayer is not AnimationOutputLayer;
 			bool isReference = item.UserLayer?.IsReference == true;
 			item_thumbnail.Visible = !isGroup;
-			layer_icon.IconName = isGroup ? Resources.StandardIcons.Folder : isReference ? "object-locked-symbolic" : string.Empty;
+			layer_icon.IconName = isGroup ? Resources.StandardIcons.Folder : isReference ? Resources.Icons.LayerLocked : string.Empty;
 			layer_icon.TooltipText = isReference
 				? item.UserLayer!.ReferenceMissing ? Translations.GetString ("Referenced image is missing") : Translations.GetString ("Referenced layer is locked")
 				: null;

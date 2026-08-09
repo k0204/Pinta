@@ -5,6 +5,31 @@ namespace Pinta.Core;
 
 public sealed partial class LayerActions
 {
+	private async void HandlePintaCoreActionsLayersImageSplitActivated (object sender, EventArgs e)
+	{
+		if (cutout_running || !EnsureAiLoggedIn ()
+			|| workspace.ActiveDocumentOrDefault is not Document document
+			|| !document.Layers.HasSelectedLayer)
+			return;
+
+		UserLayer source = document.Layers.CurrentUserLayer;
+		if (!source.IsEditable)
+			return;
+
+		AiImageRequestOptions? options = await PromptAiImageRequestAsync (
+			AiImageRequestMode.ImageSplitGeneration,
+			document,
+			source);
+		if (options is null)
+			return;
+
+		await GenerateImageAsync (document, options with {
+			ImageSize = source.Surface.GetSize (),
+			SourceLayer = source,
+			ParentLayer = source,
+		});
+	}
+
 	private static void AttachSettingsRow (Gtk.Grid grid, string label, Gtk.Widget value, int row)
 	{
 		Gtk.Label labelWidget = Gtk.Label.New (label);

@@ -293,8 +293,10 @@ public sealed class EditActions
 	{
 		Document? document = workspace.ActiveDocumentOrDefault;
 		bool visible = document?.Selection.Visible == true;
+		bool hasSelectedLayer = document?.Layers.HasSelectedLayer == true;
 		bool editable = document?.Layers.CurrentUserLayer.IsEditable == true;
 
+		Copy.Sensitive = hasSelectedLayer;
 		Deselect.Sensitive = visible;
 		EraseSelection.Sensitive = visible && editable;
 		FillSelection.Sensitive = visible && editable;
@@ -404,6 +406,9 @@ public sealed class EditActions
 	private void HandlerPintaCoreActionsEditCopyActivated (object sender, EventArgs e)
 	{
 		Document doc = workspace.ActiveDocument;
+		if (!doc.Layers.HasSelectedLayer)
+			return;
+
 		Gdk.Clipboard cb = GdkExtensions.GetDefaultClipboard ();
 		if (tools.CurrentTool?.DoHandleCopy (doc, cb) == true)
 			return;

@@ -7,7 +7,7 @@ namespace Pinta.Core;
 
 public sealed partial class LayerActions
 {
-	private async void HandlePintaCoreActionsLayersImageSplitActivated (object sender, EventArgs e)
+	private async void HandlePintaCoreActionsLayersAutoSplitActivated (object sender, EventArgs e)
 	{
 		if (auto_split_running || workspace.ActiveDocumentOrDefault is not Document document
 			|| !document.Layers.HasSelectedLayer)
@@ -21,20 +21,22 @@ public sealed partial class LayerActions
 		auto_split_running = true;
 		EnableOrDisableLayerActions (null, EventArgs.Empty);
 		try {
+			using ImageSurface splitSurface = CreateLayerTreeSurface (source);
+			UserLayer splitSource = new (splitSurface) { Name = source.Name };
 			IReadOnlyList<AI.AiProviderInfo> providers = PintaCore.AiProviders.ChatProviders;
 			using AutoSplitDialog dialog = new (
 				chrome.MainWindow,
-				source,
+				splitSource,
 				providers,
 				provider => sprite_segmentation.AnalyzeAsync (
-					CreateSurfacePng (source.Surface),
-					source.Surface.Width,
-					source.Surface.Height,
+					CreateSurfacePng (splitSource.Surface),
+					splitSource.Surface.Width,
+					splitSource.Surface.Height,
 					provider),
 				EnsureAiLoggedIn);
 			IReadOnlyList<RectangleI>? regions = await dialog.RunAsync ();
 			if (regions is not null)
-				ApplyAutoSplit (document, source, regions);
+				ApplyAutoSplit (document, source, splitSurface, regions);
 		} catch (Exception ex) {
 			await chrome.ShowErrorDialog (
 				chrome.MainWindow,
@@ -50,12 +52,13 @@ public sealed partial class LayerActions
 	private static void ApplyAutoSplit (
 		Document document,
 		UserLayer source,
+		ImageSurface splitSurface,
 		IReadOnlyList<RectangleI> regions)
 	{
 		CompoundHistoryItem history = new (
 			Resources.Icons.ImageCrop,
 			Translations.GetString ("Split Image"));
-		ImageSurface original = source.Surface.Clone ();
+		ImageSurface original = splitSurface.Clone ();
 		for (int index = 0; index < regions.Count; index++) {
 			RectangleI bounds = regions[index];
 			UserLayer child = CreateAutoSplitChild (document, source, original, bounds, index);

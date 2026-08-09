@@ -105,6 +105,7 @@ internal sealed class LayersPad : IDockPad
 		hamburger_menu.AppendItem (layer_actions.GenerateSingleDirectionAnimation.CreateMenuItem ());
 		hamburger_menu.AppendItem (layer_actions.CreateMultiDirectionAnimation.CreateMenuItem ());
 		hamburger_menu.AppendItem (layer_actions.ImageSplit.CreateMenuItem ());
+		hamburger_menu.AppendItem (layer_actions.AutoSplit.CreateMenuItem ());
 		hamburger_menu.AppendItem (layer_actions.CreateSingleDirectionAnimation.CreateMenuItem ());
 		hamburger_menu.AppendItem (layer_actions.EditSpritesheet.CreateMenuItem ());
 		hamburger_menu.AppendItem (layer_actions.SetSpritesheetAnchor.CreateMenuItem ());

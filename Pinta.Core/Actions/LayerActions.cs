@@ -41,6 +41,7 @@ public sealed partial class LayerActions
 	public Command GenerateSingleDirectionAnimation { get; }
 	public Command CreateMultiDirectionAnimation { get; }
 	public Command ImageSplit { get; }
+	public Command AutoSplit { get; }
 	public Command CreateSingleDirectionAnimation { get; }
 	public Command EditSpritesheet { get; }
 	public Command SetSpritesheetAnchor { get; }
@@ -144,6 +145,12 @@ public sealed partial class LayerActions
 			"imagesplit",
 			Translations.GetString ("Split Image"),
 			Translations.GetString ("Split the selected image into child layers"),
+			Resources.Icons.ImageCrop);
+
+		AutoSplit = new Command (
+			"autosplit",
+			Translations.GetString ("Auto Split Image"),
+			null,
 			Resources.Icons.ImageCrop);
 
 		CreateSingleDirectionAnimation = new Command (
@@ -291,6 +298,7 @@ public sealed partial class LayerActions
 			GenerateSingleDirectionAnimation,
 			CreateMultiDirectionAnimation,
 			ImageSplit,
+			AutoSplit,
 			CreateSingleDirectionAnimation,
 			EditSpritesheet,
 			SetSpritesheetAnchor,
@@ -326,6 +334,7 @@ public sealed partial class LayerActions
 		GenerateSingleDirectionAnimation.Activated += HandleGenerateSingleDirectionAnimationActivated;
 		CreateMultiDirectionAnimation.Activated += HandlePintaCoreActionsLayersSplitSpritesheetActivated;
 		ImageSplit.Activated += HandlePintaCoreActionsLayersImageSplitActivated;
+		AutoSplit.Activated += HandlePintaCoreActionsLayersAutoSplitActivated;
 		CreateSingleDirectionAnimation.Activated += HandleCreateSingleDirectionAnimationActivated;
 		EditSpritesheet.Activated += HandlePintaCoreActionsLayersSplitSpritesheetActivated;
 		SetSpritesheetAnchor.Activated += HandleSetSpritesheetAnchorActivated;
@@ -378,7 +387,8 @@ public sealed partial class LayerActions
 		SetSpritesheetAnchor.Sensitive = hasSelectedLayer && IsDirectionSheetSource (activeDoc!.Layers.CurrentUserLayer);
 
 		bool currentEditable = hasSelectedLayer && activeDoc!.Layers.CurrentUserLayer.IsEditable;
-		ImageSplit.Sensitive = currentEditable && !cutout_running && !auto_split_running;
+		ImageSplit.Sensitive = currentEditable && !cutout_running;
+		AutoSplit.Sensitive = currentEditable && !cutout_running && !auto_split_running;
 		bool currentResizable = currentEditable || activeDoc?.Layers.CurrentUserLayer is AnimationOutputLayer;
 		bool canMergeDown = activeDoc?.Layers.CanMoveCurrentLayerDown () ?? false;
 		MergeLayerDown.Sensitive = canMergeDown && currentEditable && activeDoc!.Layers.GetSiblingBelow (activeDoc.Layers.CurrentUserLayer).IsEditable;

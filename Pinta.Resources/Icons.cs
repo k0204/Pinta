@@ -206,11 +206,13 @@ public static class Icons
 	public const string LayerFlipHorizontal = ImageFlipHorizontal;
 	public const string LayerFlipVertical = ImageFlipVertical;
 	public const string LayerImport = "layer-import-symbolic";
+	public const string LayerLocked = "object-locked-symbolic";
 	public const string LayerMergeDown = "layers-merge-down-symbolic";
 	public const string LayerNew = "layers-add-layer-symbolic";
         public const string LayerGroup = StandardIcons.Folder;
 	public const string LayerProperties = "document-properties-symbolic";
 	public const string LayerRotateZoom = "layers-rotate-zoom-symbolic";
+	public const string LayerUnlocked = "object-unlocked-symbolic";
 
 	public const string Pinta = "com.github.PintaProject.Pinta";
 

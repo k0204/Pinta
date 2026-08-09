@@ -126,7 +126,7 @@ public sealed partial class LayerActions
 				message => SaveCutoutDebugLog (debugDir, message),
 				cts.Token);
 			byte[]? confirmedPng = await ConfirmGeneratedImageAsync (
-				options.Layers.FirstOrDefault (),
+				options.SourceLayer ?? options.Layers.FirstOrDefault (),
 				[generatedPng],
 				options.ResultLayerName);
 			if (confirmedPng is null) {
@@ -1302,6 +1302,7 @@ public sealed partial class LayerActions
 		using GdkPixbuf.Pixbuf pixbuf = GdkPixbuf.Pixbuf.NewFromStream (stream, cancellable: null)!;
 		using Cairo.Context context = new (layer.Surface);
 		context.DrawPixbuf (pixbuf, PointD.Zero);
+		layer.Surface.MarkDirty ();
 	}
 
 	private sealed record AiImageRequestOptions (

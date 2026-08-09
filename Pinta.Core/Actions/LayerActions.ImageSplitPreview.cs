@@ -42,7 +42,7 @@ public sealed partial class LayerActions
 
 		public ImageSplitPreviewControls (UserLayer source)
 		{
-			sourceSurface = source.Surface;
+			sourceSurface = CreateLayerTreeSurface (source);
 			sourceSize = sourceSurface.GetSize ();
 
 			lowerButton = Gtk.CheckButton.New ();
@@ -198,6 +198,7 @@ public sealed partial class LayerActions
 		public void Dispose ()
 		{
 			sourceTexture.Dispose ();
+			sourceSurface.Dispose ();
 		}
 
 		private void UpdateResolutionChoices ()
