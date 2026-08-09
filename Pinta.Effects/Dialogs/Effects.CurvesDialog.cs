@@ -32,7 +32,7 @@ using Pinta.Core;
 
 namespace Pinta.Effects;
 
-[GObject.Subclass<Gtk.Dialog>]
+[GObject.Subclass<PintaDialog>]
 public sealed partial class CurvesDialog
 {
 	private Gtk.ComboBoxText combo_map;
@@ -136,7 +136,6 @@ public sealed partial class CurvesDialog
 
 		Title = Translations.GetString ("Curves");
 
-		Modal = true;
 
 		Resizable = false;
 

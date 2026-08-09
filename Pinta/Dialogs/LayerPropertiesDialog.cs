@@ -31,7 +31,7 @@ using Pinta.Core;
 
 namespace Pinta;
 
-[GObject.Subclass<Gtk.Dialog>]
+[GObject.Subclass<PintaDialog>]
 public sealed partial class LayerPropertiesDialog
 {
 	private LayerProperties initial_properties = new (string.Empty, false, 0.0, BlendMode.Normal);
@@ -118,7 +118,6 @@ public sealed partial class LayerPropertiesDialog
 		// --- Initialization (Gtk.Window)
 
 		Title = Translations.GetString ("Layer Properties");
-		Modal = true;
 		DefaultWidth = 349;
 		DefaultHeight = 224;
 		IconName = Resources.Icons.LayerProperties;

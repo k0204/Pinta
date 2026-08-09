@@ -158,6 +158,7 @@ Pinta.Core/Classes/Translations.cs
 Pinta.Core/Classes/UserLayer.cs
 Pinta.Core/Classes/VideoEditingLayer.cs
 Pinta.Core/Delegates/AsyncEventHandler.cs
+Pinta.Core/Dialogs/PintaDialog.cs
 Pinta.Core/Effects/BaseEffect.cs
 Pinta.Core/Effects/GradientRenderer.cs
 Pinta.Core/Effects/GradientRenderers.cs

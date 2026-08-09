@@ -31,7 +31,7 @@ using Pinta.Gui.Widgets;
 
 namespace Pinta.Effects;
 
-[GObject.Subclass<Gtk.Dialog>]
+[GObject.Subclass<PintaDialog>]
 public sealed partial class PosterizeDialog
 {
 	private HScaleSpinButtonWidget red_spinbox;
@@ -52,7 +52,6 @@ public sealed partial class PosterizeDialog
 		DefaultHeight = 300;
 
 		Title = Translations.GetString ("Posterize");
-		Modal = true;
 
 		Resizable = false;
 

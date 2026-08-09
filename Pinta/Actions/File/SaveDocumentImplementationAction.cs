@@ -233,10 +233,9 @@ internal sealed class SaveDocumentImplmentationAction : IActionHandler
 
 	private async Task<string?> GetProjectName (Document document)
 	{
-		using Gtk.Dialog dialog = Gtk.Dialog.New ();
+		using PintaDialog dialog = PintaDialog.NewWithProperties ([]);
 		dialog.Title = Translations.GetString ("Save Pinta Project");
 		dialog.TransientFor = chrome.MainWindow;
-		dialog.Modal = true;
 		dialog.AddCancelOkButtons ();
 		dialog.SetDefaultResponse (Gtk.ResponseType.Ok);
 

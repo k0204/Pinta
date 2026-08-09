@@ -17,10 +17,9 @@ public sealed partial class LayerActions
 		if (candidates.Count == 0)
 			return null;
 
-		using Gtk.Dialog dialog = Gtk.Dialog.New ();
+		using PintaDialog dialog = PintaDialog.NewWithProperties ([]);
 		dialog.Title = Translations.GetString ("Review Generated Image");
 		dialog.TransientFor = chrome.MainWindow;
-		dialog.Modal = true;
 		dialog.DefaultWidth = 1100;
 		dialog.DefaultHeight = 720;
 		dialog.AddButton (Translations.GetString ("_Cancel"), (int) Gtk.ResponseType.Cancel);

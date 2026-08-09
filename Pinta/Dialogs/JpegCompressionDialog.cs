@@ -29,7 +29,7 @@ using Pinta.Core;
 
 namespace Pinta;
 
-[GObject.Subclass<Gtk.Dialog>]
+[GObject.Subclass<PintaDialog>]
 public sealed partial class JpegCompressionDialog
 {
 	private Gtk.Scale compression_level;
@@ -46,7 +46,6 @@ public sealed partial class JpegCompressionDialog
 		// --- Initialization (Gtk.Window)
 
 		Title = Translations.GetString ("JPEG Quality");
-		Modal = true;
 
 		// --- Initialization (Gtk.Dialog)
 

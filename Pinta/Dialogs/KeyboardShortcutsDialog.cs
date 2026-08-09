@@ -10,7 +10,7 @@ namespace Pinta;
 
 internal sealed class KeyboardShortcutsDialog : IDisposable
 {
-	private readonly Gtk.Dialog dialog;
+	private readonly PintaDialog dialog;
 	private readonly ActionManager actions;
 	private readonly ToolManager tools;
 	private readonly Dictionary<string, string?> working;
@@ -34,10 +34,9 @@ internal sealed class KeyboardShortcutsDialog : IDisposable
 		working = shortcuts.CreateWorkingCopy ();
 		bindings = BuildBindings (shortcuts.RegisteredCommands);
 
-		dialog = Gtk.Dialog.New ();
+		dialog = PintaDialog.NewWithProperties ([]);
 		dialog.Title = Translations.GetString ("Keyboard Shortcuts");
 		dialog.TransientFor = chrome.MainWindow;
-		dialog.Modal = true;
 		dialog.DefaultWidth = 680;
 		dialog.DefaultHeight = 680;
 

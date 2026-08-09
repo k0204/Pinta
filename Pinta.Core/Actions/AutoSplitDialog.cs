@@ -7,7 +7,7 @@ namespace Pinta.Core;
 
 internal sealed partial class AutoSplitDialog : IDisposable
 {
-	private readonly Gtk.Dialog dialog;
+	private readonly PintaDialog dialog;
 	private readonly UserLayer source;
 	private readonly IReadOnlyList<AI.AiProviderInfo> providers;
 	private readonly Func<string, Task<AI.SpriteSegmentationAnalysis>> analyze;
@@ -51,10 +51,9 @@ internal sealed partial class AutoSplitDialog : IDisposable
 		this.providers = providers;
 		this.analyze = analyze;
 		ensure_ai_logged_in = ensureAiLoggedIn;
-		dialog = Gtk.Dialog.New ();
+		dialog = PintaDialog.NewWithProperties ([]);
 		dialog.Title = Translations.GetString ("Auto Split Image");
 		dialog.TransientFor = parent;
-		dialog.Modal = true;
 		dialog.DefaultWidth = 1120;
 		dialog.DefaultHeight = 720;
 		dialog.AddButton (Translations.GetString ("_Cancel"), (int) Gtk.ResponseType.Cancel);

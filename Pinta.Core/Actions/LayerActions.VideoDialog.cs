@@ -72,12 +72,11 @@ public sealed partial class LayerActions
 		return ReadVideoDialogRequest (controls);
 	}
 
-	private Gtk.Dialog CreateVideoDialog ()
+	private PintaDialog CreateVideoDialog ()
 	{
-		Gtk.Dialog dialog = Gtk.Dialog.New ();
+		PintaDialog dialog = PintaDialog.NewWithProperties ([]);
 		dialog.Title = Translations.GetString ("Generate Video");
 		dialog.TransientFor = chrome.MainWindow;
-		dialog.Modal = true;
 		dialog.DefaultWidth = 760;
 		dialog.DefaultHeight = 720;
 		dialog.AddButton (Translations.GetString ("_Cancel"), (int) Gtk.ResponseType.Cancel);

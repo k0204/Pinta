@@ -434,7 +434,8 @@ msgstr ""
 msgid "Open"
 msgstr ""
 
-#: Pinta.Core/Actions/FileActions.cs:81 Pinta.Docking/Dock.cs:876
+#: Pinta.Core/Actions/FileActions.cs:81
+#: Pinta.Core/Dialogs/PintaDialog.cs:27 Pinta.Docking/Dock.cs:876
 #: Pinta.Gui.Addins/InstallDialog.cs:343
 msgid "Close"
 msgstr ""
@@ -1315,7 +1316,7 @@ msgstr ""
 msgid "Rulers"
 msgstr ""
 
-#: Pinta.Core/Actions/ViewActions.cs:193
+#: Pinta.Core/Actions/ViewActions.cs:193 Pinta.Core/Dialogs/PintaDialog.cs:21
 msgid "Fullscreen"
 msgstr ""
 

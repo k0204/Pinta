@@ -568,10 +568,9 @@ public sealed partial class LayerActions
 
 	private async Task<AiImageOperation?> PromptAiImageOperationAsync ()
 	{
-		using Gtk.Dialog dialog = Gtk.Dialog.New ();
+		using PintaDialog dialog = PintaDialog.NewWithProperties ([]);
 		dialog.Title = Translations.GetString ("AI Request Settings");
 		dialog.TransientFor = chrome.MainWindow;
-		dialog.Modal = true;
 		dialog.DefaultWidth = 420;
 
 		Gtk.ComboBoxText serviceCombobox = Gtk.ComboBoxText.New ();
@@ -707,7 +706,7 @@ public sealed partial class LayerActions
 			? AI.SpritesheetPromptCatalog.Load ()
 			: null;
 
-		using Gtk.Dialog dialog = Gtk.Dialog.New ();
+		using PintaDialog dialog = PintaDialog.NewWithProperties ([]);
 		dialog.Title = mode switch {
 			AiImageRequestMode.BackgroundCleanup => Translations.GetString ("Background Cleanup"),
 			AiImageRequestMode.SpritesheetGeneration => Translations.GetString ("Generate Spritesheet"),
@@ -715,7 +714,6 @@ public sealed partial class LayerActions
 			_ => Translations.GetString ("AI Image Generation"),
 		};
 		dialog.TransientFor = chrome.MainWindow;
-		dialog.Modal = true;
 		dialog.DefaultWidth = imageSplitMode ? 980 : 520;
 		dialog.DefaultHeight = imageSplitMode ? 900 : spritesheetMode ? 820 : 620;
 		dialog.AddButton (Translations.GetString ("_Cancel"), (int) Gtk.ResponseType.Cancel);

@@ -3,7 +3,7 @@ using Pinta.Core;
 
 namespace Pinta;
 
-[GObject.Subclass<Gtk.Dialog>]
+[GObject.Subclass<PintaDialog>]
 public sealed partial class AiAccountDialog
 {
 	private Gtk.Entry api_uri_entry;
@@ -44,7 +44,6 @@ public sealed partial class AiAccountDialog
 		grid.Attach (passwordEntry, 1, 2, 1, 1);
 
 		Title = Translations.GetString ("AI Account");
-		Modal = true;
 		DefaultWidth = 420;
 		IconName = Resources.StandardIcons.User;
 

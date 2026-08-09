@@ -7,7 +7,7 @@ namespace Pinta.Core;
 
 internal abstract class AnimationFrameDialogWindow : IDisposable
 {
-	private readonly Gtk.Dialog dialog;
+	private readonly PintaDialog dialog;
 	private readonly AnimationFrameEditorBase editor;
 
 	protected AnimationFrameDialogWindow (
@@ -38,10 +38,9 @@ internal abstract class AnimationFrameDialogWindow : IDisposable
 			AnimationFrameEditorBase> createEditor,
 		bool allowAiAnalysis = true)
 	{
-		dialog = Gtk.Dialog.New ();
+		dialog = PintaDialog.NewWithProperties ([]);
 		dialog.Title = Translations.GetString (editing ? editTitle : createTitle);
 		dialog.TransientFor = parent;
-		dialog.Modal = true;
 		dialog.DefaultWidth = 1440;
 		dialog.DefaultHeight = 820;
 		dialog.AddButton (Translations.GetString ("_Cancel"), (int) Gtk.ResponseType.Cancel);
@@ -49,34 +48,6 @@ internal abstract class AnimationFrameDialogWindow : IDisposable
 			Translations.GetString (editing ? "Save" : "Create"),
 			(int) Gtk.ResponseType.Ok);
 		submit.AddCssClass (AdwaitaStyles.SuggestedAction);
-
-		Gtk.Button fullscreen = Gtk.Button.NewFromIconName (Resources.StandardIcons.WindowMaximize);
-		fullscreen.SetTooltipText (Translations.GetString ("Maximize dialog"));
-		fullscreen.AddCssClass (AdwaitaStyles.Flat);
-		bool fullscreened = false;
-		fullscreen.OnClicked += (_, _) => {
-			fullscreened = !fullscreened;
-			if (fullscreened)
-				dialog.Fullscreen ();
-			else
-				dialog.Unfullscreen ();
-		};
-		Gtk.HeaderBar headerBar = Gtk.HeaderBar.New ();
-		headerBar.TitleWidget = Gtk.Label.New (dialog.Title);
-		headerBar.PackEnd (fullscreen);
-		dialog.SetTitlebar (headerBar);
-
-		Gtk.EventControllerKey keys = Gtk.EventControllerKey.New ();
-		keys.PropagationPhase = Gtk.PropagationPhase.Capture;
-		keys.OnKeyPressed += (_, args) => {
-			if (!fullscreened || args.GetKey ().Value != Gdk.Constants.KEY_Escape)
-				return false;
-
-			fullscreened = false;
-			dialog.Unfullscreen ();
-			return true;
-		};
-		dialog.AddController (keys);
 
 		editor = createEditor (
 			dialog,

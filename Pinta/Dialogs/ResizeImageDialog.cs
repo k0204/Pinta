@@ -30,7 +30,7 @@ using Pinta.Core;
 
 namespace Pinta;
 
-[GObject.Subclass<Gtk.Dialog>]
+[GObject.Subclass<PintaDialog>]
 public sealed partial class ResizeImageDialog
 {
 	private Gtk.SpinButton percentage_spinner;
@@ -152,7 +152,6 @@ public sealed partial class ResizeImageDialog
 		// --- Initialization (Gtk.Window)
 
 		Title = Translations.GetString ("Resize Image");
-		Modal = true;
 
 		IconName = Resources.Icons.ImageResize;
 

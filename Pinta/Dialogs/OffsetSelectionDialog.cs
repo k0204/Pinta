@@ -29,7 +29,7 @@ using Pinta.Gui.Widgets;
 
 namespace Pinta;
 
-[GObject.Subclass<Gtk.Dialog>]
+[GObject.Subclass<PintaDialog>]
 public sealed partial class OffsetSelectionDialog
 {
 	private readonly HScaleSpinButtonWidget offset_spinbox = HScaleSpinButtonWidget.New (initialValue: 0);
@@ -50,7 +50,6 @@ public sealed partial class OffsetSelectionDialog
 		DefaultHeight = 100;
 
 		Title = Translations.GetString ("Offset Selection");
-		Modal = true;
 
 		Resizable = false;
 

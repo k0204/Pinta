@@ -42,7 +42,7 @@ using Pinta.Gui.Widgets;
 
 namespace Pinta.Effects;
 
-[GObject.Subclass<Gtk.Dialog>]
+[GObject.Subclass<PintaDialog>]
 public sealed partial class LevelsDialog
 {
 	private record struct ChannelsMask (bool B, bool G, bool R)
@@ -259,7 +259,6 @@ public sealed partial class LevelsDialog
 		// --- Initialization (Gtk.Window)
 
 		Title = Translations.GetString ("Levels Adjustment");
-		Modal = true;
 		Resizable = false;
 
 		// --- Initialization (LevelsDialog)
@@ -663,8 +662,6 @@ public sealed partial class LevelsDialog
 			livePalette: false,
 			windowTitle: Translations.GetString ("Choose Color")
 		);
-		ccd.Modal = true;
-
 		try {
 			Gtk.ResponseType response = await ccd.RunAsync ();
 

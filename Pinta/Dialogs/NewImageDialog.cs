@@ -32,7 +32,7 @@ using Pinta.Core;
 
 namespace Pinta;
 
-[GObject.Subclass<Gtk.Dialog>]
+[GObject.Subclass<PintaDialog>]
 public sealed partial class NewImageDialog
 {
 	private bool has_clipboard;
@@ -192,7 +192,6 @@ public sealed partial class NewImageDialog
 		// --- Initialization (Gtk.Window)
 
 		Title = Translations.GetString ("New Image");
-		Modal = true;
 		Resizable = false;
 		IconName = Resources.StandardIcons.DocumentNew;
 

@@ -5,7 +5,7 @@ using Pinta.Gui.Widgets;
 
 namespace Pinta;
 
-[GObject.Subclass<Gtk.Dialog>]
+[GObject.Subclass<PintaDialog>]
 public sealed partial class CanvasGridSettingsDialog
 {
 	internal event EventHandler<Settings>? Updated;
@@ -120,7 +120,6 @@ public sealed partial class CanvasGridSettingsDialog
 		// --- Initialization (Gtk.Window)
 
 		Title = Translations.GetString ("Canvas Grid Settings");
-		Modal = true;
 		IconName = Resources.Icons.ViewGrid;
 
 		// --- Initialization (Gtk.Dialog)

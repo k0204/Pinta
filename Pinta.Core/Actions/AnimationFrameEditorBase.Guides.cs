@@ -394,10 +394,9 @@ internal abstract partial class AnimationFrameEditorBase
 		int maximum = guide.Orientation == GuideOrientation.Horizontal
 			? (int) canvas_height.Value
 			: (int) canvas_width.Value;
-		using Gtk.Dialog dialog = Gtk.Dialog.New ();
+		using PintaDialog dialog = PintaDialog.NewWithProperties ([]);
 		dialog.Title = Translations.GetString ("Guide position");
 		dialog.TransientFor = host_window;
-		dialog.Modal = true;
 		dialog.AddButton (Translations.GetString ("_Cancel"), (int) Gtk.ResponseType.Cancel);
 		Gtk.Widget okButton = dialog.AddButton (Translations.GetString ("_OK"), (int) Gtk.ResponseType.Ok);
 		okButton.AddCssClass (AdwaitaStyles.SuggestedAction);

@@ -29,7 +29,7 @@ using Pinta.Core;
 
 namespace Pinta;
 
-[GObject.Subclass<Gtk.Dialog>]
+[GObject.Subclass<PintaDialog>]
 public sealed partial class SpinButtonEntryDialog
 {
 	private Gtk.Label label;
@@ -63,7 +63,6 @@ public sealed partial class SpinButtonEntryDialog
 
 		// --- Initialization (Gtk.Window)
 
-		Modal = true;
 
 		// --- Initialization (Gtk.Dialog)
 

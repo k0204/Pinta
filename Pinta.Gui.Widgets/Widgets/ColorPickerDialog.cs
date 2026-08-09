@@ -8,7 +8,7 @@ using Pinta.Core;
 
 namespace Pinta.Gui.Widgets;
 
-[GObject.Subclass<Gtk.Dialog>]
+[GObject.Subclass<PintaDialog>]
 public sealed partial class ColorPickerDialog
 {
 	enum ColorSurfaceType
@@ -443,7 +443,6 @@ public sealed partial class ColorPickerDialog
 
 		// --- Initialization (Gtk.Window)
 
-		Modal = false;
 		IconName = Resources.Icons.ImageResizeCanvas;
 		DefaultWidth = 1;
 		DefaultHeight = 1;
@@ -498,14 +497,10 @@ public sealed partial class ColorPickerDialog
 		Gtk.Button cancelButton = Gtk.Button.NewWithLabel (Translations.GetString ("Cancel"));
 		cancelButton.OnClicked += OnCancelButtonClicked;
 
-		Gtk.HeaderBar titleBar = Gtk.HeaderBar.New ();
-		titleBar.PackStart (resetButton);
-		titleBar.PackStart (shrinkButton);
-		titleBar.PackEnd (okButton);
-		titleBar.PackEnd (cancelButton);
-		titleBar.SetShowTitleButtons (false);
-
-		SetTitlebar (titleBar);
+		HeaderBar.PackStart (resetButton);
+		HeaderBar.PackStart (shrinkButton);
+		HeaderBar.PackEnd (okButton);
+		HeaderBar.PackEnd (cancelButton);
 
 		SetDefaultWidget (okButton);
 		okButton.GrabFocus ();
@@ -565,8 +560,7 @@ public sealed partial class ColorPickerDialog
 	/// <param name="palette">Palette service.</param>
 	/// <param name="adjustable">Palette of adjustable </param>
 	/// <param name="primarySelected"></param>
-	/// <param name="livePalette">Determines modality of the dialog and live palette behaviour. If true, dialog will not block rest of app and will update
-	/// the current palette as the color is changed.</param>
+	/// <param name="livePalette">Determines whether the current palette is updated while the dialog is open.</param>
 	/// <param name="windowTitle">Title of the dialog.</param>
 	public static ColorPickerDialog New (
 		Gtk.Window? parentWindow,

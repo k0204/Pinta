@@ -4,7 +4,7 @@ using Pinta.Core;
 
 namespace Pinta.Effects;
 
-[GObject.Subclass<Gtk.Dialog>]
+[GObject.Subclass<PintaDialog>]
 public sealed partial class AlignmentDialog
 {
 	private Gtk.ToggleButton top_left;
@@ -74,7 +74,6 @@ public sealed partial class AlignmentDialog
 		// --- Initialization (Gtk.Window)
 
 		Title = Translations.GetString ("Align Object");
-		Modal = true;
 		Resizable = false;
 
 		// --- Initialization (Gtk.Dialog)

@@ -40,7 +40,7 @@ using Pinta.Core;
 
 namespace Pinta.Gui.Widgets;
 
-[GObject.Subclass<Gtk.Dialog>]
+[GObject.Subclass<PintaDialog>]
 public sealed partial class SimpleEffectDialog
 {
 	const uint EVENT_DELAY_MILLIS = 100;
@@ -65,7 +65,6 @@ public sealed partial class SimpleEffectDialog
 	partial void Initialize ()
 	{
 		// --- Initialization (Gtk.Window)
-		Modal = true;
 		WidthRequest = 400;
 		Resizable = false;
 

@@ -177,10 +177,9 @@ public sealed partial class LayerActions
 		UserLayer source,
 		AI.SpritesheetAttemptInfo info)
 	{
-		using Gtk.Dialog dialog = Gtk.Dialog.New ();
+		using PintaDialog dialog = PintaDialog.NewWithProperties ([]);
 		dialog.Title = Translations.GetString ("Confirm Generated Sequence");
 		dialog.TransientFor = chrome.MainWindow;
-		dialog.Modal = true;
 		dialog.DefaultWidth = 900;
 		dialog.DefaultHeight = 700;
 		dialog.AddButton (Translations.GetString ("_Cancel"), (int) Gtk.ResponseType.Cancel);

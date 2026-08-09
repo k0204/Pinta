@@ -30,7 +30,7 @@ using Pinta.Core;
 
 namespace Pinta;
 
-[GObject.Subclass<Gtk.Dialog>]
+[GObject.Subclass<PintaDialog>]
 public sealed partial class ProgressDialog : IProgressDialog
 {
 	private Gtk.Label text_label;
@@ -59,7 +59,6 @@ public sealed partial class ProgressDialog : IProgressDialog
 
 		// --- Initialization (Gtk.Window)
 
-		Modal = true;
 		DefaultWidth = 400;
 		DefaultHeight = 114;
 

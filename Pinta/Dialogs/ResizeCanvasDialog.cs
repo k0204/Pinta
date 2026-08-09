@@ -30,7 +30,7 @@ using Pinta.Core;
 
 namespace Pinta;
 
-[GObject.Subclass<Gtk.Dialog>]
+[GObject.Subclass<PintaDialog>]
 public sealed partial class ResizeCanvasDialog
 {
 	private Gtk.SpinButton percentage_spinner;
@@ -211,7 +211,6 @@ public sealed partial class ResizeCanvasDialog
 		// --- Initialization (Gtk.Window)
 
 		Title = Translations.GetString ("Resize Canvas");
-		Modal = true;
 		IconName = Resources.Icons.ImageResizeCanvas;
 		DefaultWidth = 300;
 		DefaultHeight = 200;
