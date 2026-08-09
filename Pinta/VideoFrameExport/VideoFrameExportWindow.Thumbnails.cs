@@ -63,6 +63,7 @@ internal sealed partial class VideoFrameExportWindow
 	private ThumbnailBinding CreateThumbnailBinding ()
 	{
 		Gtk.ToggleButton button = Gtk.ToggleButton.New ();
+		button.HeightRequest = 132;
 		button.Hexpand = true;
 		button.Halign = Gtk.Align.Fill;
 		button.Valign = Gtk.Align.Start;
@@ -77,19 +78,15 @@ internal sealed partial class VideoFrameExportWindow
 		Gtk.Picture picture = Gtk.Picture.New ();
 		picture.ContentFit = Gtk.ContentFit.Contain;
 		picture.CanShrink = true;
-		picture.Halign = Gtk.Align.Center;
+		picture.Hexpand = true;
 		picture.Valign = Gtk.Align.Center;
 
-		Gtk.Overlay imageOverlay = Gtk.Overlay.New ();
-		imageOverlay.SetChild (picture);
-		imageOverlay.AddOverlay (selectedIndicator);
-		Gtk.AspectFrame imageArea = Gtk.AspectFrame.New (
-			0.5f,
-			0.5f,
-			(float) ThumbnailWidth / ThumbnailHeight,
-			false);
+		Gtk.Overlay imageArea = Gtk.Overlay.New ();
+		imageArea.HeightRequest = ThumbnailHeight;
 		imageArea.Hexpand = true;
-		imageArea.SetChild (imageOverlay);
+		imageArea.Valign = Gtk.Align.Start;
+		imageArea.SetChild (picture);
+		imageArea.AddOverlay (selectedIndicator);
 
 		Gtk.Label frameLabel = Gtk.Label.New (string.Empty);
 		frameLabel.AddCssClass ("monospace");

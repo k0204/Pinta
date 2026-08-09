@@ -458,7 +458,13 @@ internal sealed partial class VideoFrameExportWindow : IDisposable
 		panel.Append (header);
 
 		Gtk.GridView frames = CreateThumbnailGrid ();
-		panel.Append (frames);
+		Gtk.ScrolledWindow scroll = Gtk.ScrolledWindow.New ();
+		scroll.HscrollbarPolicy = Gtk.PolicyType.Never;
+		scroll.VscrollbarPolicy = Gtk.PolicyType.Automatic;
+		scroll.Hexpand = true;
+		scroll.Vexpand = true;
+		scroll.SetChild (frames);
+		panel.Append (scroll);
 		return (frames, summary, panel);
 	}
 
