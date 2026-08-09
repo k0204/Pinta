@@ -46,6 +46,24 @@ public sealed partial class DocumentLayers
 		return hasContent;
 	}
 
+	public bool TryGetSelectedLayerTreeBounds (out RectangleD bounds)
+	{
+		bounds = RectangleD.Zero;
+		bool hasContent = false;
+		foreach (UserLayer root in GetSelectedLayerRoots ()) {
+			if (root.GetSelfAndDescendants ().Any (layer => layer is AnimationOutputLayer))
+				return false;
+
+			if (!TryGetResizableLayerTreeBounds (root, out RectangleD rootBounds))
+				continue;
+
+			bounds = hasContent ? bounds.Union (rootBounds) : rootBounds;
+			hasContent = true;
+		}
+
+		return hasContent;
+	}
+
 	public void ResizeLayerTree (UserLayer root, RectangleD source, RectangleD target)
 	{
 		if (!ContainsLayer (root))

@@ -138,7 +138,7 @@ public sealed partial class LayersListViewItemWidget
 	private Gtk.Button cutout_button;
 	private Gtk.Button generate_video_button;
 	private Gtk.Button import_video_button;
-        private Gtk.Image visible_button;
+	private Gtk.Image visible_button;
 	private LayerDropHint drop_hint = LayerDropHint.None;
 	private int drop_preview_depth;
 
@@ -161,6 +161,7 @@ public sealed partial class LayersListViewItemWidget
 	[MemberNotNull (nameof (import_video_button))]
         [MemberNotNull (nameof (layer_icon))]
 	[MemberNotNull (nameof (visible_button))]
+	[MemberNotNull (nameof (lock_button))]
 	[MemberNotNull (nameof (disclosure_button))]
         [MemberNotNull (nameof (hierarchy_content))]
 	[MemberNotNull (nameof (drop_preview))]
@@ -225,6 +226,8 @@ public sealed partial class LayersListViewItemWidget
 				item.HandleVisibilityToggled (!item.Visible);
                 });
 
+		Gtk.Image lockButton = CreateLockButton ();
+
 		Gtk.GestureClick menuGesture = Gtk.GestureClick.New ();
 		menuGesture.SetButton (Gdk.Constants.BUTTON_SECONDARY);
 		menuGesture.OnPressed += MenuGesture_OnPressed;
@@ -236,9 +239,10 @@ public sealed partial class LayersListViewItemWidget
 
 		// --- Initialization (Gtk.Box)
 
-                Gtk.Box itemRow = Gtk.Box.New (Gtk.Orientation.Horizontal, 3);
+		Gtk.Box itemRow = Gtk.Box.New (Gtk.Orientation.Horizontal, 3);
 		itemRow.Hexpand = true;
 		itemRow.Append (visibleButton);
+		itemRow.Append (lockButton);
 		AddSelectLayerGesture (itemRow);
 
                 Gtk.Box dragContent = Gtk.Box.New (Gtk.Orientation.Horizontal, 4);
@@ -330,7 +334,7 @@ public sealed partial class LayersListViewItemWidget
 		dragGesture.SetPropagationPhase (Gtk.PropagationPhase.Capture);
 		dragGesture.OnDragBegin += (_, _) => dragging = false;
 		dragGesture.OnDragUpdate += (controller, args) => {
-			if (IsRenaming)
+			if (IsRenaming || item?.Locked == true)
 				return;
 
 			if (!dragging) {
@@ -342,8 +346,10 @@ public sealed partial class LayersListViewItemWidget
 			HandleDragUpdate (widget, controller, args);
 		};
 		dragGesture.OnDragEnd += (controller, args) => {
-			if (dragging)
+			if (dragging && item?.Locked != true)
 				HandleDragEnd (widget, controller, args);
+			else if (dragging)
+				SetOpacity (1.0f);
 		};
 		dragGesture.OnCancel += (_, _) => {
 			if (dragging) {
@@ -354,15 +360,16 @@ public sealed partial class LayersListViewItemWidget
 		widget.AddController (dragGesture);
 	}
 
-        private void AddActionButtonGesture (
+	private void AddActionButtonGesture (
                 Gtk.Widget widget,
-                Action action)
+                Action action,
+		bool selectLayer = true)
         {
                 Gtk.GestureClick click = Gtk.GestureClick.New ();
                 click.SetButton (GtkExtensions.MOUSE_LEFT_BUTTON);
                 click.SetPropagationPhase (Gtk.PropagationPhase.Capture);
                 click.OnPressed += (_, _) => {
-                        if (item?.UserLayer is UserLayer layer && PintaCore.Workspace.HasOpenDocuments) {
+                        if (selectLayer && item?.UserLayer is UserLayer layer && !layer.Locked && PintaCore.Workspace.HasOpenDocuments) {
                                 Document doc = PintaCore.Workspace.ActiveDocument;
                                 if (doc.Layers.CurrentUserLayer != layer)
                                         doc.Layers.SetCurrentUserLayer (layer);
@@ -382,6 +389,8 @@ public sealed partial class LayersListViewItemWidget
 		click.OnPressed += (_, _) => {
 			if (item?.UserLayer is not UserLayer layer)
 				return;
+			if (layer.Locked)
+				return;
 
 			Gdk.ModifierType modifiers = click.GetCurrentEventState ();
 			if (modifiers.IsControlPressed ())
@@ -394,7 +403,7 @@ public sealed partial class LayersListViewItemWidget
 
         private void SelectCurrentLayer ()
         {
-                if (item?.UserLayer is not UserLayer layer || !PintaCore.Workspace.HasOpenDocuments)
+                if (item?.UserLayer is not UserLayer layer || layer.Locked || !PintaCore.Workspace.HasOpenDocuments)
                         return;
 
                 Document doc = PintaCore.Workspace.ActiveDocument;
@@ -446,7 +455,7 @@ public sealed partial class LayersListViewItemWidget
 		Gtk.GestureClick _,
 		Gtk.GestureClick.PressedSignalArgs args)
 	{
-		if (item is null || item.UserLayer is null || !PintaCore.Workspace.HasOpenDocuments)
+		if (item is null || item.UserLayer is null || item.UserLayer.Locked || !PintaCore.Workspace.HasOpenDocuments)
 			return;
 
 		Document doc = PintaCore.Workspace.ActiveDocument;
@@ -552,7 +561,9 @@ public sealed partial class LayersListViewItemWidget
 			bool hasVideo = item.UserLayer is VideoEditingLayer videoLayer
 				&& !string.IsNullOrWhiteSpace (videoLayer.VideoPath);
 			generate_video_button.Visible = isVideoLayer && !hasVideo;
+			generate_video_button.Sensitive = !item.Locked;
 			import_video_button.Visible = isVideoLayer;
+			import_video_button.Sensitive = !item.Locked;
 			import_video_button.SetIconName (hasVideo ? "document-edit-symbolic" : Resources.Icons.LayerImport);
 			import_video_button.TooltipText = hasVideo
 				? Translations.GetString ("Edit Video")
@@ -562,6 +573,7 @@ public sealed partial class LayersListViewItemWidget
 		visible_button.TooltipText = item.Visible
 			? Translations.GetString ("Hide Layer")
 			: Translations.GetString ("Show Layer");
+		UpdateLockButton ();
 
 		thumbnail_surface?.Dispose ();
 		thumbnail_surface = null;

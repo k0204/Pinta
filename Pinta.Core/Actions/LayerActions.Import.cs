@@ -69,7 +69,6 @@ public sealed partial class LayerActions
 		if (directory is not null)
 			recent_files.LastDialogDirectory = directory;
 
-		tools.Commit ();
 		try {
 			ImportFile (workspace.ActiveDocument, choice);
 		} catch (Exception exception) {
@@ -81,12 +80,16 @@ public sealed partial class LayerActions
 		}
 	}
 
-	private static void ImportFile (Document document, Gio.File file)
+	public void ImportFile (Document document, Gio.File file, PointD? center = null)
 	{
+		tools.Commit ();
 		using Cairo.ImageSurface image = file.LoadImageSurface ();
 		UserLayer layer = document.Layers.AddNewLayer (file.GetDisplayName ());
+		PointI position = center is PointD dropCenter
+			? (dropCenter - new PointD (image.Width / 2.0, image.Height / 2.0)).ToInt ()
+			: PointI.Zero;
 		using Cairo.Context context = new (layer.Surface);
-		context.SetSourceSurface (image, 0, 0);
+		context.SetSourceSurface (image, position.X, position.Y);
 		context.Paint ();
 
 		AddLayerHistoryItem history = new (

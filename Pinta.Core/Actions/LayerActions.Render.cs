@@ -14,18 +14,25 @@ public sealed partial class LayerActions
 		Document document,
 		UserLayer layer,
 		IProgress<double>? progress = null)
-		=> RenderLayers (layer.GetLayersToPaint (), progress, useSurfaceBounds: true);
+		=> RenderLayers (layer.GetLayersToPaint (), progress, useSurfaceBounds: true, out _);
+
+	internal static ImageSurface RenderLayerContent (
+		UserLayer layer,
+		out PointD origin)
+		=> RenderLayers (layer.GetLayersToPaint (), progress: null, useSurfaceBounds: false, out origin);
 
 	public static ImageSurface RenderLayers (
 		IEnumerable<Layer> layers,
 		IProgress<double>? progress = null)
-		=> RenderLayers (layers, progress, useSurfaceBounds: false);
+		=> RenderLayers (layers, progress, useSurfaceBounds: false, out _);
 
 	private static ImageSurface RenderLayers (
 		IEnumerable<Layer> layers,
 		IProgress<double>? progress,
-		bool useSurfaceBounds)
+		bool useSurfaceBounds,
+		out PointD origin)
 	{
+		origin = PointD.Zero;
 		List<Layer> paintLayers = [.. layers];
 		if (paintLayers.Count == 0) {
 			progress?.Report (1);
@@ -46,6 +53,7 @@ public sealed partial class LayerActions
 
 		double originX = Math.Floor (left);
 		double originY = Math.Floor (top);
+		origin = new PointD (originX, originY);
 		int width = GetRenderDimension (Math.Ceiling (right) - originX, "width");
 		int height = GetRenderDimension (Math.Ceiling (bottom) - originY, "height");
 		ImageSurface image = CairoExtensions.CreateImageSurface (Format.Argb32, width, height);

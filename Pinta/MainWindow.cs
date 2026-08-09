@@ -563,7 +563,7 @@ internal sealed partial class MainWindow
 		Gtk.ScrolledWindow toolbox_scroll = Gtk.ScrolledWindow.New ();
 		toolbox_scroll.Child = toolbox;
 		toolbox_scroll.HscrollbarPolicy = Gtk.PolicyType.Never;
-		toolbox_scroll.VscrollbarPolicy = Gtk.PolicyType.Never;
+		toolbox_scroll.VscrollbarPolicy = Gtk.PolicyType.Automatic;
 		toolbox_scroll.HasFrame = false;
 		toolbox_scroll.OverlayScrolling = true;
 		toolbox_scroll.WindowPlacement = Gtk.CornerType.BottomRight;
@@ -705,16 +705,7 @@ internal sealed partial class MainWindow
 			return false;
 
 		foreach (Gio.File file_dropped in file_list.GetFilesHelper ()) {
-			Gio.File file = file_dropped;
-
-			// On macOS, GTK4 pasteboard currently provides malformed URIs where the scheme is URL-encoded
-			// (e.g., "file%3A///" instead of "file:///"). Because of this, GIO fails to recognize it as a local file.
-			// This was fixed in GTK 4.23.1, so this workaround can be removed once Pinta requires GTK >= 4.23.1.
-			string parseName = file_dropped.GetParseName ();
-			if (parseName.StartsWith ("file%3A///", StringComparison.OrdinalIgnoreCase)) {
-				string decodedUri = Uri.UnescapeDataString (parseName);
-				file = Gio.FileHelper.NewForUri (decodedUri);
-			}
+			Gio.File file = file_dropped.NormalizeDroppedFile ();
 
 			PintaCore.Workspace.OpenFile (file);
 

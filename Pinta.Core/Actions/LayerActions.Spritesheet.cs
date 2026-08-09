@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
+using Cairo;
 
 namespace Pinta.Core;
 
@@ -226,15 +227,25 @@ public sealed partial class LayerActions
 		return pixbuf.SaveToBuffer ("png");
 	}
 
-	private static UserLayer AddAiResultLayer (Document document, string name, Size size)
+	private static UserLayer AddAiResultLayer (
+		Document document,
+		string name,
+		Size size,
+		PointD? origin = null)
 	{
-		if (size == document.ImageSize)
+		bool atOrigin = origin is not PointD offset || (offset.X == 0 && offset.Y == 0);
+		if (size == document.ImageSize && atOrigin)
 			return document.Layers.AddNewLayer (name);
 
 		LayerPosition position = document.Layers.HasSelectedLayer
 			? document.Layers.GetPosition (document.Layers.CurrentUserLayer)
 			: new LayerPosition (null, document.Layers.RootLayers.Count);
 		UserLayer layer = document.Layers.CreateLayer (name, size.Width, size.Height);
+		if (!atOrigin && origin is PointD layerOrigin) {
+			Matrix transform = CairoExtensions.CreateIdentityMatrix ();
+			transform.Translate (layerOrigin.X, layerOrigin.Y);
+			layer.Transform = transform;
+		}
 		if (document.Layers.HasSelectedLayer)
 			position = position with { Index = position.Index + 1 };
 		document.Layers.Insert (layer, position);

@@ -95,6 +95,8 @@ public sealed partial class DocumentLayers
 			: GetNextSiblingPosition (CurrentUserLayer);
 
 		Insert (layer, position);
+		selected_user_layers.Clear ();
+		selected_user_layers.Add (layer);
 		current_user_layer = layer;
 
 		SelectedLayerChanged?.Invoke (this, EventArgs.Empty);
@@ -111,6 +113,7 @@ public sealed partial class DocumentLayers
 			layer.PropertyChanged -= RaiseLayerPropertyChangedEvent;
 
 		user_layers.Clear ();
+		selected_user_layers.Clear ();
 		current_user_layer = null;
 
 		tool_layer = null;
@@ -199,6 +202,8 @@ public sealed partial class DocumentLayers
                         : GetNextSiblingPosition (CurrentUserLayer);
 
                 Insert (layer, position);
+		selected_user_layers.Clear ();
+		selected_user_layers.Add (layer);
                 current_user_layer = layer;
 
                 SelectedLayerChanged?.Invoke (this, EventArgs.Empty);
@@ -239,11 +244,19 @@ public sealed partial class DocumentLayers
 
 		int index = AllLayers.ToList ().IndexOf (layer);
 		bool removedCurrent = current_user_layer is not null && ContainsLayer (layer, current_user_layer);
+		List<UserLayer> removedLayers = [.. layer.GetSelfAndDescendants ()];
 
 		RemoveLayer (layer);
+		selected_user_layers.RemoveAll (removedLayers.Contains);
 
-		if (removedCurrent)
-			current_user_layer = Count () == 0 ? null : AllLayers[Math.Min (index, Count () - 1)];
+		if (removedCurrent) {
+			List<UserLayer> remaining = [.. AllLayers];
+			current_user_layer = selected_user_layers.FirstOrDefault ()
+				?? remaining.Skip (Math.Min (index, remaining.Count)).FirstOrDefault (layer => !layer.Locked)
+				?? remaining.LastOrDefault (layer => !layer.Locked);
+			if (current_user_layer is not null && !selected_user_layers.Contains (current_user_layer))
+				selected_user_layers.Add (current_user_layer);
+		}
 
 		NotifyLayerTreeChanged ();
 		SelectedLayerChanged?.Invoke (this, EventArgs.Empty);
@@ -269,6 +282,8 @@ public sealed partial class DocumentLayers
 		UserLayer layer = DuplicateLayerTree (CurrentUserLayer);
 
 		Insert (layer, GetNextSiblingPosition (CurrentUserLayer));
+		selected_user_layers.Clear ();
+		selected_user_layers.Add (layer);
 		current_user_layer = layer;
 
 		SelectedLayerChanged?.Invoke (this, EventArgs.Empty);
@@ -294,6 +309,8 @@ public sealed partial class DocumentLayers
 		bottom_layer.Surface = GetFlattenedImage ();
 
 		// Reset our layer pointer to the only remaining layer
+		selected_user_layers.Clear ();
+		selected_user_layers.Add (bottom_layer);
 		current_user_layer = bottom_layer;
 
 		foreach (UserLayer layer in AllLayers.Skip (1).Reverse ())
@@ -333,6 +350,9 @@ public sealed partial class DocumentLayers
 			foreach (Layer layer in GetLayersToPaint (userLayer, includeToolLayer))
 				yield return layer;
 		}
+
+		if (includeToolLayer && current_user_layer is null && tool_layer is not null && !tool_layer.Hidden)
+			yield return tool_layer;
 	}
 
 	/// <summary>
@@ -381,8 +401,11 @@ public sealed partial class DocumentLayers
 
 		RegisterLayerTree (layer);
 
-		if (current_user_layer is null)
+		if (current_user_layer is null && !layer.Locked) {
 			current_user_layer = layer;
+			selected_user_layers.Clear ();
+			selected_user_layers.Add (layer);
+		}
 
 		NotifyLayerTreeChanged ();
 		document.Workspace.Invalidate ();
@@ -609,6 +632,7 @@ public sealed partial class DocumentLayers
 		layer.Opacity = source.Opacity;
 		layer.BlendMode = source.BlendMode;
 		layer.Transform = source.Transform.Clone ();
+		layer.Locked = source.Locked;
 		foreach ((string key, string value) in source.Metadata)
 			layer.Metadata.Add (key, value);
 		layer.SpritesheetSplit = source.SpritesheetSplit;
@@ -626,6 +650,7 @@ public sealed partial class DocumentLayers
 		copy.Opacity = source.Opacity;
 		copy.BlendMode = source.BlendMode;
 		copy.Expanded = source.Expanded;
+		copy.Locked = source.Locked;
 		foreach ((string key, string value) in source.Metadata)
 			copy.Metadata[key] = value;
 		copy.SpritesheetSplit = source.SpritesheetSplit;
@@ -664,6 +689,7 @@ public sealed partial class DocumentLayers
 		copy.Opacity = source.Opacity;
 		copy.BlendMode = source.BlendMode;
 		copy.Expanded = source.Expanded;
+		copy.Locked = source.Locked;
 		foreach ((string key, string value) in source.Metadata)
 			copy.Metadata[key] = value;
 		copy.SpritesheetSplit = source.SpritesheetSplit;

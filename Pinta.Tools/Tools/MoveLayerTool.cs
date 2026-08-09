@@ -26,6 +26,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using Cairo;
 using Pinta.Core;
 
 namespace Pinta.Tools;
@@ -34,10 +36,16 @@ public sealed class MoveLayerTool : BaseTool
 {
 	private Gtk.CheckButton? auto_select_layer;
 	private Gtk.CheckButton? show_transform_controls;
-	private UserLayer? dragged_layer;
-	private UserLayer? resized_layer;
+	private readonly List<UserLayer> dragged_layers = [];
+	private readonly List<UserLayer> resized_layers = [];
+	private readonly Gdk.Cursor marquee_cursor;
 	private PointD drag_start_point;
 	private PointD applied_drag_delta;
+	private PointD last_window_point;
+	private bool marquee_active;
+	private bool shift_pressed;
+	private PointD marquee_start_point;
+	private RectangleD marquee_rectangle;
 	private RectangleD resize_start_bounds;
 	private RectangleD resize_current_bounds;
 
@@ -49,6 +57,7 @@ public sealed class MoveLayerTool : BaseTool
 	{
 		workspace = services.GetService<IWorkspaceService> ();
 		system_manager = services.GetService<SystemManager> ();
+		marquee_cursor = Gdk.Cursor.NewFromTexture (Resources.GetIcon ("Cursor.RectangleSelect.png"), 9, 18, null);
 		transform_handle = new (workspace) {
 			DrawOutline = true,
 			InvertIfNegative = true,
@@ -62,6 +71,7 @@ public sealed class MoveLayerTool : BaseTool
 	// Translators: {0} is 'Ctrl', or a platform-specific key such as 'Command' on macOS.
 	public override string StatusBarText => Translations.GetString (
 		"Left click and drag to move the layer." +
+		"\nHold Shift or drag on empty canvas to select multiple layers." +
 		"\nUse arrow keys to move the layer by a single pixel." +
 		"\nHold {0} while using arrow keys to move ten pixels.",
 		system_manager.CtrlLabel ());
@@ -98,8 +108,10 @@ public sealed class MoveLayerTool : BaseTool
 
 	protected override void OnDeactivated (Document? document, BaseTool? newTool)
 	{
+		shift_pressed = false;
 		FinishResize (document);
 		FinishLayerDrag (document);
+		FinishLayerMarquee (document);
 		workspace.ActiveDocumentChanged -= HandleTransformTargetChanged;
 		workspace.SelectedLayerChanged -= HandleTransformTargetChanged;
 		workspace.LayerTreeChanged -= HandleTransformTargetChanged;
@@ -124,6 +136,13 @@ public sealed class MoveLayerTool : BaseTool
 		if (e.MouseButton != MouseButton.Left)
 			return;
 
+		last_window_point = e.WindowPoint;
+		bool select_multiple = shift_pressed || e.IsShiftPressed;
+		if (select_multiple) {
+			StartLayerMarquee (document, e.PointDouble);
+			return;
+		}
+
 		if (StartResize (document, e))
 			return;
 
@@ -132,14 +151,15 @@ public sealed class MoveLayerTool : BaseTool
 			return;
 		}
 
-		if (auto_select_layer?.Active == true) {
-			UserLayer? layer = document.Layers.FindTopmostLayerAtPoint (e.PointDouble);
-			if (layer is null) {
-				document.Layers.ClearCurrentUserLayer ();
-				return;
-			}
+		UserLayer? layer = document.Layers.FindTopmostLayerAtPoint (e.PointDouble);
+		if (layer is null) {
+			StartLayerMarquee (document, e.PointDouble);
+			return;
+		}
 
-			if (layer != document.Layers.CurrentUserLayer) {
+		if (auto_select_layer?.Active == true) {
+			if (layer != document.Layers.CurrentUserLayer
+				&& !document.Layers.SelectedUserLayers.Contains (layer)) {
 				document.Layers.SetCurrentUserLayer (layer);
 				document.ResetSelectionPaths ();
 				document.Workspace.Invalidate ();
@@ -157,31 +177,47 @@ public sealed class MoveLayerTool : BaseTool
 
 	protected override void OnMouseMove (Document document, ToolMouseEventArgs e)
 	{
-		if (resized_layer is not null) {
+		last_window_point = e.WindowPoint;
+
+		if (resized_layers.Count > 0) {
 			UpdateResize (document, e);
 			return;
 		}
 
-		if (dragged_layer is null) {
-			UpdateCursor (e.WindowPoint);
+		if (marquee_active) {
+			UpdateLayerMarquee (document, e.PointDouble);
+			return;
+		}
+
+		if (dragged_layers.Count == 0) {
+			UpdateCursor (e.WindowPoint, e.IsShiftPressed);
 			return;
 		}
 
 		PointD totalDelta = GetDragDelta (e.PointDouble);
 		PointD delta = totalDelta - applied_drag_delta;
-		document.Layers.TranslateLayerTree (dragged_layer, delta);
+		foreach (UserLayer layer in dragged_layers)
+			document.Layers.TranslateLayerTree (layer, delta);
 		applied_drag_delta = totalDelta;
 		TranslateTransformHandle (delta);
 	}
 
 	protected override void OnMouseUp (Document document, ToolMouseEventArgs e)
 	{
-		if (resized_layer is not null) {
+		last_window_point = e.WindowPoint;
+
+		if (resized_layers.Count > 0) {
 			FinishResize (document);
 			return;
 		}
 
-		if (dragged_layer is null)
+		if (marquee_active) {
+			FinishLayerMarquee (document, e.PointDouble);
+			UpdateCursor (e.WindowPoint);
+			return;
+		}
+
+		if (dragged_layers.Count == 0)
 			return;
 
 		FinishLayerDrag (document);
@@ -189,7 +225,14 @@ public sealed class MoveLayerTool : BaseTool
 
 	protected override bool OnKeyDown (Document document, ToolKeyEventArgs e)
 	{
-		if (!document.Layers.HasSelectedLayer || !document.Layers.CurrentUserLayer.CanMoveOnCanvas)
+		if (IsShiftKey (e.Key)) {
+			shift_pressed = true;
+			SetCursor (marquee_cursor);
+			return true;
+		}
+
+		IReadOnlyList<UserLayer> layers = document.Layers.GetSelectedLayerRoots ();
+		if (layers.Count == 0 || layers.Any (layer => !layer.CanMoveOnCanvas))
 			return false;
 
 		PointD delta = GetKeyDelta (e);
@@ -198,10 +241,20 @@ public sealed class MoveLayerTool : BaseTool
 
 		document.FinishSelection ();
 		document.ResetSelectionPaths ();
-		UserLayer layer = document.Layers.CurrentUserLayer;
-		document.Layers.TranslateLayerTree (layer, delta);
-		document.History.PushNewItem (new MoveLayerTreeHistoryItem (Icon, Name, document, layer, delta));
+		foreach (UserLayer layer in layers)
+			document.Layers.TranslateLayerTree (layer, delta);
+		PushMoveHistory (document, layers, delta);
 		TranslateTransformHandle (delta);
+		return true;
+	}
+
+	protected override bool OnKeyUp (Document document, ToolKeyEventArgs e)
+	{
+		if (!IsShiftKey (e.Key))
+			return false;
+
+		shift_pressed = false;
+		UpdateCursor (last_window_point);
 		return true;
 	}
 
@@ -210,13 +263,14 @@ public sealed class MoveLayerTool : BaseTool
 		if (!transform_handle.Active || !transform_handle.BeginDrag (e.PointDouble, document.ImageSize))
 			return false;
 
-		if (!document.Layers.TryGetResizableLayerTreeBounds (document.Layers.CurrentUserLayer, out resize_start_bounds)) {
+		if (!document.Layers.TryGetSelectedLayerTreeBounds (out resize_start_bounds)) {
 			transform_handle.EndDrag ();
 			return false;
 		}
 
 		document.FinishSelection ();
-		resized_layer = document.Layers.CurrentUserLayer;
+		resized_layers.Clear ();
+		resized_layers.AddRange (document.Layers.GetSelectedLayerRoots ());
 		resize_current_bounds = resize_start_bounds;
 		return true;
 	}
@@ -228,28 +282,23 @@ public sealed class MoveLayerTool : BaseTool
 		if (target.Width < 1 || target.Height < 1)
 			return;
 
-		document.Layers.ResizeLayerTree (resized_layer!, resize_current_bounds, target);
+		foreach (UserLayer layer in resized_layers)
+			document.Layers.ResizeLayerTree (layer, resize_current_bounds, target);
 		resize_current_bounds = target;
 	}
 
 	private void FinishResize (Document? document)
 	{
-		if (resized_layer is null)
+		if (resized_layers.Count == 0)
 			return;
 
 		if (transform_handle.IsDragging)
 			transform_handle.EndDrag ();
 
 		if (document is not null && resize_start_bounds != resize_current_bounds)
-			document.History.PushNewItem (new ResizeLayerTreeHistoryItem (
-				Pinta.Resources.Icons.ImageResize,
-				Translations.GetString ("Resize Layer"),
-				document,
-				resized_layer,
-				resize_start_bounds,
-				resize_current_bounds));
+			PushResizeHistory (document);
 
-		resized_layer = null;
+		resized_layers.Clear ();
 		resize_start_bounds = RectangleD.Zero;
 		resize_current_bounds = RectangleD.Zero;
 		if (document is not null)
@@ -260,10 +309,75 @@ public sealed class MoveLayerTool : BaseTool
 	{
 		document.FinishSelection ();
 		document.ResetSelectionPaths ();
-		dragged_layer = document.Layers.CurrentUserLayer;
+		dragged_layers.Clear ();
+		dragged_layers.AddRange (document.Layers.GetSelectedLayerRoots ());
 		drag_start_point = point;
 		applied_drag_delta = PointD.Zero;
 		document.Workspace.Invalidate ();
+	}
+
+	private void StartLayerMarquee (Document document, PointD point)
+	{
+		document.FinishSelection ();
+		document.ResetSelectionPaths ();
+		marquee_active = true;
+		marquee_start_point = point;
+		marquee_rectangle = RectangleD.Zero;
+		SetCursor (marquee_cursor);
+		document.Layers.ToolLayer.Clear ();
+		document.Layers.ToolLayer.Hidden = true;
+		UpdateMarqueeSelection (document, RectangleD.Zero, requireFullyContained: true);
+	}
+
+	private void UpdateLayerMarquee (Document document, PointD point)
+	{
+		RectangleD rectangle = RectangleD.FromPoints (marquee_start_point, point);
+		if (rectangle == marquee_rectangle)
+			return;
+
+		Layer toolLayer = document.Layers.ToolLayer;
+		toolLayer.Clear ();
+		toolLayer.Hidden = false;
+		using Context context = new (toolLayer.Surface);
+		context.Rectangle (rectangle.X, rectangle.Y, rectangle.Width, rectangle.Height);
+		context.SetSourceColor (new Color (0.21, 0.52, 0.89, 0.16));
+		context.FillPreserve ();
+		context.SetSourceColor (new Color (0.21, 0.52, 0.89, 0.9));
+		context.LineWidth = 1;
+		context.Stroke ();
+
+		marquee_rectangle = rectangle;
+		UpdateMarqueeSelection (document, rectangle, point.X >= marquee_start_point.X);
+		document.Workspace.Invalidate ();
+	}
+
+	private void UpdateMarqueeSelection (Document document, RectangleD selection, bool requireFullyContained)
+	{
+		IReadOnlyList<UserLayer> layers = selection.Width > 0 && selection.Height > 0
+			? document.Layers.FindLayersInSelection (selection, requireFullyContained)
+			: [];
+		document.Layers.SetSelectedUserLayers (layers, commitCurrentTool: false);
+	}
+
+	private void FinishLayerMarquee (Document? document, PointD? point = null)
+	{
+		if (!marquee_active || document is null)
+			return;
+
+		if (point.HasValue)
+			UpdateLayerMarquee (document, point.Value);
+
+		bool hasDragged = marquee_rectangle.Width > 1 || marquee_rectangle.Height > 1;
+		RectangleD selection = marquee_rectangle;
+		marquee_active = false;
+		Layer toolLayer = document.Layers.ToolLayer;
+		toolLayer.Clear ();
+		toolLayer.Hidden = true;
+		marquee_rectangle = RectangleD.Zero;
+		document.Workspace.Invalidate ();
+
+		if (!hasDragged)
+			document.Layers.ClearCurrentUserLayer (commitCurrentTool: false);
 	}
 
 	private PointD GetDragDelta (PointD point)
@@ -283,22 +397,57 @@ public sealed class MoveLayerTool : BaseTool
 
 	private void FinishLayerDrag (Document? document)
 	{
-		if (document is not null && dragged_layer is not null && applied_drag_delta != PointD.Zero)
-			document.History.PushNewItem (new MoveLayerTreeHistoryItem (
-				Icon,
-				Name,
-				document,
-				dragged_layer,
-				applied_drag_delta));
+		if (document is not null && dragged_layers.Count > 0 && applied_drag_delta != PointD.Zero)
+			PushMoveHistory (document, dragged_layers, applied_drag_delta);
 
-		dragged_layer = null;
+		dragged_layers.Clear ();
 		applied_drag_delta = PointD.Zero;
+	}
+
+	private void PushMoveHistory (Document document, IReadOnlyList<UserLayer> layers, PointD delta)
+	{
+		if (layers.Count == 1) {
+			document.History.PushNewItem (new MoveLayerTreeHistoryItem (Icon, Name, document, layers[0], delta));
+			return;
+		}
+
+		CompoundHistoryItem history = new (Icon, Name);
+		foreach (UserLayer layer in layers)
+			history.Push (new MoveLayerTreeHistoryItem (Icon, Name, document, layer, delta));
+		document.History.PushNewItem (history);
+	}
+
+	private void PushResizeHistory (Document document)
+	{
+		string name = Translations.GetString ("Resize Layer");
+		if (resized_layers.Count == 1) {
+			document.History.PushNewItem (new ResizeLayerTreeHistoryItem (
+				Pinta.Resources.Icons.ImageResize,
+				name,
+				document,
+				resized_layers[0],
+				resize_start_bounds,
+				resize_current_bounds));
+			return;
+		}
+
+		CompoundHistoryItem history = new (Pinta.Resources.Icons.ImageResize, name);
+		foreach (UserLayer layer in resized_layers)
+			history.Push (new ResizeLayerTreeHistoryItem (
+				Pinta.Resources.Icons.ImageResize,
+				name,
+				document,
+				layer,
+				resize_start_bounds,
+				resize_current_bounds));
+		document.History.PushNewItem (history);
 	}
 
 	protected override void OnCommit (Document? document)
 	{
 		FinishResize (document);
 		FinishLayerDrag (document);
+		FinishLayerMarquee (document);
 		document?.FinishSelection ();
 	}
 
@@ -319,7 +468,7 @@ public sealed class MoveLayerTool : BaseTool
 
 	private void HandleTransformTargetChanged (object? sender, EventArgs e)
 	{
-		if (resized_layer is null)
+		if (resized_layers.Count == 0)
 			UpdateTransformHandle (workspace.HasOpenDocuments ? workspace.ActiveDocument : null);
 	}
 
@@ -327,7 +476,7 @@ public sealed class MoveLayerTool : BaseTool
 	{
 		if (document is null
 			|| show_transform_controls?.Active != true
-			|| !document.Layers.TryGetResizableLayerTreeBounds (document.Layers.CurrentUserLayer, out RectangleD bounds)) {
+			|| !document.Layers.TryGetSelectedLayerTreeBounds (out RectangleD bounds)) {
 			transform_handle.Active = false;
 			return;
 		}
@@ -345,8 +494,16 @@ public sealed class MoveLayerTool : BaseTool
 		transform_handle.Rectangle = bounds with { X = bounds.X + delta.X, Y = bounds.Y + delta.Y };
 	}
 
-	private void UpdateCursor (in PointD windowPoint)
+	private static bool IsShiftKey (Gdk.Key key)
+		=> key.Value is Gdk.Constants.KEY_Shift_L or Gdk.Constants.KEY_Shift_R;
+
+	private void UpdateCursor (in PointD windowPoint, bool shiftModifier = false)
 	{
+		if (marquee_active || shift_pressed || shiftModifier) {
+			SetCursor (marquee_cursor);
+			return;
+		}
+
 		SetCursor (transform_handle.Active
 			? transform_handle.GetCursorAtPoint (windowPoint) ?? DefaultCursor
 			: DefaultCursor);

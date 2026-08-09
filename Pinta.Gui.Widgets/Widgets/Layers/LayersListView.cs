@@ -164,85 +164,6 @@ public sealed partial class LayersListView
 		widget.SetItem (model_item);
 	}
 
-	private void HandleSelectionChanged (
-		Gtk.SelectionModel sender,
-		EventArgs e)
-	{
-		ArgumentNullException.ThrowIfNull (active_document);
-
-		// If changing the current layer causes a history item to be added, ensure we
-		// don't end up in an infinite loop when HandleHistoryChanged updates the
-		// selection (see bug #1463)
-		if (changing_selection)
-			return;
-
-		try {
-			changing_selection = true;
-
-			List<UserLayer> selected = GetSelectedLayers ();
-			if (selected.Count == 0) {
-				active_document.Layers.ClearCurrentUserLayer ();
-			} else if (!selected.Contains (active_document.Layers.CurrentUserLayer)) {
-				active_document.Layers.SetCurrentUserLayer (selected[0]);
-			}
-
-			PintaCore.Actions.Layers.MergeSelectedLayers.Sensitive =
-				PintaCore.Actions.Layers.CanMergeLayers (selected);
-		} finally {
-			changing_selection = false;
-		}
-	}
-
-	private void HandleLayerSelectionRequested (object? sender, LayerSelectionEventArgs e)
-	{
-		ArgumentNullException.ThrowIfNull (active_document);
-		foreach (LayersListViewItemWidget widget in row_widgets)
-			if (widget.UserLayer != e.Layer)
-				widget.CommitRename ();
-
-		int index = FindModelIndex (e.Layer);
-		bool shift = e.Modifiers.IsShiftPressed ();
-		bool control = e.Modifiers.IsControlPressed ();
-
-		try {
-			changing_selection = true;
-			if (shift && selection_anchor is not null) {
-				int anchorIndex = FindModelIndex (selection_anchor);
-				int first = Math.Min (anchorIndex, index);
-				int last = Math.Max (anchorIndex, index);
-				selection_model.SelectItem ((uint) first, unselectRest: true);
-				for (int i = first + 1; i <= last; i++)
-					selection_model.SelectItem ((uint) i, unselectRest: false);
-			} else if (control && selection_model.IsSelected ((uint) index)) {
-				selection_model.UnselectItem ((uint) index);
-			} else {
-				selection_model.SelectItem ((uint) index, unselectRest: !control);
-			}
-		} finally {
-			changing_selection = false;
-		}
-
-		List<UserLayer> selected = GetSelectedLayers ();
-		if (selected.Count == 0) {
-			selection_model.SelectItem ((uint) index, unselectRest: true);
-			selected.Add (e.Layer);
-		}
-
-		UserLayer current = selected.Contains (e.Layer) ? e.Layer : selected[0];
-		if (active_document.Layers.CurrentUserLayer != current)
-			active_document.Layers.SetCurrentUserLayer (current);
-		else {
-			active_document.ResetSelectionPaths ();
-			active_document.Workspace.Invalidate ();
-		}
-
-		if (!shift)
-			selection_anchor = e.Layer;
-
-		PintaCore.Actions.Layers.MergeSelectedLayers.Sensitive =
-			PintaCore.Actions.Layers.CanMergeLayers (selected);
-	}
-
 	private void HandleLayerPreviewRequested (object? sender, LayerPreviewRequestedEventArgs e)
 	{
 		if (active_document is null)
@@ -295,6 +216,7 @@ public sealed partial class LayersListView
 
 		active_document = doc;
 		if (doc is null) {
+			selection_anchor = null;
 			PintaCore.Actions.Layers.MergeSelectedLayers.Sensitive = false;
 			return;
 		}
@@ -304,12 +226,13 @@ public sealed partial class LayersListView
 
 		// Update our selection to match the document's active layer.
 		if (doc.Layers.HasSelectedLayer) {
-			int currentModelIndex = FindModelIndex (doc.Layers.CurrentUserLayer);
+			SyncSelectionModel (doc.Layers.SelectedUserLayers);
 			selection_anchor = doc.Layers.CurrentUserLayer;
-			selection_model.SelectItem ((uint) currentModelIndex, unselectRest: true);
-			list_view.ScrollTo ((uint) currentModelIndex, Gtk.ListScrollFlags.None, null);
+			if (TryFindModelIndex (doc.Layers.CurrentUserLayer, out int currentModelIndex))
+				list_view.ScrollTo ((uint) currentModelIndex, Gtk.ListScrollFlags.None, null);
 		} else {
-			selection_model.UnselectAll ();
+			selection_anchor = null;
+			SyncSelectionModel ([]);
 		}
 
 		doc.History.HistoryItemAdded += HandleHistoryChanged;
@@ -344,26 +267,6 @@ public sealed partial class LayersListView
 
 		RebuildModel ();
 		HandleSelectedLayerChanged (sender, e);
-	}
-
-	private void HandleSelectedLayerChanged (object? sender, EventArgs e)
-	{
-		ArgumentNullException.ThrowIfNull (active_document);
-		if (changing_selection)
-			return;
-
-		if (!active_document.Layers.HasSelectedLayer) {
-			selection_anchor = null;
-			changing_selection = true;
-			try { selection_model.UnselectAll (); } finally { changing_selection = false; }
-			return;
-		}
-		if (GetSelectedLayers ().Contains (active_document.Layers.CurrentUserLayer))
-			return;
-
-		int index = FindModelIndex (active_document.Layers.CurrentUserLayer);
-		selection_model.SelectItem ((uint) index, unselectRest: true);
-		list_view.ScrollTo ((uint) index, Gtk.ListScrollFlags.None, null);
 	}
 
 	private void HandleMergeSelectedLayersRequested (object? sender, EventArgs e)
@@ -619,7 +522,7 @@ public sealed partial class LayersListView
 	private void RebuildModel ()
 	{
 		ArgumentNullException.ThrowIfNull (active_document);
-		HashSet<UserLayer> selected = [.. GetSelectedLayers ()];
+		HashSet<UserLayer> selected = [.. active_document.Layers.SelectedUserLayers];
 
 		try {
 			changing_selection = true;
@@ -627,14 +530,10 @@ public sealed partial class LayersListView
 			foreach (var entry in EnumerateVisibleLayers (active_document.Layers.RootLayers))
 				list_model.Append (LayersListViewItem.New (active_document, entry.Layer, entry.Depth));
 
-			for (uint i = 0; i < list_model.GetNItems (); i++) {
-				LayersListViewItem entry = (LayersListViewItem) list_model.GetObject (i)!;
-				if (entry.UserLayer is not null && selected.Contains (entry.UserLayer))
-					selection_model.SelectItem (i, unselectRest: false);
-			}
+			SyncSelectionModel (selected);
 
-			if (GetSelectedLayers ().Count == 0 && active_document.Layers.HasSelectedLayer)
-				SelectOnly (active_document.Layers.CurrentUserLayer);
+			if (active_document.Layers.SelectedUserLayers.Count == 0 && active_document.Layers.HasSelectedLayer)
+				SyncSelectionModel ([active_document.Layers.CurrentUserLayer]);
 		} finally {
 			changing_selection = false;
 		}
@@ -643,33 +542,19 @@ public sealed partial class LayersListView
 			PintaCore.Actions.Layers.CanMergeLayers (GetSelectedLayers ());
 	}
 
-	private List<UserLayer> GetSelectedLayers ()
-	{
-		List<UserLayer> layers = [];
-		for (uint i = 0; i < list_model.GetNItems (); i++) {
-			if (!selection_model.IsSelected (i))
-				continue;
-
-			LayersListViewItem entry = (LayersListViewItem) list_model.GetObject (i)!;
-			if (entry.UserLayer is not null)
-				layers.Add (entry.UserLayer);
-		}
-
-		return layers;
-	}
-
-	private void SelectOnly (UserLayer layer)
-		=> selection_model.SelectItem ((uint) FindModelIndex (layer), unselectRest: true);
-
-	private int FindModelIndex (UserLayer layer)
+	private bool TryFindModelIndex (UserLayer layer, out int index)
 	{
 		for (uint i = 0; i < list_model.GetNItems (); ++i) {
 			LayersListViewItem entry = (LayersListViewItem) list_model.GetObject (i)!;
-			if (entry.UserLayer == layer)
-				return (int) i;
+			if (entry.UserLayer != layer)
+				continue;
+
+			index = (int) i;
+			return true;
 		}
 
-		return 0;
+		index = -1;
+		return false;
 	}
 
 	private static IEnumerable<(UserLayer Layer, int Depth)> EnumerateVisibleLayers (IEnumerable<UserLayer> layers, int depth = 0)

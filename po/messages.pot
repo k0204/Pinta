@@ -1339,6 +1339,11 @@ msgstr ""
 msgid "Layers"
 msgstr ""
 
+#: ../Pinta.Gui.Widgets/Widgets/Layers/LayersListViewItemWidget.Locking.cs:19
+#: ../Pinta.Gui.Widgets/Widgets/Layers/LayersListViewItemWidget.Locking.cs:51
+msgid "Lock Layer"
+msgstr ""
+
 #: ../Pinta.Tools/Tools/TextTool.cs:368
 msgid "Left Align"
 msgstr ""
@@ -1361,6 +1366,15 @@ msgid ""
 "Right click and drag the selection to rotate selection outline.\n"
 "Hold Shift to rotate in steps.\n"
 "Use arrow keys to move selection outline by a single pixel."
+msgstr ""
+
+#: ../Pinta.Tools/Tools/MoveLayerTool.cs:68
+#, csharp-format
+msgid ""
+"Left click and drag to move the layer.\n"
+"Hold Shift or drag on empty canvas to select multiple layers.\n"
+"Use arrow keys to move the layer by a single pixel.\n"
+"Hold {0} while using arrow keys to move ten pixels."
 msgstr ""
 
 #. Translators: {0} is 'Ctrl', or a platform-specific key such as 'Command' on macOS.
@@ -3262,6 +3276,11 @@ msgstr ""
 msgid "Unlock Referenced Layer"
 msgstr ""
 
+#: ../Pinta.Gui.Widgets/Widgets/Layers/LayersListViewItemWidget.Locking.cs:19
+#: ../Pinta.Gui.Widgets/Widgets/Layers/LayersListViewItemWidget.Locking.cs:50
+msgid "Unlock Layer"
+msgstr ""
+
 #: Pinta.Core/Actions/LayerActions.Video.cs:46
 #, csharp-format
 msgid "Source layer: {0}"
@@ -4036,4 +4055,141 @@ msgstr ""
 
 #: Pinta/VideoFrameExport/VideoFrameExportWindow.cs:208
 msgid "Source video"
+msgstr ""
+
+#: ../Pinta.Core/Actions/AutoSplitDialog.cs
+msgid "Check Image"
+msgstr ""
+
+#: ../Pinta.Core/Actions/AutoSplitDialog.cs
+msgid "Auto Split Image"
+msgstr ""
+
+#: ../Pinta.Core/Actions/AutoSplitDialog.cs
+msgid "Preview and Split Regions"
+msgstr ""
+
+#: ../Pinta.Core/Actions/AutoSplitDialog.cs
+msgid "Detection Method"
+msgstr ""
+
+#: ../Pinta.Core/Actions/AutoSplitDialog.cs
+msgid "Local Pixel Scan"
+msgstr ""
+
+#: ../Pinta.Core/Actions/AutoSplitDialog.cs
+msgid "API Pixel Analysis"
+msgstr ""
+
+#: ../Pinta.Core/Actions/AutoSplitDialog.cs
+msgid "Manual Selection"
+msgstr ""
+
+#: ../Pinta.Core/Actions/AutoSplitDialog.cs
+msgid "Method:"
+msgstr ""
+
+#: ../Pinta.Core/Actions/AutoSplitDialog.cs
+msgid "No API provider available"
+msgstr ""
+
+#: ../Pinta.Core/Actions/AutoSplitDialog.cs
+msgid "Provider:"
+msgstr ""
+
+#: ../Pinta.Core/Actions/AutoSplitDialog.cs
+msgid "Local scan finds connected non-transparent pixels. API analysis returns editable bounding boxes."
+msgstr ""
+
+#: ../Pinta.Core/Actions/AutoSplitDialog.cs
+msgid "Root Layer"
+msgstr ""
+
+#: ../Pinta.Core/Actions/AutoSplitDialog.cs
+#, csharp-format
+msgid "{0}\n{1} x {2} pixels"
+msgstr ""
+
+#: ../Pinta.Core/Actions/AutoSplitDialog.cs
+msgid "Split Regions"
+msgstr ""
+
+#: ../Pinta.Core/Actions/AutoSplitDialog.cs
+msgid "Add Region"
+msgstr ""
+
+#: ../Pinta.Core/Actions/AutoSplitDialog.cs
+msgid "Delete Region"
+msgstr ""
+
+#: ../Pinta.Core/Actions/AutoSplitDialog.cs
+msgid "Drag on the preview to add a region."
+msgstr ""
+
+#: ../Pinta.Core/Actions/AutoSplitDialog.cs
+msgid "Choose a method and check the image to refresh the regions."
+msgstr ""
+
+#: ../Pinta.Core/Actions/AutoSplitDialog.cs
+#, csharp-format
+msgid "Region {0}"
+msgstr ""
+
+#: ../Pinta.Core/Actions/AutoSplitDialog.cs
+#, csharp-format
+msgid "X {0}, Y {1}, {2} x {3}"
+msgstr ""
+
+#: ../Pinta.Core/Actions/AutoSplitDialog.cs
+#, csharp-format
+msgid "{0} found"
+msgstr ""
+
+#: ../Pinta.Core/Actions/AutoSplitDialog.Analysis.cs
+msgid "No API provider is available."
+msgstr ""
+
+#: ../Pinta.Core/Actions/AutoSplitDialog.Analysis.cs
+msgid "Log in to the AI service before API analysis."
+msgstr ""
+
+#: ../Pinta.Core/Actions/AutoSplitDialog.Analysis.cs
+#, csharp-format
+msgid "Pixel analysis failed: {0}"
+msgstr ""
+
+#: ../Pinta.Core/Actions/AutoSplitDialog.Analysis.cs
+#, csharp-format
+msgid "Local pixel scan found {0} regions."
+msgstr ""
+
+#: ../Pinta.Core/Actions/AutoSplitDialog.Analysis.cs
+#, csharp-format
+msgid "API pixel analysis found {0} regions."
+msgstr ""
+
+#: ../Pinta.Core/Actions/AutoSplitDialog.Analysis.cs
+msgid "Added a manual region."
+msgstr ""
+
+#: ../Pinta.Core/Actions/AutoSplitDialog.Analysis.cs
+msgid "Region deleted."
+msgstr ""
+
+#: ../Pinta.Core/Actions/LayerActions.AutoSplit.cs
+msgid "Auto Split Failed"
+msgstr ""
+
+#: ../Pinta.Core/Actions/LayerActions.AutoSplit.cs
+msgid "The image could not be split. Check the image and API settings, then try again."
+msgstr ""
+
+#: ../Pinta.Core/Actions/LayerActions.AutoSplit.cs
+#, csharp-format
+msgid "Split Region {0}"
+msgstr ""
+
+#: ../Pinta.Core/Actions/LayerActions.AutoSplit.cs
+#, csharp-format
+msgid "Split {0}"
 msgstr ""

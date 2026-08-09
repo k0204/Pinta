@@ -190,6 +190,7 @@ public sealed partial class PintaDocumentFormat : IImageImporter, IImageExporter
 			Id = layer.DocumentId!,
 			Name = layer.Name,
 			Hidden = layer.Hidden,
+			Locked = layer.Locked,
 			Opacity = layer.Opacity,
 			BlendMode = layer.BlendMode.ToString (),
 			Expanded = layer.Expanded,
@@ -365,6 +366,7 @@ public sealed partial class PintaDocumentFormat : IImageImporter, IImageExporter
 			UserLayer layer = CreateLayer (document, node);
 			layer.DocumentId = node.Id;
 			layer.Hidden = node.Hidden;
+			layer.Locked = node.Locked;
 			layer.Opacity = node.Opacity;
 			layer.BlendMode = Enum.Parse<BlendMode> (node.BlendMode);
 			layer.Expanded = node.Expanded;

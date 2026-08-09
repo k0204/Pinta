@@ -6,6 +6,9 @@ namespace Pinta.Core;
 
 public sealed partial class LayerActions
 {
+	private static readonly Cairo.Pattern transparent_pattern =
+		CairoExtensions.CreateTransparentBackgroundPattern (16);
+
 	private async Task<byte[]?> ConfirmGeneratedImageAsync (
 		UserLayer? sourceLayer,
 		IReadOnlyList<byte[]> candidates,
@@ -55,7 +58,7 @@ public sealed partial class LayerActions
 		comparison.Attach (CreatePreviewHeading ("Generated Preview"), 1, 0, 1, 1);
 		Gtk.Widget originalWidget = CreateOriginalPreview (sourceLayer);
 		comparison.Attach (originalWidget, 0, 1, 1, 1);
-		comparison.Attach (generatedPicture, 1, 1, 1, 1);
+		comparison.Attach (CreatePreviewWidget (generatedPicture), 1, 1, 1, 1);
 		content.Append (comparison);
 
 		Gtk.Box navigation = Gtk.Box.New (Gtk.Orientation.Horizontal, 8);
@@ -111,8 +114,44 @@ public sealed partial class LayerActions
 		picture.Hexpand = true;
 		picture.Vexpand = true;
 		picture.SetSizeRequest (440, 520);
-		picture.Paintable = sourceLayer.Surface.ToTexture ();
-		return picture;
+		using Cairo.ImageSurface surface = RenderLayerContent (sourceLayer, out _);
+		picture.Paintable = surface.ToTexture ();
+		return CreatePreviewWidget (picture);
+	}
+
+	private static Gtk.Widget CreatePreviewWidget (Gtk.Picture picture)
+	{
+		Gtk.DrawingArea checkerboard = Gtk.DrawingArea.New ();
+		checkerboard.CanTarget = false;
+		checkerboard.SetDrawFunc ((_, context, width, height) => {
+			if (width <= 0 || height <= 0)
+				return;
+
+			context.SetSource (transparent_pattern);
+			context.Rectangle (0, 0, width, height);
+			context.Paint ();
+		});
+		Gtk.DrawingArea border = Gtk.DrawingArea.New ();
+		border.CanTarget = false;
+		border.Hexpand = true;
+		border.Vexpand = true;
+		border.SetDrawFunc ((_, context, width, height) => {
+			if (width <= 2 || height <= 2)
+				return;
+
+			context.SetSourceColor (new Cairo.Color (0.3, 0.33, 0.37, 0.9));
+			context.LineWidth = 2;
+			context.Rectangle (1, 1, width - 2, height - 2);
+			context.Stroke ();
+		});
+
+		Gtk.Overlay preview = Gtk.Overlay.New ();
+		preview.Hexpand = true;
+		preview.Vexpand = true;
+		preview.SetChild (checkerboard);
+		preview.AddOverlay (picture);
+		preview.AddOverlay (border);
+		return preview;
 	}
 
 	private static Cairo.ImageSurface CreatePreviewSurface (byte[] png)

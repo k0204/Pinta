@@ -18,7 +18,7 @@ public abstract class AnimationOutputLayer : GroupLayer
 	public int CanvasWidth { get; private set; }
 	public int CanvasHeight { get; private set; }
 	public PointD PositionOffset { get; private set; }
-	public override bool CanMoveOnCanvas => true;
+	public override bool CanMoveOnCanvas => !Locked;
 
 	public void SetPositionOffset (PointD offset, Size documentSize)
 	{

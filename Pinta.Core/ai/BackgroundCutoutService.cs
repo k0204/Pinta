@@ -267,8 +267,14 @@ public sealed class BackgroundCutoutService
 		(byte[] Data, string FormName, string FileName)[] files = new (byte[], string, string)[sourceCount + referenceImages.Count];
 		if (sourcePng is not null)
 			files[0] = (FitPng (sourcePng, requestSize, whitePadding, out contentOffset, out sourceResized), "reference_files", "pinta.png");
-		for (int i = 0; i < referenceImages.Count; i++)
-			files[sourceCount + i] = (referenceImages[i].Png, "reference_files", referenceImages[i].FileName);
+		for (int i = 0; i < referenceImages.Count; i++) {
+			(byte[] Png, string FileName) reference = referenceImages[i];
+			byte[] referencePng = imageService == AiRequestSettings.GptImageService &&
+				NeedsGptImageAspectPadding (reference.Png)
+				? FitPng (reference.Png, requestSize, whitePadding: false, out _, out _)
+				: reference.Png;
+			files[sourceCount + i] = (referencePng, "reference_files", reference.FileName);
+		}
 
 		Log (log, $"AI image start: service={imageService}, name={name}, target_size={FormatSize (targetSize)}, request_size={size}, content_offset={contentOffset.X},{contentOffset.Y}, images={files.Length}");
 		reportProgress?.Invoke (Translations.GetString ("Generating {0} ({1})...", name, size), 0.25);
@@ -404,6 +410,14 @@ public sealed class BackgroundCutoutService
 
 	private static int RoundUp (int value, int multiple)
 		=> checked((value + multiple - 1) / multiple * multiple);
+
+	private static bool NeedsGptImageAspectPadding (byte[] png)
+	{
+		Size imageSize = GetPngSize (png);
+		int longEdge = Math.Max (imageSize.Width, imageSize.Height);
+		int shortEdge = Math.Min (imageSize.Width, imageSize.Height);
+		return longEdge / (double) shortEdge > gpt_max_aspect_ratio;
+	}
 
 	public static ImageFitInfo GetImageFitInfo (Size sourceSize, Size requestSize)
 	{

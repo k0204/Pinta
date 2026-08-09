@@ -218,7 +218,9 @@ public sealed partial class LayerActions
 		if (options is null)
 			return;
 
-		Size operationSize = sourceLayer.Surface.GetSize ();
+		tools.Commit ();
+		AiLayerImage sourceImage = CreateAiLayerImage (sourceLayer);
+		Size operationSize = sourceImage.Size;
 		string imageService = AI.AiRequestSettings.GetImageService (PintaCore.Settings);
 		string provider = AI.AiRequestSettings.GetImageProvider (PintaCore.Settings);
 		Size? requestSize = await ConfirmImageResolutionAsync (
@@ -229,7 +231,6 @@ public sealed partial class LayerActions
 		if (requestSize is null)
 			return;
 
-		tools.Commit ();
 		cutout_running = true;
 		EnableOrDisableLayerActions (null, EventArgs.Empty);
 		using CancellationTokenSource cts = new ();
@@ -244,11 +245,11 @@ public sealed partial class LayerActions
 		bool clearStatus = true;
 
 		try {
-			byte[] sourcePng = CreateLayerPng (sourceLayer);
+			byte[] sourcePng = sourceImage.Png;
 			string debugDir = CreateCutoutDebugDirectory ();
 			List<(byte[] Png, string FileName)> references = [];
 			foreach (UserLayer layer in options.Layers)
-				references.Add ((CreateLayerPng (layer), $"layer-{references.Count + 1}.png"));
+				references.Add ((CreateAiLayerPng (layer), $"layer-{references.Count + 1}.png"));
 			foreach (Gio.File file in options.Files)
 				references.Add (LoadReferenceImage (file));
 
@@ -284,7 +285,7 @@ public sealed partial class LayerActions
 			whitePng = confirmedWhitePng;
 
 			SetProgress (Translations.GetString ("Creating white background layer..."), 0.85);
-			UserLayer whiteLayer = AddAiResultLayer (doc, Translations.GetString ("White Background"), operationSize);
+			UserLayer whiteLayer = AddAiResultLayer (doc, Translations.GetString ("White Background"), operationSize, sourceImage.Origin);
 			DrawPngOnLayer (whitePng, whiteLayer);
 			doc.History.PushNewItem (new AddLayerHistoryItem (
 				Resources.Icons.ColorModeColor,
@@ -334,7 +335,9 @@ public sealed partial class LayerActions
 		if (!sourceLayer.IsEditable)
 			return;
 
-		Size operationSize = sourceLayer.Surface.GetSize ();
+		tools.Commit ();
+		AiLayerImage sourceImage = CreateAiLayerImage (sourceLayer);
+		Size operationSize = sourceImage.Size;
 		string selectedService = AI.AiRequestSettings.GetImageService (PintaCore.Settings);
 		Size? requestSizeOverride = selectedService == AI.AiRequestSettings.BaiduService
 			? operationSize
@@ -346,7 +349,6 @@ public sealed partial class LayerActions
 		if (requestSizeOverride is null)
 			return;
 
-		tools.Commit ();
 		cutout_running = true;
 		EnableOrDisableLayerActions (null, EventArgs.Empty);
 		using CancellationTokenSource cts = new ();
@@ -361,11 +363,11 @@ public sealed partial class LayerActions
 		bool clearStatus = true;
 
 		try {
-			byte[] sourcePng = CreateLayerPng (sourceLayer);
+			byte[] sourcePng = sourceImage.Png;
 			string cutoutName = Translations.GetString ("Transparent Cutout");
 			string imageService = AI.AiRequestSettings.GetImageService (PintaCore.Settings);
 			RectangleI? baiduControlBox = imageService == AI.AiRequestSettings.BaiduService
-				? GetBaiduControlBox (doc, operationSize)
+				? GetBaiduControlBox (doc, operationSize, sourceImage.Origin)
 				: null;
 			string debugDir = CreateCutoutDebugDirectory ();
 			SaveCutoutDebugLog (
@@ -403,7 +405,7 @@ public sealed partial class LayerActions
 				transparentPng = confirmedTransparentPng;
 
 				SetProgress (Translations.GetString ("Creating transparent layer..."), 0.85);
-				UserLayer cutoutLayer = AddAiResultLayer (doc, cutoutName, operationSize);
+				UserLayer cutoutLayer = AddAiResultLayer (doc, cutoutName, operationSize, sourceImage.Origin);
 				DrawPngOnLayer (transparentPng, cutoutLayer);
 				doc.History.PushNewItem (new AddLayerHistoryItem (
 					Resources.Icons.ColorModeTransparency,
@@ -444,14 +446,14 @@ public sealed partial class LayerActions
 				}
 
 				SetProgress (Translations.GetString ("Creating black and transparent layers..."), 0.85);
-				UserLayer blackLayer = AddAiResultLayer (doc, Translations.GetString ("Black Background"), operationSize);
+				UserLayer blackLayer = AddAiResultLayer (doc, Translations.GetString ("Black Background"), operationSize, sourceImage.Origin);
 				DrawPngOnLayer (blackPng, blackLayer);
 				history.Push (new AddLayerHistoryItem (
 					Resources.Icons.ColorModeColor,
 					Translations.GetString ("Black Background"),
 					blackLayer,
 					doc.Layers.GetPosition (blackLayer)));
-				UserLayer cutoutLayer = AddAiResultLayer (doc, cutoutName, operationSize);
+				UserLayer cutoutLayer = AddAiResultLayer (doc, cutoutName, operationSize, sourceImage.Origin);
 				DrawPngOnLayer (confirmedTransparentPng, cutoutLayer);
 				history.Push (new AddLayerHistoryItem (
 					Resources.Icons.ColorModeTransparency,
@@ -493,13 +495,23 @@ public sealed partial class LayerActions
 		}
 	}
 
-	private static RectangleI? GetBaiduControlBox (Document doc, Size sourceSize)
+	private static RectangleI? GetBaiduControlBox (
+		Document doc,
+		Size sourceSize,
+		PointD sourceOrigin = default)
 	{
 		if (!doc.Selection.Visible)
 			return null;
 
 		RectangleI sourceBounds = new (0, 0, sourceSize.Width, sourceSize.Height);
-		RectangleI selection = doc.GetSelectedBounds (canvasOnly: true).Intersect (sourceBounds);
+		PointI origin = new ((int) Math.Floor (sourceOrigin.X), (int) Math.Floor (sourceOrigin.Y));
+		RectangleI selectedBounds = doc.GetSelectedBounds (canvasOnly: true);
+		RectangleI selection = new (
+			selectedBounds.X - origin.X,
+			selectedBounds.Y - origin.Y,
+			selectedBounds.Width,
+			selectedBounds.Height);
+		selection = selection.Intersect (sourceBounds);
 		if (selection.IsEmpty)
 			return null;
 
@@ -1207,22 +1219,6 @@ public sealed partial class LayerActions
 			?? throw new InvalidOperationException ($"Unable to read image: {file.GetDisplayName ()}");
 		string name = Path.GetFileNameWithoutExtension (file.GetDisplayName ());
 		return (pixbuf.SaveToBuffer ("png"), $"{name}.png");
-	}
-
-	private static byte[] CreateLayerPng (UserLayer sourceLayer)
-	{
-		using Cairo.ImageSurface source = CairoExtensions.CreateImageSurface (
-			Cairo.Format.Argb32,
-			sourceLayer.Surface.Width,
-			sourceLayer.Surface.Height);
-		using (Cairo.Context context = new (source)) {
-			foreach (Layer layer in sourceLayer.GetLayersToPaint ())
-				layer.Draw (context);
-		}
-
-		source.MarkDirty ();
-		using GdkPixbuf.Pixbuf pixbuf = source.ToPixbuf ();
-		return pixbuf.SaveToBuffer ("png");
 	}
 
 	private static string CreateCutoutDebugDirectory ()

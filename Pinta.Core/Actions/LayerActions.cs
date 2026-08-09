@@ -76,6 +76,7 @@ public sealed partial class LayerActions
 	private readonly AI.AiPromptOptimizationService prompt_optimization;
 	private bool detect_border_running;
 	private bool cutout_running;
+	private bool auto_split_running;
 	private bool video_running;
 	private bool save_layer_running;
 
@@ -377,7 +378,7 @@ public sealed partial class LayerActions
 		SetSpritesheetAnchor.Sensitive = hasSelectedLayer && IsDirectionSheetSource (activeDoc!.Layers.CurrentUserLayer);
 
 		bool currentEditable = hasSelectedLayer && activeDoc!.Layers.CurrentUserLayer.IsEditable;
-		ImageSplit.Sensitive = currentEditable && !cutout_running;
+		ImageSplit.Sensitive = currentEditable && !cutout_running && !auto_split_running;
 		bool currentResizable = currentEditable || activeDoc?.Layers.CurrentUserLayer is AnimationOutputLayer;
 		bool canMergeDown = activeDoc?.Layers.CanMoveCurrentLayerDown () ?? false;
 		MergeLayerDown.Sensitive = canMergeDown && currentEditable && activeDoc!.Layers.GetSiblingBelow (activeDoc.Layers.CurrentUserLayer).IsEditable;

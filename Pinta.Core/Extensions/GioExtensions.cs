@@ -24,6 +24,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
+using System;
+
 namespace Pinta.Core;
 
 public static class GioExtensions
@@ -51,6 +53,18 @@ public static class GioExtensions
 			cancellable: null);
 
 		return info.GetDisplayName ();
+	}
+
+	/// <summary>
+	/// Repairs the malformed file URI currently produced by GTK pasteboards on macOS.
+	/// </summary>
+	public static Gio.File NormalizeDroppedFile (this Gio.File file)
+	{
+		string parseName = file.GetParseName ();
+		if (!parseName.StartsWith ("file%3A///", StringComparison.OrdinalIgnoreCase))
+			return file;
+
+		return Gio.FileHelper.NewForUri (Uri.UnescapeDataString (parseName));
 	}
 
 	/// <summary>

@@ -26,6 +26,7 @@ public sealed class PintaDocumentLayerNode
 	public string Id { get; set; } = string.Empty;
 	public string Name { get; set; } = string.Empty;
 	public bool Hidden { get; set; }
+	public bool Locked { get; set; }
 	public double Opacity { get; set; }
 	public string BlendMode { get; set; } = string.Empty;
 	public bool Expanded { get; set; }

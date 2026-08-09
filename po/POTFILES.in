@@ -10,6 +10,11 @@ Pinta.Core/Actions/AnimationFrameEditorBase.Layout.cs
 Pinta.Core/Actions/AnimationFrameEditorBase.Output.cs
 Pinta.Core/Actions/AnimationFrameEditorBase.PositionHistory.cs
 Pinta.Core/Actions/AppActions.cs
+Pinta.Core/Actions/AutoSplitDetection.cs
+Pinta.Core/Actions/AutoSplitDialog.cs
+Pinta.Core/Actions/AutoSplitDialog.Analysis.cs
+Pinta.Core/Actions/AutoSplitDialog.Preview.cs
+Pinta.Core/Actions/LayerActions.AutoSplit.cs
 Pinta.Core/Actions/Command.cs
 Pinta.Core/Actions/EditActions.cs
 Pinta.Core/Actions/EffectsActions.cs
@@ -220,6 +225,7 @@ Pinta.Core/HistoryItems/CompoundHistoryItem.cs
 Pinta.Core/HistoryItems/DeleteLayerHistoryItem.cs
 Pinta.Core/HistoryItems/FinishPixelsHistoryItem.cs
 Pinta.Core/HistoryItems/InvertHistoryItem.cs
+Pinta.Core/HistoryItems/LayerLockHistoryItem.cs
 Pinta.Core/HistoryItems/MoveLayerHistoryItem.cs
 Pinta.Core/HistoryItems/MoveLayerTreeHistoryItem.cs
 Pinta.Core/HistoryItems/PasteHistoryItem.cs
@@ -364,7 +370,9 @@ Pinta.Gui.Widgets/Widgets/History/HistoryListView.cs
 Pinta.Gui.Widgets/Widgets/HScaleSpinButtonWidget.cs
 Pinta.Gui.Widgets/Widgets/Layers/LayerPreviewWindow.cs
 Pinta.Gui.Widgets/Widgets/Layers/LayersListView.cs
+Pinta.Gui.Widgets/Widgets/Layers/LayersListView.Selection.cs
 Pinta.Gui.Widgets/Widgets/Layers/LayersListViewItemWidget.cs
+Pinta.Gui.Widgets/Widgets/Layers/LayersListViewItemWidget.Locking.cs
 Pinta.Gui.Widgets/Widgets/Layers/LayersListViewItemWidget.Renaming.cs
 Pinta.Gui.Widgets/Widgets/PaletteWidget.cs
 Pinta.Gui.Widgets/Widgets/PintaColorButton.cs

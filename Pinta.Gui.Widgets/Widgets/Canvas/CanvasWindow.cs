@@ -87,9 +87,9 @@ public sealed partial class CanvasWindow
 		// when the image is close to the background color.
 		canvas.Name = "canvas";
 
-		Gtk.DropTarget referenceDrop = Gtk.DropTarget.New (Gdk.FileList.GetGType (), Gdk.DragAction.Copy);
-		referenceDrop.OnDrop += HandleReferenceDrop;
-		canvas.AddController (referenceDrop);
+		Gtk.DropTarget fileDrop = Gtk.DropTarget.New (Gdk.FileList.GetGType (), Gdk.DragAction.Copy);
+		fileDrop.OnDrop += HandleFileDrop;
+		canvas.AddController (fileDrop);
 
 		Gtk.Fixed canvasContainer = Gtk.Fixed.New ();
 		canvasContainer.Hexpand = true;
@@ -204,27 +204,43 @@ public sealed partial class CanvasWindow
 		document.Workspace.CanvasContainer = canvas_container;
 	}
 
-	private bool HandleReferenceDrop (Gtk.DropTarget sender, Gtk.DropTarget.DropSignalArgs args)
+	private bool HandleFileDrop (Gtk.DropTarget sender, Gtk.DropTarget.DropSignalArgs args)
 	{
-		if (args.Value.GetBoxed (Gdk.FileList.GetGType ()) is not Gdk.FileList files || document.ResourceRootUri is null)
+		if (args.Value.GetBoxed (Gdk.FileList.GetGType ()) is not Gdk.FileList files)
 			return false;
 
 		PointD center = document.Workspace.ViewPointToCanvas (new PointD (args.X, args.Y));
-		bool added = false;
-		foreach (Gio.File file in files.GetFilesHelper ()) {
-			if (!document.TryGetResourceRelativePath (file, out string relativePath) || PintaCore.ImageFormats.GetImporterByFile (file.GetParseName ()) is null)
+		bool handled = false;
+		foreach (Gio.File droppedFile in files.GetFilesHelper ()) {
+			Gio.File file = droppedFile.NormalizeDroppedFile ();
+			if (PintaCore.ImageFormats.GetImporterByFile (file.GetParseName ()) is null)
 				continue;
 
-			tools.Commit ();
-			string name = System.IO.Path.GetFileName (file.GetPath () ?? relativePath);
-			UserLayer layer = document.Layers.AddReferenceLayer (name, relativePath, center);
-			document.History.PushNewItem (new AddLayerHistoryItem (Resources.Icons.LayerImport, Translations.GetString ("Import Referenced Image"), layer, document.Layers.GetPosition (layer)));
-			added = true;
+			if (document.ResourceRootUri is not null && document.TryGetResourceRelativePath (file, out string relativePath)) {
+				tools.Commit ();
+				string name = System.IO.Path.GetFileName (file.GetPath () ?? relativePath);
+				UserLayer layer = document.Layers.AddReferenceLayer (name, relativePath, center);
+				document.History.PushNewItem (new AddLayerHistoryItem (Resources.Icons.LayerImport, Translations.GetString ("Import Referenced Image"), layer, document.Layers.GetPosition (layer)));
+				handled = true;
+				continue;
+			}
+
+			try {
+				PintaCore.Actions.Layers.ImportFile (document, file, center);
+				handled = true;
+			} catch (Exception exception) {
+				_ = chrome.ShowErrorDialog (
+					chrome.MainWindow,
+					Translations.GetString ("Failed to open image"),
+					exception.Message,
+					exception.ToString ());
+				handled = true;
+			}
 		}
 
-		if (added)
+		if (handled)
 			document.Workspace.Invalidate ();
-		return added;
+		return handled;
 	}
 
 	public static CanvasWindow New (

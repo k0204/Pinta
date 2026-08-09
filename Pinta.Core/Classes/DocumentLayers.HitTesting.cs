@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using Cairo;
 
@@ -20,6 +21,35 @@ public sealed partial class DocumentLayers
 		return null;
 	}
 
+	public IReadOnlyList<UserLayer> FindLayersInSelection (RectangleD selection, bool requireFullyContained)
+	{
+		if (selection.Width <= 0 || selection.Height <= 0)
+			return [];
+
+		List<UserLayer> result = [];
+		foreach (UserLayer layer in user_layers)
+			CollectLayersInSelection (layer, selection, requireFullyContained, result);
+
+		return result;
+	}
+
+	private static void CollectLayersInSelection (
+		UserLayer userLayer,
+		RectangleD selection,
+		bool requireFullyContained,
+		List<UserLayer> result)
+	{
+		if (userLayer.Hidden)
+			return;
+
+		if (!userLayer.Locked && userLayer.GetOwnLayersToPaint ().Any (layer =>
+			requireFullyContained ? IsFullyContained (layer, selection) : Intersects (layer, selection)))
+			result.Add (userLayer);
+
+		foreach (UserLayer child in userLayer.Children)
+			CollectLayersInSelection (child, selection, requireFullyContained, result);
+	}
+
 	private UserLayer? FindTopmostLayerAtPoint (UserLayer userLayer, PointD point)
 	{
 		if (userLayer.Hidden)
@@ -31,15 +61,58 @@ public sealed partial class DocumentLayers
 				return match;
 		}
 
-		if (userLayer == current_user_layer
+		if (!userLayer.Locked
+			&& userLayer == current_user_layer
 			&& ShowSelectionLayer
 			&& !SelectionLayer.Hidden
 			&& ContainsPixel (SelectionLayer, point))
 			return userLayer;
 
-		return userLayer.GetOwnLayersToPaint ().Reverse ().Any (layer => ContainsPixel (layer, point))
+		return !userLayer.Locked
+			&& userLayer.GetOwnLayersToPaint ().Reverse ().Any (layer => ContainsPixel (layer, point))
 			? userLayer
 			: null;
+	}
+
+	private static bool Intersects (Layer layer, RectangleD selection)
+	{
+		if (!TryGetLayerBounds (layer, out RectangleD bounds))
+			return false;
+
+		return bounds.X < selection.X + selection.Width
+			&& bounds.X + bounds.Width > selection.X
+			&& bounds.Y < selection.Y + selection.Height
+			&& bounds.Y + bounds.Height > selection.Y;
+	}
+
+	private static bool IsFullyContained (Layer layer, RectangleD selection)
+	{
+		if (!TryGetLayerBounds (layer, out RectangleD bounds))
+			return false;
+
+		return bounds.X >= selection.X
+			&& bounds.Y >= selection.Y
+			&& bounds.X + bounds.Width <= selection.X + selection.Width
+			&& bounds.Y + bounds.Height <= selection.Y + selection.Height;
+	}
+
+	private static bool TryGetLayerBounds (Layer layer, out RectangleD bounds)
+	{
+		bounds = RectangleD.Zero;
+		if (layer.Hidden || layer.Opacity <= 0 || !Utility.TryGetAlphaBounds (layer.Surface, out RectangleI contentBounds))
+			return false;
+
+		PointD[] corners = [
+			layer.Transform.TransformPoint (new PointD (contentBounds.X, contentBounds.Y)),
+			layer.Transform.TransformPoint (new PointD (contentBounds.X + contentBounds.Width, contentBounds.Y)),
+			layer.Transform.TransformPoint (new PointD (contentBounds.X, contentBounds.Y + contentBounds.Height)),
+			layer.Transform.TransformPoint (new PointD (contentBounds.X + contentBounds.Width, contentBounds.Y + contentBounds.Height))];
+		double left = corners.Min (point => point.X);
+		double top = corners.Min (point => point.Y);
+		double right = corners.Max (point => point.X);
+		double bottom = corners.Max (point => point.Y);
+		bounds = new RectangleD (left, top, right - left, bottom - top);
+		return true;
 	}
 
 	private static bool ContainsPixel (Layer layer, PointD point)

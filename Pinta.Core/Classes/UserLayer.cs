@@ -38,6 +38,7 @@ namespace Pinta.Core;
 public class UserLayer : Layer
 {
 	private readonly List<UserLayer> children = [];
+	private bool locked;
 
 	//Special layers to be drawn on to keep things editable by drawing them separately from the UserLayers.
 	internal Collection<ReEditableLayer> ReEditableLayers { get; } = [];
@@ -81,7 +82,13 @@ public class UserLayer : Layer
 	public bool ReferenceMissing { get; internal set; }
 	public Size ReferenceSize { get; internal set; }
 	public bool IsReference => ReferencePath is not null;
-	public bool IsEditable => this is not GroupLayer && !IsReference;
+	public static string LockedProperty { get; } = nameof (Locked);
+	public bool Locked {
+		get => locked;
+		set { if (locked != value) SetValue (LockedProperty, ref locked, value); }
+	}
+
+	public bool IsEditable => this is not GroupLayer && !IsReference && !Locked;
 	public virtual bool CanMoveOnCanvas => IsEditable;
 
 	//Rectangular boundary surrounding the editable text.
