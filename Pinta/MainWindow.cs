@@ -54,6 +54,7 @@ internal sealed partial class MainWindow
 	private Gtk.DropTarget drop_target = null!;
 	private bool suppress_tab_change;
 	private VideoFrameExportAction video_frame_export = null!;
+	private AtlasPackingAction atlas_packing = null!;
 
 	public MainWindow (Adw.Application app)
 	{
@@ -457,6 +458,8 @@ internal sealed partial class MainWindow
 		PintaCore.Actions.File.RegisterActions (app, fileMenu);
 		video_frame_export = new VideoFrameExportAction (app);
 		video_frame_export.Register (app, fileMenu);
+		atlas_packing = new AtlasPackingAction (app);
+		atlas_packing.Register (app, fileMenu);
 		PintaCore.Actions.Edit.RegisterActions (app, editMenu);
 		PintaCore.Actions.View.RegisterActions (app, viewMenu);
 		PintaCore.Actions.Image.RegisterActions (app, imageMenu);

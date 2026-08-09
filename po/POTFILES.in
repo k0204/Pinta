@@ -506,10 +506,15 @@ Pinta/Pads/IDockPad.cs
 Pinta/Pads/LayersPad.cs
 Pinta/Pads/ResourcesPad.cs
 Pinta/SettingNames.cs
+Pinta/VideoFrameExport/AtlasPackingAction.cs
+Pinta/VideoFrameExport/AtlasPackingWindow.cs
+Pinta/VideoFrameExport/AtlasPackingWindow.Preview.cs
+Pinta/VideoFrameExport/VideoAtlasBuilder.cs
 Pinta/VideoFrameExport/VideoFrameExportAction.cs
 Pinta/VideoFrameExport/VideoFrameExportModels.cs
 Pinta/VideoFrameExport/VideoFrameExportProcess.cs
 Pinta/VideoFrameExport/VideoFrameExportWindow.cs
+Pinta/VideoFrameExport/VideoFrameExportWindow.Atlas.cs
 Pinta/VideoFrameExport/VideoFrameExportWindow.Export.cs
 Pinta/VideoFrameExport/VideoFrameExportWindow.Ffmpeg.cs
 Pinta/VideoFrameExport/VideoFrameExportWindow.Fullscreen.cs

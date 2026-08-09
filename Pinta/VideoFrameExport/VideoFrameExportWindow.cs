@@ -12,6 +12,7 @@ namespace Pinta;
 
 internal sealed partial class VideoFrameExportWindow : IDisposable
 {
+	private readonly Adw.Application application;
 	private readonly Adw.ApplicationWindow window;
 	private readonly Gtk.Picture player;
 	private readonly Gtk.Picture sourceVideo;
@@ -30,11 +31,12 @@ internal sealed partial class VideoFrameExportWindow : IDisposable
 	private readonly Gtk.Label sourceDurationLabel;
 	private readonly Gtk.Label sourceFramesLabel;
 	private readonly Gtk.Label selectionLabel;
-	private readonly Gtk.Grid filmstrip;
+	private readonly Gtk.GridView filmstrip;
 	private readonly Gtk.Label filmstripSummary;
 	private readonly Gtk.Button exportButton;
 	private readonly Gtk.Button cancelExportButton;
 	private readonly Gtk.ProgressBar exportProgress;
+	private Gtk.Button openAtlasButton = null!;
 	private Gtk.Label numberingLabel = null!;
 	private readonly Gtk.Entry outputFolderEntry;
 	private readonly Gtk.Entry prefixEntry;
@@ -46,9 +48,19 @@ internal sealed partial class VideoFrameExportWindow : IDisposable
 	private readonly Gtk.ToggleButton selectedFramesButton;
 	private readonly Gtk.Button speedButton;
 	private readonly Gtk.ToggleButton muteButton;
+	private Gtk.Button clearFramesButton = null!;
+	private Gtk.Button regenerateFramesButton = null!;
 	private readonly List<VideoFramePreview> previews = [];
+	private readonly List<string> previewPaths = [];
+	private readonly List<VideoFramePreview> visible_previews = [];
+	private readonly Dictionary<Gtk.ListItem, ThumbnailBinding> thumbnail_bindings = [];
+	private readonly ThumbnailCache thumbnail_cache = new ();
 	private readonly HashSet<int> selectedIndices = [];
 	private readonly CancellationTokenSource lifetime = new ();
+	private AtlasPackingWindow? atlasWindow;
+	private Gtk.StringList thumbnail_model = null!;
+	private CancellationTokenSource? current_frame_cts;
+	private int current_frame_load_version;
 
 	private DirectoryInfo? previewDirectory;
 	private string? videoFilename;
@@ -65,9 +77,12 @@ internal sealed partial class VideoFrameExportWindow : IDisposable
 
 	public VideoFrameExportWindow (Adw.Application application, Gtk.Window parent, VideoEditingLayer? videoLayer = null)
 	{
+		this.application = application;
 		this.videoLayer = videoLayer;
 		window = Adw.ApplicationWindow.New (application);
 		window.TransientFor = parent;
+		window.Modal = true;
+		window.DestroyWithParent = true;
 		window.DefaultWidth = 1440;
 		window.DefaultHeight = 900;
 		window.Title = Translations.GetString ("Video Frame Exporter");
@@ -78,14 +93,16 @@ internal sealed partial class VideoFrameExportWindow : IDisposable
 		Gtk.Box header = CreateHeader ();
 		root.Append (header);
 
-		Gtk.Box workspace = Gtk.Box.New (Gtk.Orientation.Horizontal, 0);
+		Gtk.Grid workspace = Gtk.Grid.New ();
+		workspace.ColumnHomogeneous = true;
 		workspace.Hexpand = true;
 		workspace.Vexpand = true;
 
 			(player, sourceVideo, playerStack, sequenceTab, sourceTab, playerStatus, playButton, seekScale, timeLabel, speedButton, muteButton) = CreatePlayerPanel ();
 		(sourceFileLabel, sourceResolutionLabel, sourceRateLabel, sourceDurationLabel, sourceFramesLabel,
 			selectionLabel, allFramesButton, selectedFramesButton, outputFolderEntry, prefixEntry, digitsSpinner,
-			rangeStartSpinner, rangeEndSpinner, rangeButton, exportButton, cancelExportButton, exportProgress) = CreateInspectorPanel ();
+			rangeStartSpinner, rangeEndSpinner,
+			rangeButton, exportButton, cancelExportButton, exportProgress) = CreateInspectorPanel ();
 
 		Gtk.Box leftContent = Gtk.Box.New (Gtk.Orientation.Vertical, 0);
 		leftContent.Append (CreatePlayerLayout ());
@@ -95,13 +112,12 @@ internal sealed partial class VideoFrameExportWindow : IDisposable
 		leftScroll.Vexpand = true;
 		leftScroll.SetPolicy (Gtk.PolicyType.Never, Gtk.PolicyType.Automatic);
 		leftScroll.SetChild (leftContent);
-		workspace.Append (leftScroll);
+		workspace.Attach (leftScroll, 0, 0, 3, 1);
 
 		(filmstrip, filmstripSummary, Gtk.Box filmstripPanel) = CreateFilmstrip ();
-		filmstripPanel.WidthRequest = 680;
 		filmstripPanel.Hexpand = true;
 		filmstripPanel.Vexpand = true;
-		workspace.Append (filmstripPanel);
+		workspace.Attach (filmstripPanel, 3, 0, 2, 1);
 		root.Append (workspace);
 		window.SetContent (root);
 		InitializeFfmpeg ();
@@ -117,6 +133,7 @@ internal sealed partial class VideoFrameExportWindow : IDisposable
 	public void Present ()
 	{
 		window.Present ();
+		window.SetFocus (playerStack);
 		PromptForFfmpegIfNeeded ();
 	}
 
@@ -131,11 +148,13 @@ internal sealed partial class VideoFrameExportWindow : IDisposable
 			return;
 		disposed = true;
 		StopPlayback ();
+		if (atlasWindow is not null) {
+			atlasWindow.Closed -= HandleAtlasWindowClosed;
+			atlasWindow.Dispose ();
+			atlasWindow = null;
+		}
 		lifetime.Cancel ();
-		foreach (VideoFramePreview preview in previews)
-			preview.Dispose ();
-		previews.Clear ();
-		previewDirectory?.Delete (recursive: true);
+		ClearPreviews (deleteDirectory: false);
 		lifetime.Dispose ();
 	}
 
@@ -346,9 +365,13 @@ internal sealed partial class VideoFrameExportWindow : IDisposable
 		progress.ShowText = true;
 		progress.Text = Translations.GetString ("Ready");
 		progress.Hide ();
+		openAtlasButton = Gtk.Button.NewWithLabel (Translations.GetString ("Open Atlas Packer"));
+		openAtlasButton.AddCssClass (AdwaitaStyles.SuggestedAction);
+		openAtlasButton.OnClicked += HandleOpenAtlasClicked;
 
 		return (sourceFile, resolution, rate, duration, frames, selection, allFrames, selectedFrames,
-			folder, prefix, digits, rangeStart, rangeEnd, range, export, cancel, progress);
+			folder, prefix, digits, rangeStart, rangeEnd,
+			range, export, cancel, progress);
 	}
 
 	private Gtk.Box CreateInspectorLayout ()
@@ -395,6 +418,7 @@ internal sealed partial class VideoFrameExportWindow : IDisposable
 		exportBox.Append (exportButton);
 		exportBox.Append (cancelExportButton);
 		exportBox.Append (exportProgress);
+		exportBox.Append (openAtlasButton);
 		inspector.Append (CreateSection (Translations.GetString ("Export"), exportBox));
 
 		Gtk.Label errorHint = Gtk.Label.New (Translations.GetString ("Preview states: no video, loading, exporting, unsupported format"));
@@ -405,7 +429,7 @@ internal sealed partial class VideoFrameExportWindow : IDisposable
 		return inspector;
 	}
 
-	private (Gtk.Grid Frames, Gtk.Label Summary, Gtk.Box Panel) CreateFilmstrip ()
+	private (Gtk.GridView Frames, Gtk.Label Summary, Gtk.Box Panel) CreateFilmstrip ()
 	{
 		Gtk.Box panel = Gtk.Box.New (Gtk.Orientation.Vertical, 6);
 		panel.SetAllMargins (8);
@@ -425,21 +449,16 @@ internal sealed partial class VideoFrameExportWindow : IDisposable
 		header.Append (summary);
 		Gtk.Button selectAll = CreateIconButton (StandardIcons.EditSelectAll, Translations.GetString ("Select all"), SelectAllFrames);
 		Gtk.Button clear = CreateIconButton (Icons.EditSelectionNone, Translations.GetString ("Clear selection"), ClearSelection);
+		clearFramesButton = CreateIconButton ("edit-delete-symbolic", Translations.GetString ("Clear generated frames"), ClearGeneratedFrames);
+		regenerateFramesButton = CreateIconButton ("view-refresh-symbolic", Translations.GetString ("Regenerate video frames"), RegenerateVideoFrames);
 		header.Append (selectAll);
 		header.Append (clear);
+		header.Append (clearFramesButton);
+		header.Append (regenerateFramesButton);
 		panel.Append (header);
 
-		Gtk.ScrolledWindow scroll = Gtk.ScrolledWindow.New ();
-		scroll.HscrollbarPolicy = Gtk.PolicyType.Never;
-		scroll.VscrollbarPolicy = Gtk.PolicyType.Automatic;
-		scroll.Hexpand = true;
-		scroll.Vexpand = true;
-		Gtk.Grid frames = Gtk.Grid.New ();
-		frames.ColumnSpacing = 6;
-		frames.RowSpacing = 6;
-		frames.SetAllMargins (2);
-		scroll.SetChild (frames);
-		panel.Append (scroll);
+		Gtk.GridView frames = CreateThumbnailGrid ();
+		panel.Append (frames);
 		return (frames, summary, panel);
 	}
 
@@ -519,6 +538,11 @@ internal sealed partial class VideoFrameExportWindow : IDisposable
 	{
 		bool ready = ffmpeg_ready && metadata is not null && !string.IsNullOrEmpty (videoFilename);
 		exportButton.Sensitive = ready && (allFramesButton.Active || selectedIndices.Count > 0);
+		clearFramesButton.Sensitive = previews.Count > 0;
+		regenerateFramesButton.Sensitive = !string.IsNullOrWhiteSpace (videoFilename);
+		openAtlasButton.Sensitive = ready && (allFramesButton.Active
+			? previews.Count > 0
+			: selectedIndices.Any (index => index >= 0 && index < previewPaths.Count));
 		int count = allFramesButton.Active ? metadata?.TotalFrames ?? 0 : selectedIndices.Count;
 		exportButton.SetLabel (Translations.GetString ("Export {0} Frames", count));
 	}
