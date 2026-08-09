@@ -45,7 +45,7 @@ public sealed partial class DocumentLayers
 		if (selected.Any (layer => !ContainsLayer (layer)))
 			throw new ArgumentException ("One or more layers do not belong to this document.", nameof (layers));
 
-		selected = [.. selected.Where (layer => !layer.Locked).Distinct ()];
+		selected = [.. selected.Where (layer => !layer.Locked && !HasLockedAncestor (layer)).Distinct ()];
 		if (selected.Count == 0) {
 			ClearCurrentUserLayer (commitCurrentTool);
 			return;
@@ -114,4 +114,14 @@ public sealed partial class DocumentLayers
 
 		return false;
 	}
+
+	private static bool HasLockedAncestor (UserLayer layer)
+	{
+		for (UserLayer? parent = layer.Parent; parent is not null; parent = parent.Parent)
+			if (parent.Locked)
+				return true;
+
+		return false;
+	}
+
 }

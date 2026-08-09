@@ -376,16 +376,21 @@ internal sealed partial class MainWindow
 
 #if WINDOWS
 		bool placement_restored = false;
-		window_shell.Window.OnMap += (_, _) => {
-			if (placement_restored)
-				return;
+		if (!maximize) {
+			window_shell.Window.OnMap += (_, _) => {
+				if (placement_restored)
+					return;
 
-			placement_restored = true;
-			GLib.Functions.IdleAdd (0, () => {
-				WindowsWindowPlacement.Restore (x, y, width, height);
-				return false;
-			});
-		};
+				placement_restored = true;
+				GLib.Functions.TimeoutAdd (0, 50, () => {
+					if (x == int.MinValue || y == int.MinValue)
+						WindowsWindowPlacement.Center ();
+					else
+						WindowsWindowPlacement.Restore (x, y, width, height);
+					return false;
+				});
+			};
+		}
 #endif
 		if (maximize)
 			window_shell.Window.Maximize ();

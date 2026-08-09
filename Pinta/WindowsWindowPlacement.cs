@@ -1,6 +1,7 @@
 #if WINDOWS
 using System;
 using System.Runtime.InteropServices;
+using System.Text;
 
 namespace Pinta;
 
@@ -95,7 +96,7 @@ internal static class WindowsWindowPlacement
 
 		_ = EnumWindows ((window, state) => {
 			_ = GetWindowThreadProcessId (window, out uint processId);
-			if (processId != currentProcessId || !IsWindowVisible (window) || GetWindow (window, GW_OWNER) != IntPtr.Zero)
+			if (processId != currentProcessId || !IsWindowVisible (window) || GetWindow (window, GW_OWNER) != IntPtr.Zero || !IsPintaWindow (window))
 				return true;
 
 			result = window;
@@ -103,6 +104,15 @@ internal static class WindowsWindowPlacement
 		}, IntPtr.Zero);
 
 		return result;
+	}
+
+	private static bool IsPintaWindow (IntPtr window)
+	{
+		StringBuilder title = new (256);
+		_ = GetWindowText (window, title, title.Capacity);
+		string value = title.ToString ();
+		return value.Equals ("Pinta", StringComparison.Ordinal)
+			|| value.EndsWith (" - Pinta", StringComparison.Ordinal);
 	}
 
 	[StructLayout (LayoutKind.Sequential)]
@@ -154,6 +164,9 @@ internal static class WindowsWindowPlacement
 	[DllImport ("user32.dll")]
 	[return: MarshalAs (UnmanagedType.Bool)]
 	private static extern bool IsWindowVisible (IntPtr window);
+
+	[DllImport ("user32.dll", CharSet = CharSet.Unicode)]
+	private static extern int GetWindowText (IntPtr window, StringBuilder text, int maxCount);
 
 	[DllImport ("user32.dll")]
 	[return: MarshalAs (UnmanagedType.Bool)]

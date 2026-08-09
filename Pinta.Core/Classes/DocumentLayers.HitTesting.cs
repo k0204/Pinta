@@ -39,7 +39,7 @@ public sealed partial class DocumentLayers
 		bool requireFullyContained,
 		List<UserLayer> result)
 	{
-		if (userLayer.Hidden)
+		if (userLayer.Hidden || userLayer.Locked)
 			return;
 
 		if (!userLayer.Locked && userLayer.GetOwnLayersToPaint ().Any (layer =>
@@ -52,7 +52,7 @@ public sealed partial class DocumentLayers
 
 	private UserLayer? FindTopmostLayerAtPoint (UserLayer userLayer, PointD point)
 	{
-		if (userLayer.Hidden)
+		if (userLayer.Hidden || userLayer.Locked)
 			return null;
 
 		for (int i = userLayer.Children.Count - 1; i >= 0; i--) {
