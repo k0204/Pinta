@@ -66,6 +66,7 @@ public sealed partial class LayerActions
 	public Command AlignLayersTop { get; }
 	public Command AlignLayersCenterVertical { get; }
 	public Command AlignLayersBottom { get; }
+	public Command OpenLayerAlignmentWindow { get; }
 	public Command Properties { get; }
 	public Command UnlockReference { get; }
 
@@ -275,37 +276,43 @@ public sealed partial class LayerActions
 			"alignlayersleft",
 			Translations.GetString ("Align Layers Left"),
 			null,
-			Resources.StandardIcons.ResizeCanvasLeft);
+			Resources.Icons.ResizeCanvasLeft);
 
 		AlignLayersCenterHorizontal = new Command (
 			"alignlayerscenterhorizontal",
 			Translations.GetString ("Align Layers Center Horizontally"),
 			null,
-			Resources.StandardIcons.ResizeCanvasBase);
+			Resources.Icons.ResizeCanvasBase);
 
 		AlignLayersRight = new Command (
 			"alignlayersright",
 			Translations.GetString ("Align Layers Right"),
 			null,
-			Resources.StandardIcons.ResizeCanvasRight);
+			Resources.Icons.ResizeCanvasRight);
 
 		AlignLayersTop = new Command (
 			"alignlayerstop",
 			Translations.GetString ("Align Layers Top"),
 			null,
-			Resources.StandardIcons.ResizeCanvasUp);
+			Resources.Icons.ResizeCanvasUp);
 
 		AlignLayersCenterVertical = new Command (
 			"alignlayerscentervertical",
 			Translations.GetString ("Align Layers Center Vertically"),
 			null,
-			Resources.StandardIcons.ResizeCanvasBase);
+			Resources.Icons.ResizeCanvasBase);
 
 		AlignLayersBottom = new Command (
 			"alignlayersbottom",
 			Translations.GetString ("Align Layers Bottom"),
 			null,
-			Resources.StandardIcons.ResizeCanvasDown);
+			Resources.Icons.ResizeCanvasDown);
+
+		OpenLayerAlignmentWindow = new Command (
+			"openlayeralignmentwindow",
+			Translations.GetString ("Layer Alignment"),
+			Translations.GetString ("Open the layer alignment window"),
+			Resources.Icons.ResizeCanvasBase) { Sensitive = false };
 
 		Properties = new Command (
 			"properties",
@@ -376,7 +383,8 @@ public sealed partial class LayerActions
 			AlignLayersRight,
 			AlignLayersTop,
 			AlignLayersCenterVertical,
-			AlignLayersBottom]);
+			AlignLayersBottom,
+			OpenLayerAlignmentWindow]);
 	}
 
 	public void RegisterHandlers ()
@@ -467,6 +475,7 @@ public sealed partial class LayerActions
 		AlignLayersTop.Sensitive = canAlignLayers;
 		AlignLayersCenterVertical.Sensitive = canAlignLayers;
 		AlignLayersBottom.Sensitive = canAlignLayers;
+		OpenLayerAlignmentWindow.Sensitive = activeDoc is not null;
 		Properties.Sensitive = hasSelectedLayer;
 		SaveLayerImage.Sensitive = hasSelectedLayer && !save_layer_running;
 		FlipHorizontal.Sensitive = currentEditable;

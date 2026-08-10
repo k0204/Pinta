@@ -272,10 +272,13 @@ public sealed class BackgroundCutoutService
 			files[0] = (FitPng (sourcePng, requestSize, whitePadding, out contentOffset, out sourceResized), "reference_files", "pinta.png");
 		for (int i = 0; i < referenceImages.Count; i++) {
 			(byte[] Png, string FileName) reference = referenceImages[i];
-			byte[] referencePng = imageService == AiRequestSettings.GptImageService &&
-				NeedsGptImageAspectPadding (reference.Png)
-				? FitPng (reference.Png, requestSize, whitePadding: false, out _, out _)
-				: reference.Png;
+			byte[] referencePng = imageService switch {
+				AiRequestSettings.GptImageService when NeedsGptImageAspectPadding (reference.Png)
+					=> FitPng (reference.Png, requestSize, whitePadding: false, out _, out _),
+				AiRequestSettings.NanoBananaService
+					=> FitPng (reference.Png, requestSize, whitePadding: false, out _, out _),
+				_ => reference.Png,
+			};
 			files[sourceCount + i] = (referencePng, "reference_files", reference.FileName);
 		}
 

@@ -32,7 +32,7 @@ using Pinta.Core;
 
 namespace Pinta.Tools;
 
-public sealed class MoveLayerTool : BaseTool
+public sealed partial class MoveLayerTool : BaseTool
 {
 	private Gtk.CheckButton? auto_select_layer;
 	private Gtk.CheckButton? show_transform_controls;
@@ -67,7 +67,6 @@ public sealed class MoveLayerTool : BaseTool
 		};
 	}
 
-	public override IEnumerable<IToolHandle> Handles => [transform_handle];
 	public override string Name => Translations.GetString ("Move Layer");
 	public override string Icon => Pinta.Resources.Icons.ToolMove;
 	// Translators: {0} is 'Ctrl', or a platform-specific key such as 'Command' on macOS.
@@ -105,6 +104,8 @@ public sealed class MoveLayerTool : BaseTool
 		workspace.ActiveDocumentChanged += HandleTransformTargetChanged;
 		workspace.SelectedLayerChanged += HandleTransformTargetChanged;
 		workspace.LayerTreeChanged += HandleTransformTargetChanged;
+		workspace.LayerPropertyChanged += HandleSmartGuideLayerPropertyChanged;
+		InvalidateSmartGuideCandidates ();
 		UpdateTransformHandle (document);
 	}
 
@@ -117,6 +118,7 @@ public sealed class MoveLayerTool : BaseTool
 		workspace.ActiveDocumentChanged -= HandleTransformTargetChanged;
 		workspace.SelectedLayerChanged -= HandleTransformTargetChanged;
 		workspace.LayerTreeChanged -= HandleTransformTargetChanged;
+		workspace.LayerPropertyChanged -= HandleSmartGuideLayerPropertyChanged;
 		document?.FinishSelection ();
 		base.OnDeactivated (document, newTool);
 	}
@@ -197,8 +199,10 @@ public sealed class MoveLayerTool : BaseTool
 		}
 
 		PointD totalDelta = GetDragDelta (e.PointDouble);
-		if (has_drag_start_bounds)
+		if (has_drag_start_bounds) {
 			totalDelta = ClampMoveDelta (document, drag_start_bounds, totalDelta);
+			totalDelta = ApplySmartGuideSnap (document, totalDelta);
+		}
 		PointD delta = totalDelta - applied_drag_delta;
 		foreach (UserLayer layer in dragged_layers)
 			document.Layers.TranslateLayerTree (layer, delta);
@@ -323,6 +327,7 @@ public sealed class MoveLayerTool : BaseTool
 		drag_start_point = point;
 		applied_drag_delta = PointD.Zero;
 		has_drag_start_bounds = document.Layers.TryGetSelectedLayerTreeBounds (out drag_start_bounds);
+		BeginSmartGuideDrag (document);
 		document.Workspace.Invalidate ();
 	}
 
@@ -407,6 +412,8 @@ public sealed class MoveLayerTool : BaseTool
 
 	private void FinishLayerDrag (Document? document)
 	{
+		EndSmartGuideDrag (document);
+
 		if (document is not null && dragged_layers.Count > 0 && applied_drag_delta != PointD.Zero)
 			PushMoveHistory (document, dragged_layers, applied_drag_delta);
 
@@ -494,6 +501,7 @@ public sealed class MoveLayerTool : BaseTool
 
 	private void HandleTransformTargetChanged (object? sender, EventArgs e)
 	{
+		InvalidateSmartGuideCandidates ();
 		if (resized_layers.Count == 0)
 			UpdateTransformHandle (workspace.HasOpenDocuments ? workspace.ActiveDocument : null);
 	}

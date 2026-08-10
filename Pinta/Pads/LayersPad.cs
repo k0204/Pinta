@@ -98,6 +98,7 @@ internal sealed class LayersPad : IDockPad
 		flip_section.AppendItem (layer_actions.RotateZoom.CreateMenuItem ());
 
 		Gio.Menu alignment_menu = Gio.Menu.New ();
+		alignment_menu.AppendItem (layer_actions.OpenLayerAlignmentWindow.CreateMenuItem ());
 		alignment_menu.AppendItem (layer_actions.AlignLayersLeft.CreateMenuItem ());
 		alignment_menu.AppendItem (layer_actions.AlignLayersCenterHorizontal.CreateMenuItem ());
 		alignment_menu.AppendItem (layer_actions.AlignLayersRight.CreateMenuItem ());

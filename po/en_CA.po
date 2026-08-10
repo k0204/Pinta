@@ -87,6 +87,40 @@ msgstr "Adjustments"
 msgid "After select"
 msgstr "After select"
 
+#: ../Pinta/Pads/LayersPad.cs:120
+msgid "Align Layers"
+msgstr ""
+
+#: ../Pinta.Core/Actions/LayerActions.cs:306
+#: ../Pinta.Core/Actions/LayerActions.Alignment.cs:37
+msgid "Align Layers Bottom"
+msgstr ""
+
+#: ../Pinta.Core/Actions/LayerActions.cs:282
+#: ../Pinta.Core/Actions/LayerActions.Alignment.cs:25
+msgid "Align Layers Center Horizontally"
+msgstr ""
+
+#: ../Pinta.Core/Actions/LayerActions.cs:300
+#: ../Pinta.Core/Actions/LayerActions.Alignment.cs:34
+msgid "Align Layers Center Vertically"
+msgstr ""
+
+#: ../Pinta.Core/Actions/LayerActions.cs:276
+#: ../Pinta.Core/Actions/LayerActions.Alignment.cs:22
+msgid "Align Layers Left"
+msgstr ""
+
+#: ../Pinta.Core/Actions/LayerActions.cs:288
+#: ../Pinta.Core/Actions/LayerActions.Alignment.cs:28
+msgid "Align Layers Right"
+msgstr ""
+
+#: ../Pinta.Core/Actions/LayerActions.cs:294
+#: ../Pinta.Core/Actions/LayerActions.Alignment.cs:31
+msgid "Align Layers Top"
+msgstr ""
+
 #: ../Pinta.Effects/Dialogs/Effects.AlignmentDialog.cs:72
 #: ../Pinta.Effects/Effects/AlignObjectEffect.cs:12
 msgid "Align Object"
@@ -3505,3 +3539,28 @@ msgstr "{0}%"
 #~ msgstr ""
 #~ "Click and drag to draw gradient from primary to secondary colour.  Right "
 #~ "click to reverse."
+
+#: ../Pinta.Gui.Widgets/Widgets/Layers/LayerAlignmentWindow.cs:390
+msgid "Position: {0}, {1}"
+msgstr ""
+
+#: ../Pinta.Gui.Widgets/Widgets/Layers/LayerAlignmentWindow.cs:386
+msgid "Select a movable layer"
+msgstr ""
+
+#: ../Pinta.Core/Actions/LayerActions.cs:312
+msgid "Open the layer alignment window"
+msgstr ""
+
+#: ../Pinta.Core/Actions/LayerActions.cs:311
+#: ../Pinta/Pads/LayerAlignmentPad.cs:16
+msgid "Layer Alignment"
+msgstr ""
+
+#: ../Pinta.Gui.Widgets/Widgets/Layers/LayerAlignmentWindow.cs:380
+msgid "No document open"
+msgstr ""
+
+#: ../Pinta.Gui.Widgets/Widgets/Layers/LayerAlignmentWindow.cs:74
+msgid "Snap to guides and canvas"
+msgstr ""

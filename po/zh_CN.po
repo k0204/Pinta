@@ -118,6 +118,40 @@ msgstr "调节"
 msgid "After select"
 msgstr "选择后"
 
+#: ../Pinta/Pads/LayersPad.cs:120
+msgid "Align Layers"
+msgstr "对齐图层"
+
+#: ../Pinta.Core/Actions/LayerActions.cs:306
+#: ../Pinta.Core/Actions/LayerActions.Alignment.cs:37
+msgid "Align Layers Bottom"
+msgstr "对齐图层底部"
+
+#: ../Pinta.Core/Actions/LayerActions.cs:282
+#: ../Pinta.Core/Actions/LayerActions.Alignment.cs:25
+msgid "Align Layers Center Horizontally"
+msgstr "对齐图层水平居中"
+
+#: ../Pinta.Core/Actions/LayerActions.cs:300
+#: ../Pinta.Core/Actions/LayerActions.Alignment.cs:34
+msgid "Align Layers Center Vertically"
+msgstr "对齐图层垂直居中"
+
+#: ../Pinta.Core/Actions/LayerActions.cs:276
+#: ../Pinta.Core/Actions/LayerActions.Alignment.cs:22
+msgid "Align Layers Left"
+msgstr "对齐图层左侧"
+
+#: ../Pinta.Core/Actions/LayerActions.cs:288
+#: ../Pinta.Core/Actions/LayerActions.Alignment.cs:28
+msgid "Align Layers Right"
+msgstr "对齐图层右侧"
+
+#: ../Pinta.Core/Actions/LayerActions.cs:294
+#: ../Pinta.Core/Actions/LayerActions.Alignment.cs:31
+msgid "Align Layers Top"
+msgstr "对齐图层顶部"
+
 #: ../Pinta.Effects/Dialogs/Effects.AlignmentDialog.cs:72
 #: ../Pinta.Effects/Effects/AlignObjectEffect.cs:12
 msgid "Align Object"
@@ -4650,3 +4684,28 @@ msgstr ""
 
 #~ msgid "_Uninstall..."
 #~ msgstr "卸载..."
+
+#: ../Pinta.Gui.Widgets/Widgets/Layers/LayerAlignmentWindow.cs:390
+msgid "Position: {0}, {1}"
+msgstr "位置：{0}, {1}"
+
+#: ../Pinta.Gui.Widgets/Widgets/Layers/LayerAlignmentWindow.cs:386
+msgid "Select a movable layer"
+msgstr "请选择可移动图层"
+
+#: ../Pinta.Core/Actions/LayerActions.cs:312
+msgid "Open the layer alignment window"
+msgstr "打开图层对齐窗口"
+
+#: ../Pinta.Core/Actions/LayerActions.cs:311
+#: ../Pinta/Pads/LayerAlignmentPad.cs:16
+msgid "Layer Alignment"
+msgstr "图层对齐"
+
+#: ../Pinta.Gui.Widgets/Widgets/Layers/LayerAlignmentWindow.cs:380
+msgid "No document open"
+msgstr "未打开文档"
+
+#: ../Pinta.Gui.Widgets/Widgets/Layers/LayerAlignmentWindow.cs:74
+msgid "Snap to guides and canvas"
+msgstr "吸附到参考线和画布"

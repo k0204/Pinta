@@ -28,6 +28,7 @@ Pinta.Core/Actions/LayerActions.BorderDetection.cs
 Pinta.Core/Actions/LayerActions.BorderDetection.Mask.cs
 Pinta.Core/Actions/LayerActions.cs
 Pinta.Core/Actions/LayerActions.Alignment.cs
+Pinta.Gui.Widgets/Widgets/Layers/LayerAlignmentWindow.cs
 Pinta.Core/Actions/LayerActions.Deletion.cs
 Pinta.Core/Actions/LayerActions.Export.cs
 Pinta.Core/Actions/LayerActions.GenerationType.cs
@@ -473,6 +474,7 @@ Pinta/Actions/IActionHandler.cs
 Pinta/Actions/Image/ResizeCanvasAction.cs
 Pinta/Actions/Image/ResizeImageAction.cs
 Pinta/Actions/Layers/LayerPropertiesAction.cs
+Pinta/Actions/Layers/LayerAlignmentWindowAction.cs
 Pinta/Actions/Layers/ResizeLayerAction.cs
 Pinta/Actions/Layers/RotateZoomLayerAction.cs
 Pinta/Actions/View/ColorSchemeChangedAction.cs
@@ -514,6 +516,7 @@ Pinta/RecentDocumentsWindow.cs
 Pinta/Pads/CanvasPad.cs
 Pinta/Pads/HistoryPad.cs
 Pinta/Pads/IDockPad.cs
+Pinta/Pads/LayerAlignmentPad.cs
 Pinta/Pads/LayersPad.cs
 Pinta/Pads/ResourcesPad.cs
 Pinta/SettingNames.cs

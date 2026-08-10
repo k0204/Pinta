@@ -76,6 +76,7 @@ public sealed class ActionHandlers
 			new ResizeCanvasAction (chrome, workspace, settings, actions),
 
 			// Layers
+			new LayerAlignmentWindowAction (chrome, actions.Layers),
 			new LayerPropertiesAction (chrome, actions.Layers, workspace),
 			new ResizeLayerAction (actions.Layers, chrome, workspace, settings, tools),
 			new RotateZoomLayerAction (chrome, actions.Layers, workspace, tools),
@@ -185,6 +186,7 @@ public sealed class ActionHandlers
 		PintaCore.Actions.Layers.MoveLayerUp.Sensitive = hasSelectedLayer;
 		PintaCore.Actions.Layers.MoveLayerDown.Sensitive = hasSelectedLayer;
 		PintaCore.Actions.Layers.Properties.Sensitive = hasSelectedLayer;
+		PintaCore.Actions.Layers.OpenLayerAlignmentWindow.Sensitive = enable;
 		PintaCore.Actions.Layers.UnlockReference.Sensitive = document?.Layers.CurrentUserLayer.IsReference == true && !document.Layers.CurrentUserLayer.ReferenceMissing;
 
 		PintaCore.Actions.Adjustments.ToggleActionsSensitive (editableLayer);

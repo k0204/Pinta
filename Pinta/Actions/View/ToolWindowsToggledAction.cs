@@ -20,6 +20,7 @@ internal sealed class ToolWindowsToggledAction : IActionHandler
 		view.LayersWindow.Toggled += LayersToggled;
 		view.HistoryWindow.Toggled += HistoryToggled;
 		view.ResourcesWindow.Toggled += ResourcesToggled;
+		view.LayerAlignmentWindow.Toggled += LayerAlignmentToggled;
 		view.ResetDockLayout.Activated += ResetLayout;
 		((Docking.Dock) chrome.Dock).ItemVisibilityChanged += HandleVisibilityChanged;
 	}
@@ -30,6 +31,7 @@ internal sealed class ToolWindowsToggledAction : IActionHandler
 		view.LayersWindow.Toggled -= LayersToggled;
 		view.HistoryWindow.Toggled -= HistoryToggled;
 		view.ResourcesWindow.Toggled -= ResourcesToggled;
+		view.LayerAlignmentWindow.Toggled -= LayerAlignmentToggled;
 		view.ResetDockLayout.Activated -= ResetLayout;
 		((Docking.Dock) chrome.Dock).ItemVisibilityChanged -= HandleVisibilityChanged;
 	}
@@ -48,6 +50,9 @@ internal sealed class ToolWindowsToggledAction : IActionHandler
 	private void ResourcesToggled (bool value, bool interactive)
 		=> ((Docking.Dock) chrome.Dock).SetItemVisible ("Resources", value);
 
+	private void LayerAlignmentToggled (bool value, bool interactive)
+		=> ((Docking.Dock) chrome.Dock).SetItemVisible ("LayerAlignment", value);
+
 	private void ResetLayout (object sender, System.EventArgs e)
 		=> ((Docking.Dock) chrome.Dock).ResetLayout ();
 
@@ -57,6 +62,7 @@ internal sealed class ToolWindowsToggledAction : IActionHandler
 			case "Layers": view.LayersWindow.Value = e.Visible; break;
 			case "History": view.HistoryWindow.Value = e.Visible; break;
 			case "Resources": view.ResourcesWindow.Value = e.Visible; break;
+			case "LayerAlignment": view.LayerAlignmentWindow.Value = e.Visible; break;
 		}
 	}
 }

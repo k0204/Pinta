@@ -395,6 +395,8 @@ public sealed partial class LayersListViewItemWidget
 
 			Gdk.ModifierType modifiers = click.GetCurrentEventState ();
 			LayerSelectionRequested?.Invoke (this, new LayerSelectionEventArgs (layer, modifiers));
+			if (modifiers.IsControlPressed () || modifiers.IsShiftPressed ())
+				click.SetState (Gtk.EventSequenceState.Claimed);
 		};
 		widget.AddController (click);
 	}

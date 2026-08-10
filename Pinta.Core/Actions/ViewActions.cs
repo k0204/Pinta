@@ -43,6 +43,7 @@ public sealed class ViewActions
 	public ToggleCommand LayersWindow { get; }
 	public ToggleCommand HistoryWindow { get; }
 	public ToggleCommand ResourcesWindow { get; }
+	public ToggleCommand LayerAlignmentWindow { get; }
 	public Command ResetDockLayout { get; }
 	public Command EditCanvasGrid { get; }
 	public ToggleCommand MenuBar { get; }
@@ -142,6 +143,12 @@ public sealed class ViewActions
 			null,
 			null);
 
+		LayerAlignmentWindow = new ToggleCommand (
+			"LayerAlignmentWindow",
+			Translations.GetString ("Layer Alignment"),
+			null,
+			null);
+
 		ResetDockLayout = new Command (
 			"ResetDockLayout",
 			Translations.GetString ("Reset Panel Layout"),
@@ -205,6 +212,7 @@ public sealed class ViewActions
 		LayersWindow.Value = true;
 		HistoryWindow.Value = true;
 		ResourcesWindow.Value = true;
+		LayerAlignmentWindow.Value = true;
 		StatusBar.Value = true;
 		ToolBox.Value = true;
 
@@ -271,6 +279,7 @@ public sealed class ViewActions
 		show_hide_menu.AppendItem (LayersWindow.CreateMenuItem ());
 		show_hide_menu.AppendItem (HistoryWindow.CreateMenuItem ());
 		show_hide_menu.AppendItem (ResourcesWindow.CreateMenuItem ());
+		show_hide_menu.AppendItem (LayerAlignmentWindow.CreateMenuItem ());
 		show_hide_menu.AppendItem (ResetDockLayout.CreateMenuItem ());
 		if (mainToolbarPresent) show_hide_menu.AppendItem (ToolBar.CreateMenuItem ());
 
@@ -310,6 +319,7 @@ public sealed class ViewActions
 			LayersWindow,
 			HistoryWindow,
 			ResourcesWindow,
+			LayerAlignmentWindow,
 			ResetDockLayout,
 		]);
 

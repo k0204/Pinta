@@ -607,6 +607,9 @@ internal sealed partial class MainWindow
 		ResourcesPad resources_pad = new ();
 		resources_pad.Initialize (dock);
 
+		LayerAlignmentPad alignment_pad = new ();
+		alignment_pad.Initialize (dock);
+
 		container.Append (dock);
 	}
 
@@ -617,7 +620,7 @@ internal sealed partial class MainWindow
 		// Set selected tool to last selected or default to the PaintBrush
 		PintaCore.Tools.SetCurrentTool (PintaCore.Settings.GetSetting (SettingNames.LAST_SELECTED_TOOL, "PaintBrushTool"));
 
-		PintaCore.Actions.View.Rulers.Value = PintaCore.Settings.GetSetting (SettingNames.RULER_SHOWN, false);
+		PintaCore.Actions.View.Rulers.Value = PintaCore.Settings.GetSetting (SettingNames.RULER_SHOWN, true);
 		PintaCore.Actions.View.ToolBar.Value = PintaCore.Settings.GetSetting (SettingNames.TOOLBAR_SHOWN, true);
 		PintaCore.Actions.View.MenuBar.Value = IsUsingMenuBar ();
 		PintaCore.Actions.View.StatusBar.Value = PintaCore.Settings.GetSetting (SettingNames.STATUSBAR_SHOWN, true);
@@ -625,6 +628,7 @@ internal sealed partial class MainWindow
 		PintaCore.Actions.View.LayersWindow.Value = dock.IsItemVisible ("Layers");
 		PintaCore.Actions.View.HistoryWindow.Value = dock.IsItemVisible ("History");
 		PintaCore.Actions.View.ResourcesWindow.Value = dock.IsItemVisible ("Resources");
+		PintaCore.Actions.View.LayerAlignmentWindow.Value = dock.IsItemVisible ("LayerAlignment");
 		PintaCore.Actions.View.ImageTabs.Value = PintaCore.Settings.GetSetting (SettingNames.IMAGE_TABS_SHOWN, true);
 		PintaCore.Actions.View.ToolWindows.Value = PintaCore.Settings.GetSetting (SettingNames.TOOL_WINDOWS_SHOWN, true);
 
