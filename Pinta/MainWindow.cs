@@ -461,9 +461,9 @@ internal sealed partial class MainWindow
 			PintaCore.Actions.App.RegisterActions (app);
 		}
 		PintaCore.Actions.File.RegisterActions (app, fileMenu);
-		video_frame_export = new VideoFrameExportAction (app);
+		video_frame_export = new VideoFrameExportAction ();
 		video_frame_export.Register (app, fileMenu);
-		atlas_packing = new AtlasPackingAction (app);
+		atlas_packing = new AtlasPackingAction ();
 		atlas_packing.Register (app, fileMenu);
 		PintaCore.Actions.Edit.RegisterActions (app, editMenu);
 		PintaCore.Actions.View.RegisterActions (app, viewMenu);

@@ -62,7 +62,7 @@ internal sealed partial class VideoFrameExportWindow
 		try {
 			using Gtk.FileDialog dialog = Gtk.FileDialog.New ();
 			dialog.SetTitle (Translations.GetString ("Select FFmpeg Directory"));
-			Gio.File? folder = await dialog.SelectFolderAsync (window);
+			Gio.File? folder = await dialog.SelectFolderAsync (this);
 			string? path = folder?.GetPath ();
 			if (path is null)
 				return;

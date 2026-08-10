@@ -10,7 +10,7 @@ using Pinta.Resources;
 
 namespace Pinta.Gui.Addins;
 
-[GObject.Subclass<Adw.Window>]
+[GObject.Subclass<PintaDialog>]
 public sealed partial class AddinManagerDialog
 {
 	private SetupService setup_service = null!; // NRT - set by factory method
@@ -46,17 +46,10 @@ public sealed partial class AddinManagerDialog
 		Adw.ViewSwitcherTitle viewSwitcherTitle = Adw.ViewSwitcherTitle.New ();
 		viewSwitcherTitle.Stack = viewStack;
 
-		Adw.HeaderBar headerBar = Adw.HeaderBar.New ();
-		headerBar.CenteringPolicy = Adw.CenteringPolicy.Strict;
-		headerBar.TitleWidget = viewSwitcherTitle;
-		headerBar.PackStart (installFileButton);
-		headerBar.PackStart (refreshButton);
-
-		// --- Property assignment (Adwaita window)
-
-		Content = GtkExtensions.BoxVertical ([
-			headerBar,
-			toastOverlay]);
+		HeaderBar.TitleWidget = viewSwitcherTitle;
+		HeaderBar.PackStart (installFileButton);
+		HeaderBar.PackStart (refreshButton);
+		this.GetContentAreaBox ().Append (toastOverlay);
 
 		// --- References to keep
 

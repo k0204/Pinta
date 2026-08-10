@@ -20,7 +20,7 @@ internal sealed partial class VideoFrameExportWindow
 			return;
 
 		if (atlasWindow is null) {
-			atlasWindow = new AtlasPackingWindow (application, window, paths);
+			atlasWindow = AtlasPackingWindow.New (this, paths);
 			atlasWindow.Closed += HandleAtlasWindowClosed;
 		} else {
 			atlasWindow.SetInputPaths (paths);

@@ -162,7 +162,6 @@ public sealed partial class LayersListViewItemWidget
 	[MemberNotNull (nameof (layer_icon))]
 	[MemberNotNull (nameof (visible_button))]
 	[MemberNotNull (nameof (lock_button))]
-	[MemberNotNull (nameof (lock_icon))]
 	[MemberNotNull (nameof (disclosure_button))]
         [MemberNotNull (nameof (hierarchy_content))]
 	[MemberNotNull (nameof (drop_preview))]

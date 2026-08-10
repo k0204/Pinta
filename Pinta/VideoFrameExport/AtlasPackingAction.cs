@@ -6,12 +6,10 @@ namespace Pinta;
 
 internal sealed class AtlasPackingAction
 {
-	private readonly Adw.Application application;
 	private AtlasPackingWindow? window;
 
-	public AtlasPackingAction (Adw.Application application)
+	public AtlasPackingAction ()
 	{
-		this.application = application;
 		Command = new Command (
 			"atlaspacker",
 			Translations.GetString ("Texture Atlas Packer..."),
@@ -31,7 +29,7 @@ internal sealed class AtlasPackingAction
 	private void HandleActivated (object sender, EventArgs args)
 	{
 		if (window is null) {
-			window = new AtlasPackingWindow (application, PintaCore.Chrome.MainWindow);
+			window = AtlasPackingWindow.New (PintaCore.Chrome.MainWindow);
 			window.Closed += HandleWindowClosed;
 		}
 		window.Present ();

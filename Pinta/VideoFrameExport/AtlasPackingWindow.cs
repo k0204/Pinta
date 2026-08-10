@@ -8,9 +8,9 @@ using Pinta.Resources;
 
 namespace Pinta;
 
-internal sealed partial class AtlasPackingWindow : IDisposable
+[GObject.Subclass<PintaDialog>]
+internal sealed partial class AtlasPackingWindow
 {
-	private readonly Adw.ApplicationWindow window;
 	private Gtk.Label fileSummary = null!;
 	private Gtk.Entry outputFolderEntry = null!;
 	private Gtk.Entry atlasNameEntry = null!;
@@ -32,19 +32,16 @@ internal sealed partial class AtlasPackingWindow : IDisposable
 
 	public event EventHandler? Closed;
 
-	public AtlasPackingWindow (Adw.Application application, Gtk.Window parent, IReadOnlyList<string>? initialPaths = null)
+	public static AtlasPackingWindow New (Gtk.Window parent, IReadOnlyList<string>? initialPaths = null)
 	{
-		window = Adw.ApplicationWindow.New (application);
-		window.TransientFor = parent;
-		window.Modal = true;
-		window.DestroyWithParent = true;
-		window.DefaultWidth = 1280;
-		window.DefaultHeight = 760;
-		window.Title = Translations.GetString ("Texture Atlas Packer");
-		window.OnCloseRequest += HandleCloseRequest;
+		AtlasPackingWindow window = NewWithProperties ([]);
+		window.Configure (parent, initialPaths);
+		return window;
+	}
 
+	partial void Initialize ()
+	{
 		Gtk.Box root = Gtk.Box.New (Gtk.Orientation.Vertical, 0);
-		root.Append (CreateHeader ());
 		Gtk.Box workspace = Gtk.Box.New (Gtk.Orientation.Horizontal, 0);
 		Gtk.Box sourcePanel = CreateSourcePanel ();
 		sourcePanel.WidthRequest = 280;
@@ -60,44 +57,37 @@ internal sealed partial class AtlasPackingWindow : IDisposable
 		workspace.Hexpand = true;
 		workspace.Vexpand = true;
 		root.Append (workspace);
-		window.SetContent (root);
+		this.GetContentAreaBox ().Append (root);
+	}
+
+	private void Configure (Gtk.Window parent, IReadOnlyList<string>? initialPaths)
+	{
+		TransientFor = parent;
+		DestroyWithParent = true;
+		DefaultWidth = 1280;
+		DefaultHeight = 760;
+		Title = Translations.GetString ("Texture Atlas Packer");
+		OnCloseRequest += HandleCloseRequest;
 		SetInputPaths (initialPaths ?? Array.Empty<string> ());
 	}
 
-	public void Present ()
+	public new void Present ()
 	{
-		window.Present ();
-		window.SetFocus (sourceGrid);
+		base.Present ();
+		SetFocus (sourceGrid);
 	}
 
-	public void Dispose ()
+	public override void Dispose ()
 	{
-		if (disposed)
-			return;
-		disposed = true;
-		build_cts?.Cancel ();
-		build_cts?.Dispose ();
-		CancelAtlasPreviewBuild ();
-		lifetime.Cancel ();
-		lifetime.Dispose ();
-	}
-
-	private Gtk.Box CreateHeader ()
-	{
-		Gtk.Box header = Gtk.Box.New (Gtk.Orientation.Horizontal, 8);
-		header.SetAllMargins (10);
-		header.AddCssClass (AdwaitaStyles.Toolbar);
-
-		Gtk.Button close = Gtk.Button.NewFromIconName (StandardIcons.WindowClose);
-		close.SetTooltipText (Translations.GetString ("Close Texture Atlas Packer"));
-		close.OnClicked += (_, _) => window.Close ();
-		header.Append (close);
-
-		Gtk.Label title = Gtk.Label.New (Translations.GetString ("Texture Atlas Packer"));
-		title.Halign = Gtk.Align.Start;
-		title.AddCssClass (AdwaitaStyles.Heading);
-		header.Append (title);
-		return header;
+		if (!disposed) {
+			disposed = true;
+			build_cts?.Cancel ();
+			build_cts?.Dispose ();
+			CancelAtlasPreviewBuild ();
+			lifetime.Cancel ();
+			lifetime.Dispose ();
+		}
+		base.Dispose ();
 	}
 
 	private Gtk.ScrolledWindow CreateContent ()
@@ -175,7 +165,7 @@ internal sealed partial class AtlasPackingWindow : IDisposable
 		button.OnClicked += async (_, _) => {
 			using Gtk.FileDialog dialog = Gtk.FileDialog.New ();
 			dialog.SetTitle (Translations.GetString ("Choose atlas output folder"));
-			Gio.File? folder = await dialog.SelectFolderAsync (window);
+			Gio.File? folder = await dialog.SelectFolderAsync (this);
 			if (folder?.GetPath () is string path)
 				target.SetText (path);
 		};

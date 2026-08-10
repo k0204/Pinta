@@ -217,7 +217,7 @@ internal sealed partial class AtlasPackingWindow
 		filters.Append (filter);
 		dialog.SetFilters (filters);
 
-		IReadOnlyList<Gio.File>? files = await dialog.OpenFilesAsync (window);
+		IReadOnlyList<Gio.File>? files = await dialog.OpenFilesAsync (this);
 		if (files is null)
 			return;
 		List<string> updatedPaths = [.. paths];

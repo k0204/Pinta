@@ -141,12 +141,7 @@ public sealed partial class PintaDocumentFormat : IImageImporter, IImageExporter
 	}
 
 	private static void ReplaceFile (string source, string destination)
-	{
-		if (File.Exists (destination))
-			File.Replace (source, destination, destinationBackupFileName: null);
-		else
-			File.Move (source, destination);
-	}
+		=> File.Move (source, destination, overwrite: true);
 
 	private static PintaDocumentManifest CreateManifest (
 		Document document,

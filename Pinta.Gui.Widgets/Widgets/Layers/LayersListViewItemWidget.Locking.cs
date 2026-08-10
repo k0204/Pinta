@@ -30,18 +30,15 @@ public sealed partial class LayersListViewItem
 public sealed partial class LayersListViewItemWidget
 {
 	private Gtk.Button lock_button;
-	private Gtk.Image lock_icon;
 
-	[MemberNotNull (nameof (lock_button), nameof (lock_icon))]
+	[MemberNotNull (nameof (lock_button))]
 	private Gtk.Button CreateLockButton ()
 	{
-		lock_button = Gtk.Button.New ();
-		lock_icon = Gtk.Image.NewFromIconName (Icons.LayerUnlocked);
-		lock_icon.PixelSize = 18;
-		lock_button.SetChild (lock_icon);
+		lock_button = Gtk.Button.NewFromIconName (Icons.LayerUnlocked);
 		lock_button.WidthRequest = 24;
 		lock_button.HeightRequest = 24;
 		lock_button.FocusOnClick = false;
+		lock_button.AddCssClass (AdwaitaStyles.Flat);
 		lock_button.OnClicked += (_, _) => {
 			if (item is not null)
 				item.HandleLockToggled (!item.Locked);
@@ -54,7 +51,7 @@ public sealed partial class LayersListViewItemWidget
 		if (item is null)
 			throw new InvalidOperationException ($"{nameof (item)} is null");
 
-		lock_icon.IconName = item.Locked ? Icons.LayerLocked : Icons.LayerUnlocked;
+		lock_button.SetIconName (item.Locked ? Icons.LayerLocked : Icons.LayerUnlocked);
 		lock_button.TooltipText = item.Locked
 			? Translations.GetString ("Unlock Layer")
 			: Translations.GetString ("Lock Layer");

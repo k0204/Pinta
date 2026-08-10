@@ -12,7 +12,7 @@ using Pinta.Core;
 
 namespace Pinta.Gui.Addins;
 
-[GObject.Subclass<Adw.Window>]
+[GObject.Subclass<PintaDialog>]
 internal sealed partial class InstallDialog
 {
 	private SetupService service = null!; // NRT - set in factory method
@@ -140,18 +140,15 @@ internal sealed partial class InstallDialog
 		WidthRequest = 500;
 		HeightRequest = 250;
 
-		// --- Initialization (Adw.Window)
+		// --- Initialization (Gtk.Dialog)
 
-		Adw.HeaderBar headerBar = Adw.HeaderBar.New ();
-		headerBar.TitleWidget = windowTitle;
-
-		Content = GtkExtensions.Box (
+		HeaderBar.TitleWidget = windowTitle;
+		this.GetContentAreaBox ().Append (GtkExtensions.Box (
 			spacedVertical,
 			[
-				headerBar,
 				progressBar,
 				buttons,
-			]);
+			]));
 
 		// --- References to keep
 

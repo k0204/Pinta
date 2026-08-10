@@ -24,7 +24,6 @@ public sealed partial class LayerActions
 			return;
 
 		await GenerateImageAsync (document, options with {
-			ImageSize = source.Surface.GetSize (),
 			SourceLayer = source,
 			ParentLayer = source,
 		});

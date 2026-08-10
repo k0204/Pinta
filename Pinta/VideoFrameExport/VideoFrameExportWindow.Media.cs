@@ -25,7 +25,7 @@ internal sealed partial class VideoFrameExportWindow
 		filters.Append (filter);
 		dialog.SetFilters (filters);
 
-		Gio.File? file = await dialog.OpenFileAsync (window);
+		Gio.File? file = await dialog.OpenFileAsync (this);
 		string? filename = file?.GetPath ();
 		if (!string.IsNullOrWhiteSpace (filename))
 			await LoadVideoAsync (filename);

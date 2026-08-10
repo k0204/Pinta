@@ -13,7 +13,7 @@ internal sealed partial class VideoFrameExportWindow
 	{
 		using Gtk.FileDialog dialog = Gtk.FileDialog.New ();
 		dialog.SetTitle (Translations.GetString ("Choose output folder"));
-		Gio.File? folder = await dialog.SelectFolderAsync (window);
+		Gio.File? folder = await dialog.SelectFolderAsync (this);
 		string? path = folder?.GetPath ();
 		if (!string.IsNullOrWhiteSpace (path))
 			outputFolderEntry.SetText (path);

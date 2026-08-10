@@ -6,14 +6,12 @@ namespace Pinta;
 
 internal sealed class VideoFrameExportAction
 {
-	private readonly Adw.Application application;
 	private VideoFrameExportWindow? window;
 
 	public event EventHandler? VideoImported;
 
-	public VideoFrameExportAction (Adw.Application application)
+	public VideoFrameExportAction ()
 	{
-		this.application = application;
 		Command = new Command (
 			"videoframeexport",
 			Translations.GetString ("Video Frame Exporter..."),
@@ -74,7 +72,7 @@ internal sealed class VideoFrameExportAction
 		}
 		window?.Close ();
 
-		window = new VideoFrameExportWindow (application, PintaCore.Chrome.MainWindow, videoLayer);
+		window = VideoFrameExportWindow.New (PintaCore.Chrome.MainWindow, videoLayer);
 		window.Closed += HandleWindowClosed;
 		window.VideoLoaded += HandleVideoLoaded;
 	}

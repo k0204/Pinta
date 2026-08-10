@@ -1161,7 +1161,7 @@ public sealed partial class LayerActions
 		SavePromptHistory (promptHistory);
 		Size imageSize = mode switch {
 			AiImageRequestMode.BackgroundCleanup => doc!.ImageSize,
-			AiImageRequestMode.ImageSplitGeneration => sourceLayer!.Surface.GetSize (),
+			AiImageRequestMode.ImageSplitGeneration => imageSplitPreview!.SourceSize,
 			_ => sizePicker.SelectedSize ?? throw new InvalidOperationException ("A valid image size is required."),
 		};
 		if (mode != AiImageRequestMode.BackgroundCleanup) {

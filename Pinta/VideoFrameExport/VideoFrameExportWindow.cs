@@ -10,44 +10,43 @@ using Pinta.Resources;
 
 namespace Pinta;
 
-internal sealed partial class VideoFrameExportWindow : IDisposable
+[GObject.Subclass<PintaDialog>]
+internal sealed partial class VideoFrameExportWindow
 {
-	private readonly Adw.Application application;
-	private readonly Adw.ApplicationWindow window;
-	private readonly Gtk.Picture player;
-	private readonly Gtk.Picture sourceVideo;
-	private readonly Gtk.Stack playerStack;
-	private readonly Gtk.ToggleButton sequenceTab;
-	private readonly Gtk.ToggleButton sourceTab;
-	private readonly Gtk.Label playerStatus;
-	private readonly Gtk.Button playButton;
-	private readonly Gtk.Scale seekScale;
-	private readonly Gtk.Label timeLabel;
+	private Gtk.Picture player = null!;
+	private Gtk.Picture sourceVideo = null!;
+	private Gtk.Stack playerStack = null!;
+	private Gtk.ToggleButton sequenceTab = null!;
+	private Gtk.ToggleButton sourceTab = null!;
+	private Gtk.Label playerStatus = null!;
+	private Gtk.Button playButton = null!;
+	private Gtk.Scale seekScale = null!;
+	private Gtk.Label timeLabel = null!;
 	private Gtk.Label fileLabel = null!;
 	private Gtk.Label metadataLabel = null!;
-	private readonly Gtk.Label sourceFileLabel;
-	private readonly Gtk.Label sourceResolutionLabel;
-	private readonly Gtk.Label sourceRateLabel;
-	private readonly Gtk.Label sourceDurationLabel;
-	private readonly Gtk.Label sourceFramesLabel;
-	private readonly Gtk.Label selectionLabel;
-	private readonly Gtk.GridView filmstrip;
-	private readonly Gtk.Label filmstripSummary;
-	private readonly Gtk.Button exportButton;
-	private readonly Gtk.Button cancelExportButton;
-	private readonly Gtk.ProgressBar exportProgress;
+	private Gtk.Label sourceFileLabel = null!;
+	private Gtk.Label sourceResolutionLabel = null!;
+	private Gtk.Label sourceRateLabel = null!;
+	private Gtk.Label sourceDurationLabel = null!;
+	private Gtk.Label sourceFramesLabel = null!;
+	private Gtk.Label selectionLabel = null!;
+	private Gtk.GridView filmstrip = null!;
+	private Gtk.Label filmstripSummary = null!;
+	private Gtk.Button exportButton = null!;
+	private Gtk.Button cancelExportButton = null!;
+	private Gtk.ProgressBar exportProgress = null!;
 	private Gtk.Button openAtlasButton = null!;
 	private Gtk.Label numberingLabel = null!;
-	private readonly Gtk.Entry outputFolderEntry;
-	private readonly Gtk.Entry prefixEntry;
-	private readonly Gtk.SpinButton digitsSpinner;
-	private readonly Gtk.SpinButton rangeStartSpinner;
-	private readonly Gtk.SpinButton rangeEndSpinner;
-	private readonly Gtk.Button rangeButton;
-	private readonly Gtk.ToggleButton allFramesButton;
-	private readonly Gtk.ToggleButton selectedFramesButton;
-	private readonly Gtk.Button speedButton;
-	private readonly Gtk.ToggleButton muteButton;
+	private Gtk.Entry outputFolderEntry = null!;
+	private Gtk.Entry prefixEntry = null!;
+	private Gtk.SpinButton digitsSpinner = null!;
+	private Gtk.SpinButton rangeStartSpinner = null!;
+	private Gtk.SpinButton rangeEndSpinner = null!;
+	private Gtk.Button rangeButton = null!;
+	private Gtk.ToggleButton allFramesButton = null!;
+	private Gtk.ToggleButton selectedFramesButton = null!;
+	private Gtk.Button speedButton = null!;
+	private Gtk.ToggleButton muteButton = null!;
 	private Gtk.Button clearFramesButton = null!;
 	private Gtk.Button regenerateFramesButton = null!;
 	private readonly List<VideoFramePreview> previews = [];
@@ -66,7 +65,7 @@ internal sealed partial class VideoFrameExportWindow : IDisposable
 	private VideoMetadata? metadata;
 	private int currentFrameIndex;
 	private bool disposed;
-	private readonly VideoEditingLayer? videoLayer;
+	private VideoEditingLayer? videoLayer;
 
 	public event EventHandler? Closed;
 	public event EventHandler? VideoLoaded;
@@ -74,20 +73,15 @@ internal sealed partial class VideoFrameExportWindow : IDisposable
 	internal void NotifyVideoLoaded ()
 		=> VideoLoaded?.Invoke (this, EventArgs.Empty);
 
-	public VideoFrameExportWindow (Adw.Application application, Gtk.Window parent, VideoEditingLayer? videoLayer = null)
+	public static VideoFrameExportWindow New (Gtk.Window parent, VideoEditingLayer? videoLayer = null)
 	{
-		this.application = application;
-		this.videoLayer = videoLayer;
-		window = Adw.ApplicationWindow.New (application);
-		window.TransientFor = parent;
-		window.Modal = true;
-		window.DestroyWithParent = true;
-		window.DefaultWidth = 1440;
-		window.DefaultHeight = 900;
-		window.Title = Translations.GetString ("Video Frame Exporter");
-		window.OnCloseRequest += HandleCloseRequest;
-		InitializeFullscreen ();
+		VideoFrameExportWindow window = NewWithProperties ([]);
+		window.Configure (parent, videoLayer);
+		return window;
+	}
 
+	partial void Initialize ()
+	{
 		Gtk.Box root = Gtk.Box.New (Gtk.Orientation.Vertical, 0);
 		Gtk.Box header = CreateHeader ();
 		root.Append (header);
@@ -118,7 +112,18 @@ internal sealed partial class VideoFrameExportWindow : IDisposable
 		filmstripPanel.Vexpand = true;
 		workspace.Attach (filmstripPanel, 3, 0, 2, 1);
 		root.Append (workspace);
-		window.SetContent (root);
+		this.GetContentAreaBox ().Append (root);
+	}
+
+	private void Configure (Gtk.Window parent, VideoEditingLayer? videoLayer)
+	{
+		this.videoLayer = videoLayer;
+		TransientFor = parent;
+		DestroyWithParent = true;
+		DefaultWidth = 1440;
+		DefaultHeight = 900;
+		Title = Translations.GetString ("Video Frame Exporter");
+		OnCloseRequest += HandleCloseRequest;
 		InitializeFfmpeg ();
 		ResetView ();
 		if (videoLayer?.VideoPath is string path && File.Exists (path)) {
@@ -129,32 +134,31 @@ internal sealed partial class VideoFrameExportWindow : IDisposable
 		}
 	}
 
-	public void Present ()
+	public new void Present ()
 	{
-		window.Present ();
-		window.SetFocus (playerStack);
+		base.Present ();
+		SetFocus (playerStack);
 		PromptForFfmpegIfNeeded ();
 	}
 
 	public bool IsForLayer (VideoEditingLayer? layer)
 		=> ReferenceEquals (videoLayer, layer);
 
-	public void Close () => window.Close ();
-
-	public void Dispose ()
+	public override void Dispose ()
 	{
-		if (disposed)
-			return;
-		disposed = true;
-		StopPlayback ();
-		if (atlasWindow is not null) {
-			atlasWindow.Closed -= HandleAtlasWindowClosed;
-			atlasWindow.Dispose ();
-			atlasWindow = null;
+		if (!disposed) {
+			disposed = true;
+			StopPlayback ();
+			if (atlasWindow is not null) {
+				atlasWindow.Closed -= HandleAtlasWindowClosed;
+				atlasWindow.Dispose ();
+				atlasWindow = null;
+			}
+			lifetime.Cancel ();
+			ClearPreviews (deleteDirectory: false);
+			lifetime.Dispose ();
 		}
-		lifetime.Cancel ();
-		ClearPreviews (deleteDirectory: false);
-		lifetime.Dispose ();
+		base.Dispose ();
 	}
 
 	private bool HandleCloseRequest (Gtk.Window sender, EventArgs args)
@@ -169,11 +173,6 @@ internal sealed partial class VideoFrameExportWindow : IDisposable
 		Gtk.Box header = Gtk.Box.New (Gtk.Orientation.Horizontal, 8);
 		header.SetAllMargins (10);
 		header.AddCssClass (AdwaitaStyles.Toolbar);
-
-		Gtk.Button closeButton = Gtk.Button.NewFromIconName (StandardIcons.WindowClose);
-		closeButton.SetTooltipText (Translations.GetString ("Close Video Frame Exporter"));
-		closeButton.OnClicked += (_, _) => window.Close ();
-		header.Append (closeButton);
 
 		Gtk.Box title = Gtk.Box.New (Gtk.Orientation.Vertical, 0);
 		Gtk.Label titleLabel = Gtk.Label.New (Translations.GetString ("Video Frame Exporter"));
@@ -192,7 +191,6 @@ internal sealed partial class VideoFrameExportWindow : IDisposable
 		metadataLabel.AddCssClass (AdwaitaStyles.DimLabel);
 		header.Append (metadataLabel);
 		header.Append (CreateFfmpegControls ());
-		header.Append (CreateFullscreenButton ());
 
 		open_video_button = Gtk.Button.NewWithLabel (Translations.GetString ("Open Video..."));
 		open_video_button.AddCssClass (AdwaitaStyles.SuggestedAction);

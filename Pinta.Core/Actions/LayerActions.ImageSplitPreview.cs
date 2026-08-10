@@ -44,7 +44,7 @@ public sealed partial class LayerActions
 
 		public ImageSplitPreviewControls (UserLayer source)
 		{
-			sourceSurface = CreateLayerTreeSurface (source);
+			sourceSurface = RenderLayerContent (source, out _);
 			sourceSize = sourceSurface.GetSize ();
 
 			lowerButton = Gtk.CheckButton.New ();
@@ -162,6 +162,8 @@ public sealed partial class LayerActions
 
 		public Gtk.Widget Widget => content;
 
+		public Size SourceSize => sourceSize;
+
 		public bool IsValid
 		{
 			get {
@@ -265,10 +267,9 @@ public sealed partial class LayerActions
 			selection = new ImageSplitPreviewSelection (
 				requestSize,
 				paddingButton.Active,
-				IsDirectMatch ? null : CreateFittedSourcePng (
-					sourceSurface,
-					requestSize,
-					paddingButton.Active));
+				IsDirectMatch
+					? CreateSurfacePng (sourceSurface)
+					: CreateFittedSourcePng (sourceSurface, requestSize, paddingButton.Active));
 			return true;
 		}
 
