@@ -160,10 +160,16 @@ public class UserLayer : Layer
 	}
 
 	/// <summary>
-	/// Returns a list of the layers to paint for this layer and its visible child layers.
-	/// This includes the primary layer and any active re-editable layers.
+	/// Returns the layers owned by this user layer, including active re-editable layers.
+	/// Child layers are not included.
 	/// </summary>
 	public IEnumerable<Layer> GetLayersToPaint ()
+		=> GetOwnLayersToPaint ();
+
+	/// <summary>
+	/// Returns the layers owned by this user layer and its visible descendants.
+	/// </summary>
+	public IEnumerable<Layer> GetLayersToPaintTree ()
 	{
 		foreach (Layer layer in GetOwnLayersToPaint ())
 			yield return layer;
@@ -172,7 +178,7 @@ public class UserLayer : Layer
 			if (child.Hidden)
 				continue;
 
-			foreach (Layer layer in child.GetLayersToPaint ())
+			foreach (Layer layer in child.GetLayersToPaintTree ())
 				yield return layer;
 		}
 	}

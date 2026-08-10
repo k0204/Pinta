@@ -18,7 +18,7 @@ public sealed partial class DocumentLayers
 		double right = double.NegativeInfinity;
 		double bottom = double.NegativeInfinity;
 		bool hasContent = false;
-		foreach (Layer layer in root.GetLayersToPaint ()) {
+		foreach (Layer layer in root.GetLayersToPaintTree ()) {
 			if (!Utility.TryGetAlphaBounds (layer.Surface, out RectangleI contentBounds))
 				continue;
 

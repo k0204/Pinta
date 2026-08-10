@@ -483,11 +483,11 @@ public sealed partial class DocumentLayers
 
 		using Context g = new (dest.Surface);
 		foreach (UserLayer child in dest.Children)
-			foreach (Layer layer in child.GetLayersToPaint ())
+			foreach (Layer layer in child.GetLayersToPaintTree ())
 				layer.Draw (g);
 
 		foreach (UserLayer source in ordered.Skip (1))
-			foreach (Layer layer in source.GetLayersToPaint ())
+			foreach (Layer layer in source.GetLayersToPaintTree ())
 				layer.Draw (g);
 
 		foreach (UserLayer child in dest.Children.Reverse ().ToList ())

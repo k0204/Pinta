@@ -97,6 +97,14 @@ internal sealed class LayersPad : IDockPad
 		flip_section.AppendItem (layer_actions.ResizeLayer.CreateMenuItem ());
 		flip_section.AppendItem (layer_actions.RotateZoom.CreateMenuItem ());
 
+		Gio.Menu alignment_menu = Gio.Menu.New ();
+		alignment_menu.AppendItem (layer_actions.AlignLayersLeft.CreateMenuItem ());
+		alignment_menu.AppendItem (layer_actions.AlignLayersCenterHorizontal.CreateMenuItem ());
+		alignment_menu.AppendItem (layer_actions.AlignLayersRight.CreateMenuItem ());
+		alignment_menu.AppendItem (layer_actions.AlignLayersTop.CreateMenuItem ());
+		alignment_menu.AppendItem (layer_actions.AlignLayersCenterVertical.CreateMenuItem ());
+		alignment_menu.AppendItem (layer_actions.AlignLayersBottom.CreateMenuItem ());
+
 		Gio.Menu prop_section = Gio.Menu.New ();
 		prop_section.AppendItem (layer_actions.Properties.CreateMenuItem ());
 
@@ -109,6 +117,7 @@ internal sealed class LayersPad : IDockPad
 		hamburger_menu.AppendItem (layer_actions.CreateSingleDirectionAnimation.CreateMenuItem ());
 		hamburger_menu.AppendItem (layer_actions.EditSpritesheet.CreateMenuItem ());
 		hamburger_menu.AppendItem (layer_actions.SetSpritesheetAnchor.CreateMenuItem ());
+		hamburger_menu.AppendSubmenu (Translations.GetString ("Align Layers"), alignment_menu);
 		hamburger_menu.AppendSection (null, flip_section);
 		hamburger_menu.AppendSection (null, prop_section);
 

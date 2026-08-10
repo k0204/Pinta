@@ -394,9 +394,6 @@ public sealed partial class LayersListViewItemWidget
 				return;
 
 			Gdk.ModifierType modifiers = click.GetCurrentEventState ();
-			if (modifiers.IsControlPressed ())
-				LayerPreviewRequested?.Invoke (this, new LayerPreviewRequestedEventArgs (layer));
-
 			LayerSelectionRequested?.Invoke (this, new LayerSelectionEventArgs (layer, modifiers));
 		};
 		widget.AddController (click);
@@ -461,6 +458,11 @@ public sealed partial class LayersListViewItemWidget
 			return;
 		if (item.UserLayer.Locked) {
 			ShowLockedLayerMenu ();
+			return;
+		}
+
+		if (gesture.GetCurrentEventState ().IsControlPressed ()) {
+			LayerPreviewRequested?.Invoke (this, new LayerPreviewRequestedEventArgs (item.UserLayer));
 			return;
 		}
 

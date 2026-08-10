@@ -27,6 +27,7 @@ Pinta.Core/Actions/LayerActions.Background.cs
 Pinta.Core/Actions/LayerActions.BorderDetection.cs
 Pinta.Core/Actions/LayerActions.BorderDetection.Mask.cs
 Pinta.Core/Actions/LayerActions.cs
+Pinta.Core/Actions/LayerActions.Alignment.cs
 Pinta.Core/Actions/LayerActions.Deletion.cs
 Pinta.Core/Actions/LayerActions.Export.cs
 Pinta.Core/Actions/LayerActions.GenerationType.cs

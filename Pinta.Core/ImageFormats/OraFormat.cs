@@ -285,7 +285,7 @@ public sealed class OraFormat : IImageImporter, IImageExporter
 
 		ImageSurface surface = CairoExtensions.CreateImageSurface (Format.Argb32, document.ImageSize.Width, document.ImageSize.Height);
 		using Context context = new (surface);
-		foreach (Layer renderLayer in layer.GetLayersToPaint ())
+		foreach (Layer renderLayer in layer.GetLayersToPaintTree ())
 			renderLayer.Draw (context);
 		return surface;
 	}

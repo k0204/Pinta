@@ -60,6 +60,12 @@ public sealed partial class LayerActions
 	public Command MoveLayerUp { get; }
 	public Command MoveLayerDown { get; }
 	public Command ResetLayerPosition { get; }
+	public Command AlignLayersLeft { get; }
+	public Command AlignLayersCenterHorizontal { get; }
+	public Command AlignLayersRight { get; }
+	public Command AlignLayersTop { get; }
+	public Command AlignLayersCenterVertical { get; }
+	public Command AlignLayersBottom { get; }
 	public Command Properties { get; }
 	public Command UnlockReference { get; }
 
@@ -265,6 +271,42 @@ public sealed partial class LayerActions
 			null,
 			Resources.StandardIcons.ViewRefresh);
 
+		AlignLayersLeft = new Command (
+			"alignlayersleft",
+			Translations.GetString ("Align Layers Left"),
+			null,
+			Resources.StandardIcons.ResizeCanvasLeft);
+
+		AlignLayersCenterHorizontal = new Command (
+			"alignlayerscenterhorizontal",
+			Translations.GetString ("Align Layers Center Horizontally"),
+			null,
+			Resources.StandardIcons.ResizeCanvasBase);
+
+		AlignLayersRight = new Command (
+			"alignlayersright",
+			Translations.GetString ("Align Layers Right"),
+			null,
+			Resources.StandardIcons.ResizeCanvasRight);
+
+		AlignLayersTop = new Command (
+			"alignlayerstop",
+			Translations.GetString ("Align Layers Top"),
+			null,
+			Resources.StandardIcons.ResizeCanvasUp);
+
+		AlignLayersCenterVertical = new Command (
+			"alignlayerscentervertical",
+			Translations.GetString ("Align Layers Center Vertically"),
+			null,
+			Resources.StandardIcons.ResizeCanvasBase);
+
+		AlignLayersBottom = new Command (
+			"alignlayersbottom",
+			Translations.GetString ("Align Layers Bottom"),
+			null,
+			Resources.StandardIcons.ResizeCanvasDown);
+
 		Properties = new Command (
 			"properties",
 			Translations.GetString ("Layer Properties..."),
@@ -328,7 +370,13 @@ public sealed partial class LayerActions
 
 			MoveLayerDown,
 			MoveLayerUp,
-			ResetLayerPosition]);
+			ResetLayerPosition,
+			AlignLayersLeft,
+			AlignLayersCenterHorizontal,
+			AlignLayersRight,
+			AlignLayersTop,
+			AlignLayersCenterVertical,
+			AlignLayersBottom]);
 	}
 
 	public void RegisterHandlers ()
@@ -351,6 +399,12 @@ public sealed partial class LayerActions
 		MoveLayerDown.Activated += HandlePintaCoreActionsLayersMoveLayerDownActivated;
 		MoveLayerUp.Activated += HandlePintaCoreActionsLayersMoveLayerUpActivated;
 		ResetLayerPosition.Activated += HandleResetLayerPositionActivated;
+		AlignLayersLeft.Activated += HandleAlignLayersLeftActivated;
+		AlignLayersCenterHorizontal.Activated += HandleAlignLayersCenterHorizontalActivated;
+		AlignLayersRight.Activated += HandleAlignLayersRightActivated;
+		AlignLayersTop.Activated += HandleAlignLayersTopActivated;
+		AlignLayersCenterVertical.Activated += HandleAlignLayersCenterVerticalActivated;
+		AlignLayersBottom.Activated += HandleAlignLayersBottomActivated;
 		FlipHorizontal.Activated += HandlePintaCoreActionsLayersFlipHorizontalActivated;
 		FlipVertical.Activated += HandlePintaCoreActionsLayersFlipVerticalActivated;
 		ImportFromFile.Activated += HandlePintaCoreActionsLayersImportFromFileActivated;
@@ -406,6 +460,13 @@ public sealed partial class LayerActions
 		MoveLayerUp.Sensitive = activeDoc?.Layers.CanMoveCurrentLayerUp () ?? false;
 		ResetLayerPosition.Sensitive = activeDoc?.Layers.CurrentUserLayer is AnimationOutputLayer animationLayer
 			&& animationLayer.CanMoveOnCanvas;
+		bool canAlignLayers = activeDoc is not null && CanAlignSelectedLayers (activeDoc);
+		AlignLayersLeft.Sensitive = canAlignLayers;
+		AlignLayersCenterHorizontal.Sensitive = canAlignLayers;
+		AlignLayersRight.Sensitive = canAlignLayers;
+		AlignLayersTop.Sensitive = canAlignLayers;
+		AlignLayersCenterVertical.Sensitive = canAlignLayers;
+		AlignLayersBottom.Sensitive = canAlignLayers;
 		Properties.Sensitive = hasSelectedLayer;
 		SaveLayerImage.Sensitive = hasSelectedLayer && !save_layer_running;
 		FlipHorizontal.Sensitive = currentEditable;

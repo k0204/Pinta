@@ -10,7 +10,7 @@ public sealed partial class LayerActions
 {
 	private readonly record struct AiLayerImage (byte[] Png, Size Size, PointD Origin);
 
-	private static ImageSurface CreateLayerTreeSurface (UserLayer source)
+	private static ImageSurface CreateLayerSurface (UserLayer source)
 	{
 		ImageSurface result = CairoExtensions.CreateImageSurface (
 			Cairo.Format.Argb32,
@@ -37,7 +37,7 @@ public sealed partial class LayerActions
 
 	private static byte[] CreateLayerPng (UserLayer sourceLayer)
 	{
-		using Cairo.ImageSurface source = CreateLayerTreeSurface (sourceLayer);
+		using Cairo.ImageSurface source = CreateLayerSurface (sourceLayer);
 		using GdkPixbuf.Pixbuf pixbuf = source.ToPixbuf ();
 		return pixbuf.SaveToBuffer ("png");
 	}

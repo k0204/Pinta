@@ -21,7 +21,7 @@ public sealed partial class LayerActions
 		auto_split_running = true;
 		EnableOrDisableLayerActions (null, EventArgs.Empty);
 		try {
-			using ImageSurface splitSurface = CreateLayerTreeSurface (source);
+			using ImageSurface splitSurface = CreateLayerSurface (source);
 			UserLayer splitSource = new (splitSurface) { Name = source.Name };
 			IReadOnlyList<AI.AiProviderInfo> providers = PintaCore.AiProviders.ChatProviders;
 			using AutoSplitDialog dialog = new (

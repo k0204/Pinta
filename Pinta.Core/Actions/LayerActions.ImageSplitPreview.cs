@@ -38,6 +38,8 @@ public sealed partial class LayerActions
 		private readonly Gtk.Label paddingLabel;
 		private Size? lowerSize;
 		private Size? upperSize;
+		private Size? adaptedRequestSize;
+		private bool adaptedWhitePadding;
 		private string imageService = AI.AiRequestSettings.GptImageService;
 		private string choice = "lower";
 		private bool updating;
@@ -269,7 +271,7 @@ public sealed partial class LayerActions
 				paddingButton.Active,
 				IsDirectMatch
 					? CreateSurfacePng (sourceSurface)
-					: CreateFittedSourcePng (sourceSurface, requestSize, paddingButton.Active));
+					: CreateSelectedSourcePng (requestSize));
 			return true;
 		}
 
@@ -312,10 +314,17 @@ public sealed partial class LayerActions
 
 		private void UpdateAdaptedPreview (Size requestSize)
 		{
+			if (adaptedSurface is not null
+				&& adaptedTexture is not null
+				&& adaptedRequestSize == requestSize
+				&& adaptedWhitePadding == paddingButton.Active)
+				return;
+
 			ClearAdaptedPreview ();
-			adaptedSurface = CreatePreviewSurface (
-				CreateFittedSourcePng (sourceSurface, requestSize, paddingButton.Active));
+			adaptedSurface = CreateFittedSourceSurface (sourceSurface, requestSize, paddingButton.Active);
 			adaptedTexture = adaptedSurface.ToTexture ();
+			adaptedRequestSize = requestSize;
+			adaptedWhitePadding = paddingButton.Active;
 			adaptedPicture.Paintable = adaptedTexture;
 		}
 
@@ -326,9 +335,16 @@ public sealed partial class LayerActions
 			adaptedTexture = null;
 			adaptedSurface?.Dispose ();
 			adaptedSurface = null;
+			adaptedRequestSize = null;
 		}
 
-		private static byte[] CreateFittedSourcePng (
+		private byte[] CreateSelectedSourcePng (Size requestSize)
+		{
+			UpdateAdaptedPreview (requestSize);
+			return CreateSurfacePng (adaptedSurface!);
+		}
+
+		private static Cairo.ImageSurface CreateFittedSourceSurface (
 			Cairo.ImageSurface source,
 			Size requestSize,
 			bool whitePadding)
@@ -336,7 +352,7 @@ public sealed partial class LayerActions
 			AI.ImageFitInfo fit = AI.BackgroundCutoutService.GetImageFitInfo (
 				new Size (source.Width, source.Height),
 				requestSize);
-			using Cairo.ImageSurface surface = CairoExtensions.CreateImageSurface (
+			Cairo.ImageSurface surface = CairoExtensions.CreateImageSurface (
 				Cairo.Format.Argb32,
 				requestSize.Width,
 				requestSize.Height);
@@ -355,7 +371,7 @@ public sealed partial class LayerActions
 				fit.ContentSize.Height / (double) source.Height);
 			content.SetSourceSurface (source, 0, 0);
 			content.Paint ();
-			return CreateSurfacePng (surface);
+			return surface;
 		}
 
 		private bool IsDirectMatch
