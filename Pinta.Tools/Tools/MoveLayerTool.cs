@@ -199,10 +199,8 @@ public sealed partial class MoveLayerTool : BaseTool
 		}
 
 		PointD totalDelta = GetDragDelta (e.PointDouble);
-		if (has_drag_start_bounds) {
-			totalDelta = ClampMoveDelta (document, drag_start_bounds, totalDelta);
+		if (has_drag_start_bounds)
 			totalDelta = ApplySmartGuideSnap (document, totalDelta);
-		}
 		PointD delta = totalDelta - applied_drag_delta;
 		foreach (UserLayer layer in dragged_layers)
 			document.Layers.TranslateLayerTree (layer, delta);
