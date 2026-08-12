@@ -403,7 +403,12 @@ public sealed class Document
 
 	public Context CreateClippedContext ()
 	{
-		Context g = new (Layers.CurrentUserLayer.Surface);
+		UserLayer layer = Layers.CurrentUserLayer;
+		Context g = new (layer.Surface);
+		Matrix inverse = layer.Transform.Clone ();
+		if (inverse.Invert () == Status.Success)
+			g.Transform (inverse);
+
 		Selection.Clip (g);
 		return g;
 	}

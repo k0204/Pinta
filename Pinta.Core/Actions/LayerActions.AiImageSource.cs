@@ -50,5 +50,22 @@ public sealed partial class LayerActions
 	}
 
 	private static byte[] CreateAiLayerPng (UserLayer sourceLayer)
-		=> CreateAiLayerImage (sourceLayer).Png;
+	{
+		RectangleI bounds = GetAiLayerContentBounds (sourceLayer);
+		using ImageSurface cropped = CairoExtensions.CreateImageSurface (
+			Cairo.Format.Argb32,
+			bounds.Width,
+			bounds.Height);
+		using (Cairo.Context context = new (cropped)) {
+			context.SetSourceSurface (sourceLayer.Surface, -bounds.X, -bounds.Y);
+			context.Paint ();
+		}
+		using GdkPixbuf.Pixbuf pixbuf = cropped.ToPixbuf ();
+		return pixbuf.SaveToBuffer ("png");
+	}
+
+	private static RectangleI GetAiLayerContentBounds (UserLayer layer)
+		=> Utility.TryGetAlphaBounds (layer.Surface, out RectangleI bounds)
+			? bounds
+			: new RectangleI (0, 0, 1, 1);
 }

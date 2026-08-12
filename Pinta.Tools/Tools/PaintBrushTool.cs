@@ -186,7 +186,7 @@ public sealed class PaintBrushTool : BaseBrushTool
 	protected override void OnMouseUp (Document document, ToolMouseEventArgs e)
 	{
 		CancelRepeatingDraw ();
-		using Context g = new (document.Layers.CurrentUserLayer.Surface);
+		using Context g = document.CreateClippedContext ();
 
 		document.Layers.ToolLayer.Draw (g);
 

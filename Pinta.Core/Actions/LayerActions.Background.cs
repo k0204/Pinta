@@ -90,13 +90,13 @@ public sealed partial class LayerActions
 		try {
 			List<(byte[] Png, string FileName)> references = [];
 			byte[]? sourcePng = options.SourceLayer is UserLayer sourceLayer
-				? options.PreparedSourcePng ?? CreateLayerPng (sourceLayer)
+				? options.PreparedSourcePng ?? CreateAiLayerPng (sourceLayer)
 				: null;
 			IEnumerable<UserLayer> layers = options.ParentLayer is not null
 				? options.Layers
 				: options.Layers.OrderByDescending (IsCharacterAnchor);
 			foreach (UserLayer layer in layers)
-				references.Add ((CreateLayerPng (layer), GetAiReferenceFileName (layer, references.Count + 1)));
+				references.Add ((CreateAiLayerPng (layer), GetAiReferenceFileName (layer, references.Count + 1)));
 			foreach (Gio.File file in options.Files)
 				references.Add (LoadReferenceImage (file));
 
@@ -1011,12 +1011,13 @@ public sealed partial class LayerActions
 		Gtk.Label sourceLabel = Gtk.Label.New (string.Empty);
 		sourceLabel.Halign = Gtk.Align.Start;
 		if (sourceLayer is not null) {
+			Size sourceSize = GetAiLayerContentBounds (sourceLayer).Size;
 			sourcePreview.Paintable = sourceLayer.Surface.ToTexture ();
 			sourceLabel.SetText (Translations.GetString (
 				"{0}  {1} x {2} px",
 				GetLayerPath (sourceLayer),
-				sourceLayer.Surface.Width,
-				sourceLayer.Surface.Height));
+				sourceSize.Width,
+				sourceSize.Height));
 		}
 
 		Gtk.Box layerBox = Gtk.Box.New (Gtk.Orientation.Vertical, 4);
@@ -1036,10 +1037,11 @@ public sealed partial class LayerActions
 				Gtk.Label nameLabel = Gtk.Label.New (GetLayerPath (layer));
 				nameLabel.Halign = Gtk.Align.Start;
 				nameLabel.Ellipsize = Pango.EllipsizeMode.End;
+				Size layerSize = GetAiLayerContentBounds (layer).Size;
 				Gtk.Label sizeLabel = Gtk.Label.New (Translations.GetString (
 					"{0} x {1} px",
-					layer.Surface.Width,
-					layer.Surface.Height));
+					layerSize.Width,
+					layerSize.Height));
 				sizeLabel.Halign = Gtk.Align.Start;
 				sizeLabel.AddCssClass (AdwaitaStyles.DimLabel);
 

@@ -1186,6 +1186,11 @@ public abstract class BaseEditEngine
 		Document doc = workspace.ActiveDocument;
 
 		using Context g = new (l.Surface);
+		if (l == doc.Layers.CurrentUserLayer) {
+			Matrix inverse = l.Transform.Clone ();
+			if (inverse.Invert () == Status.Success)
+				g.Transform (inverse);
+		}
 
 		g.AppendPath (doc.Selection.SelectionPath);
 		g.FillRule = FillRule.EvenOdd;

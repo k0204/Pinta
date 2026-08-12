@@ -78,7 +78,6 @@ public sealed partial class LayerActions
 	private readonly ImageActions image;
 	private readonly AdjustmentsActions adjustments;
 	private readonly EffectsActions effects;
-	private readonly AI.CharacterBorderRecognitionService border_recognition;
 	private readonly AI.BackgroundCutoutService background_cutout;
 	private readonly AI.AiJobService video_jobs;
 	private readonly AI.SpriteSegmentationService sprite_segmentation;
@@ -335,7 +334,6 @@ public sealed partial class LayerActions
 		this.image = image;
 		this.adjustments = adjustments;
 		this.effects = effects;
-		border_recognition = new (aiAuth);
 		background_cutout = new (aiAuth);
 		video_jobs = new (aiAuth);
 		sprite_segmentation = new (aiAuth);

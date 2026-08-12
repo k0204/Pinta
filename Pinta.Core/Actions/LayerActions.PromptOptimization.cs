@@ -39,7 +39,7 @@ public sealed partial class LayerActions
 
 		List<byte[]> references = [];
 		foreach (UserLayer layer in layers.OrderByDescending (IsCharacterAnchor))
-			references.Add (CreateLayerPng (layer));
+			references.Add (CreateAiLayerPng (layer));
 		foreach (Gio.File file in files)
 			references.Add (LoadReferenceImage (file).Png);
 		return references;

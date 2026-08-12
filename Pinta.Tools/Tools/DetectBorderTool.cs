@@ -8,7 +8,6 @@ public sealed partial class DetectBorderTool : SelectTool
 {
 	private readonly RecognitionButtonsHandle recognition_buttons;
 	private RecognitionAction pressed_action;
-	private MaskMode mask_mode = MaskMode.Select;
 
 	public DetectBorderTool (IServiceProvider services) : base (services)
 	{
@@ -22,7 +21,7 @@ public sealed partial class DetectBorderTool : SelectTool
 	public override string Name => Translations.GetString ("Detect Border");
 	public override string Icon => Pinta.Resources.Icons.EffectsStylizeOutline;
 	public override string StatusBarText => Translations.GetString (
-		"Select an area, then use the keep brush or erase brush to guide border detection.");
+		"Select an area to analyze its image edges.");
 	public override Gdk.Cursor DefaultCursor { get; }
 	public override int Priority => 1;
 	public override IEnumerable<IToolHandle> Handles => [.. base.Handles, recognition_buttons];
@@ -34,33 +33,20 @@ public sealed partial class DetectBorderTool : SelectTool
 
 	protected override void OnSelectionCompleted (Document document)
 	{
-		ResetMask (document);
-		SetMaskMode (MaskMode.Select);
 		UpdateRecognitionButton (document);
 	}
 
 	protected override void OnActivated (Document? document)
 	{
 		base.OnActivated (document);
-		if (document is not null) {
-			if (!document.Selection.Visible)
-				HideMask (document);
+		if (document is not null)
 			UpdateRecognitionButton (document);
-		}
 	}
 
 	protected override void OnDeactivated (Document? document, BaseTool? newTool)
 	{
 		recognition_buttons.Active = false;
-		if (document is not null)
-			HideMask (document);
 		base.OnDeactivated (document, newTool);
-	}
-
-	protected override void OnBuildToolBar (Gtk.Box toolbar)
-	{
-		base.OnBuildToolBar (toolbar);
-		BuildMaskToolbar (toolbar);
 	}
 
 	protected override void OnMouseDown (Document document, ToolMouseEventArgs e)
@@ -70,22 +56,7 @@ public sealed partial class DetectBorderTool : SelectTool
 			return;
 
 		recognition_buttons.Active = false;
-		if (mask_mode != MaskMode.Select && document.Selection.Visible) {
-			BeginMaskStroke (document, e.PointDouble);
-			return;
-		}
-
 		base.OnMouseDown (document, e);
-	}
-
-	protected override void OnMouseMove (Document document, ToolMouseEventArgs e)
-	{
-		if (mask_mode != MaskMode.Select && document.Selection.Visible) {
-			ContinueMaskStroke (document, e.PointDouble);
-			return;
-		}
-
-		base.OnMouseMove (document, e);
 	}
 
 	protected override void OnMouseUp (Document document, ToolMouseEventArgs e)
@@ -100,15 +71,9 @@ public sealed partial class DetectBorderTool : SelectTool
 					PintaCore.Actions.Layers.DetectBorder.Activate ();
 				else {
 					recognition_buttons.Active = false;
-					HideMask (document);
 					PintaCore.Actions.Edit.Deselect.Activate ();
 				}
 			}
-			return;
-		}
-
-		if (mask_mode != MaskMode.Select && document.Selection.Visible) {
-			EndMaskStroke (document);
 			return;
 		}
 

@@ -79,14 +79,11 @@ All requests in this section include `Authorization: Bearer <token>`.
 - The free plan accepts uploads up to `104857600` bytes (100 MiB); the previous 5 MiB limit has been removed.
 - Client behavior: not used by the current Pinta account display.
 
-## Smart Selection
+## Edge Analysis
 
-- The `Detect Border` tool requires a visible rectangular selection and a logged-in AI account.
-- After the rectangle is created, the client can record local keep-brush and erase-brush strokes in a temporary mask overlay. Transparent mask pixels mean no local override; green pixels force foreground retention and red pixels force exclusion. The tool keeps a local undo/redo stack for these strokes.
-- It submits the flattened document to `/api/baidu-images` with `return_form=rgba`. A visible selection uses `method=control` with the selected box in Baidu's top-left-origin `position` coordinates; if the selection touches an image edge, only that edge is inset by one pixel because Baidu rejects edge-touching control boxes.
-- The official Baidu endpoint receives the rectangle only; it does not receive the webpage's private per-stroke payload. After the completed Base64 PNG returns, Pinta applies local brush overrides to the returned alpha and uses the original flattened pixels for forced-retain strokes.
-- The client creates a transparent detected layer, a hidden grayscale `Cutout Mask` layer, and a visible border-control overlay. The mask layer is derived from the final result alpha, so it includes both Baidu segmentation and local edits.
-- The old `/api/jobs/{job_id}/parts` local recognition flow is no longer used by Pinta.
+- The `Detect Border` tool is local and requires only a visible rectangular selection.
+- It analyzes luminance gradients without checking for any specific color. The client smooths image noise, applies a Sobel gradient, derives a threshold from the selected area's gradient distribution, and removes small disconnected responses.
+- The operation creates one transparent `Detected Border` layer with a purple overlay. It does not require authentication or make an API request.
 
 ## Image Editing
 
