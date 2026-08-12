@@ -11,7 +11,7 @@ public sealed partial class MoveLayerTool
 	private const double smart_guide_release_tolerance_view = 12;
 
 	private readonly record struct GuideCandidate (double Position, bool IsCanvas, int Order);
-	private readonly record struct GuideSnap (bool IsActive, int AnchorIndex, double Position);
+	private readonly record struct GuideSnap (bool IsActive, int AnchorIndex, double Position, bool IsCanvas);
 
 	private SmartGuideHandle? smart_guides;
 	private IReadOnlyList<GuideCandidate> smart_guide_vertical_candidates = [];
@@ -161,7 +161,10 @@ public sealed partial class MoveLayerTool
 		if (snap.IsActive) {
 			double movingAnchor = GetMovingAnchor (proposedBounds, isVertical, snap.AnchorIndex);
 			double lockedDelta = snap.Position - movingAnchor;
-			if (Math.Abs (lockedDelta) <= releaseTolerance
+			bool movingOutsideCanvas = snap.IsCanvas
+				&& IsMovingPastCanvasEdge (document, movingAnchor, isVertical, snap.Position);
+			if (!movingOutsideCanvas
+				&& Math.Abs (lockedDelta) <= releaseTolerance
 				&& CanApplySnapDelta (document, requestedDelta, lockedDelta, isVertical)) {
 				delta = lockedDelta;
 				guidePosition = snap.Position;
@@ -177,6 +180,7 @@ public sealed partial class MoveLayerTool
 		int bestAnchorIndex = -1;
 		double selectedDelta = 0;
 		double selectedGuidePosition = 0;
+		bool selectedIsCanvas = false;
 
 		for (int anchorIndex = 0; anchorIndex < 3; anchorIndex++) {
 			double movingAnchor = GetMovingAnchor (proposedBounds, isVertical, anchorIndex);
@@ -190,6 +194,10 @@ public sealed partial class MoveLayerTool
 					return;
 
 				GuideCandidate candidate = candidates[candidateIndex];
+				if (candidate.IsCanvas
+					&& IsMovingPastCanvasEdge (document, movingAnchor, isVertical, candidate.Position))
+					return;
+
 				double candidateDelta = candidate.Position - movingAnchor;
 				double distance = Math.Abs (candidateDelta);
 				if (distance > tolerance)
@@ -210,6 +218,7 @@ public sealed partial class MoveLayerTool
 				bestOrder = candidate.Order;
 				selectedDelta = candidateDelta;
 				selectedGuidePosition = candidate.Position;
+				selectedIsCanvas = candidate.IsCanvas;
 				bestAnchorIndex = anchorIndex;
 			}
 		}
@@ -219,7 +228,7 @@ public sealed partial class MoveLayerTool
 
 		delta = selectedDelta;
 		guidePosition = selectedGuidePosition;
-		snap = new GuideSnap (true, bestAnchorIndex, selectedGuidePosition);
+		snap = new GuideSnap (true, bestAnchorIndex, selectedGuidePosition, selectedIsCanvas);
 		return true;
 	}
 
@@ -248,6 +257,13 @@ public sealed partial class MoveLayerTool
 			2 => start + size,
 			_ => throw new ArgumentOutOfRangeException (nameof (anchorIndex)),
 		};
+	}
+
+	private static bool IsMovingPastCanvasEdge (Document document, double movingAnchor, bool isVertical, double guidePosition)
+	{
+		double canvasExtent = isVertical ? document.ImageSize.Width : document.ImageSize.Height;
+		return guidePosition == 0 && movingAnchor < 0
+			|| guidePosition == canvasExtent && movingAnchor > canvasExtent;
 	}
 
 	private bool CanApplySnapDelta (Document document, PointD requestedDelta, double snapDelta, bool isVertical)
