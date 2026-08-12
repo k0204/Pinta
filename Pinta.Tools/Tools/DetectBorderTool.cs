@@ -20,8 +20,7 @@ public sealed partial class DetectBorderTool : SelectTool
 
 	public override string Name => Translations.GetString ("Detect Border");
 	public override string Icon => Pinta.Resources.Icons.EffectsStylizeOutline;
-	public override string StatusBarText => Translations.GetString (
-		"Select an area to analyze its image edges.");
+	public override string StatusBarText => Translations.GetString ("Select an area before detecting the border.");
 	public override Gdk.Cursor DefaultCursor { get; }
 	public override int Priority => 1;
 	public override IEnumerable<IToolHandle> Handles => [.. base.Handles, recognition_buttons];

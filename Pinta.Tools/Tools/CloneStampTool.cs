@@ -149,7 +149,7 @@ public sealed class CloneStampTool : BaseBrushTool
 		if (e.IsControlPressed)
 			handle.Active = true;
 
-		using Cairo.Context g = document.CreateClippedContext ();
+		using Cairo.Context g = new (document.Layers.CurrentUserLayer.Surface);
 		g.SetSourceSurface (document.Layers.ToolLayer.Surface, 0, 0);
 		g.Paint ();
 

@@ -121,6 +121,18 @@ public abstract class BaseBrushTool : BaseTool
 		SetCursor (DefaultCursor);
 	}
 
+	protected static Context CreateCanvasClippedContext (Document document)
+	{
+		UserLayer layer = document.Layers.CurrentUserLayer;
+		Context context = new (layer.Surface);
+		Matrix inverse = layer.Transform.Clone ();
+		if (inverse.Invert () == Status.Success)
+			context.Transform (inverse);
+
+		document.Selection.Clip (context);
+		return context;
+	}
+
 
 	private SpinButton? brush_width;
 	private Label? brush_width_label;

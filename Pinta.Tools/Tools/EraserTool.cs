@@ -113,10 +113,9 @@ public sealed class EraserTool : BaseBrushTool
 		if (document.Workspace.PointInCanvas (newPointD))
 			surface_modified = true;
 
-		using Context g = document.CreateClippedContext ();
+		using Context g = CreateCanvasClippedContext (document);
 
 		PointD lastPointD = (PointD) last_point.Value;
-		bool transformed = !IsIdentity (document.Layers.CurrentUserLayer.Transform);
 
 		switch (eraser_type) {
 
@@ -130,9 +129,16 @@ public sealed class EraserTool : BaseBrushTool
 				break;
 
 			case EraserType.Smooth:
-				if (transformed) {
+				Matrix transform = document.Layers.CurrentUserLayer.Transform;
+				if (!IsTranslation (transform)) {
 					EraseNormal (g, lastPointD, newPointD);
 					break;
+				}
+				Matrix inverse = transform.Clone ();
+				if (inverse.Invert () == Status.Success) {
+					lastPointD = inverse.TransformPoint (lastPointD);
+					newPointD = inverse.TransformPoint (newPointD);
+					g.SetMatrix (CairoExtensions.CreateIdentityMatrix ());
 				}
 
 				EraseSmooth (
@@ -162,10 +168,12 @@ public sealed class EraserTool : BaseBrushTool
 		last_point = newPoint;
 	}
 
-	private static bool IsIdentity (Matrix transform)
-		=> transform.TransformPoint (PointD.Zero) == PointD.Zero
-			&& transform.TransformPoint (new PointD (1, 0)) == new PointD (1, 0)
-			&& transform.TransformPoint (new PointD (0, 1)) == new PointD (0, 1);
+	private static bool IsTranslation (Matrix transform)
+	{
+		PointD origin = transform.TransformPoint (PointD.Zero);
+		return transform.TransformPoint (new PointD (1, 0)) - origin == new PointD (1, 0)
+			&& transform.TransformPoint (new PointD (0, 1)) - origin == new PointD (0, 1);
+	}
 
 	protected override void OnSaveSettings (ISettingsService settings)
 	{

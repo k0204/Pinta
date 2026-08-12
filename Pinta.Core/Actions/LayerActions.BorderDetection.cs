@@ -39,8 +39,17 @@ public sealed partial class LayerActions
 
 		try {
 			using Cairo.ImageSurface source = doc.GetFlattenedImage ();
+			using Cairo.ImageSurface overlay = CairoExtensions.CreateImageSurface (
+				Cairo.Format.Argb32,
+				doc.ImageSize.Width,
+				doc.ImageSize.Height);
+			BorderDetectionAnalysis.Render (source, overlay, box);
+
 			UserLayer layer = doc.Layers.AddNewLayer (Translations.GetString ("Detected Border"));
-			BorderDetectionAnalysis.Render (source, layer.Surface, box);
+			using (Cairo.Context context = new (layer.Surface)) {
+				context.SetSourceSurface (overlay, 0, 0);
+				context.Paint ();
+			}
 
 			doc.Layers.SetCurrentUserLayer (layer);
 			doc.History.PushNewItem (new AddLayerHistoryItem (
@@ -53,7 +62,7 @@ public sealed partial class LayerActions
 			await chrome.ShowErrorDialog (
 				chrome.MainWindow,
 				Translations.GetString ("Detect Border Failed"),
-				Translations.GetString ("The image edges could not be analyzed."),
+				Translations.GetString ("Error"),
 				ex.ToString ());
 		} finally {
 			detect_border_running = false;
