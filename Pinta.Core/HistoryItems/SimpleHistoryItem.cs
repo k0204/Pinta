@@ -30,13 +30,21 @@ namespace Pinta.Core;
 
 public sealed class SimpleHistoryItem : BaseHistoryItem
 {
-	private readonly SurfaceDiff? surface_diff;
+	private SurfaceDiff? surface_diff;
 	ImageSurface? old_surface;
 	UserLayer? layer;
+	private Matrix? old_transform;
 
 	public SimpleHistoryItem (string icon, string text, ImageSurface oldSurface, UserLayer layer) : base (icon, text)
+		=> Initialize (oldSurface, layer, null);
+
+	public SimpleHistoryItem (string icon, string text, ImageSurface oldSurface, UserLayer layer, Matrix oldTransform) : base (icon, text)
+		=> Initialize (oldSurface, layer, oldTransform);
+
+	private void Initialize (ImageSurface oldSurface, UserLayer layer, Matrix? oldTransform)
 	{
 		this.layer = layer;
+		old_transform = oldTransform;
 
 		surface_diff = SurfaceDiff.Create (oldSurface, layer.Surface);
 
@@ -63,6 +71,7 @@ public sealed class SimpleHistoryItem : BaseHistoryItem
 	{
 		// Grab the original surface
 		ImageSurface surf = layer!.Surface; // NRT - Set by the layer constructor or snapshot method
+		Matrix currentTransform = layer.Transform.Clone ();
 
 		if (surface_diff != null) {
 			surface_diff.ApplyAndSwap (surf);
@@ -75,6 +84,11 @@ public sealed class SimpleHistoryItem : BaseHistoryItem
 			old_surface = surf;
 
 			PintaCore.Workspace.Invalidate ();
+		}
+
+		if (old_transform is not null) {
+			layer.Transform = old_transform;
+			old_transform = currentTransform;
 		}
 	}
 

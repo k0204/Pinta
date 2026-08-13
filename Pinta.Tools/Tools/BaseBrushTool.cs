@@ -37,6 +37,7 @@ public abstract class BaseBrushTool : BaseTool
 	protected IPaletteService Palette { get; }
 
 	protected ImageSurface? undo_surface;
+	protected Matrix? undo_transform;
 	protected bool surface_modified;
 	protected MouseButton mouse_button;
 
@@ -76,7 +77,10 @@ public abstract class BaseBrushTool : BaseTool
 			return;
 
 		surface_modified = false;
-		undo_surface = document.Layers.CurrentUserLayer.Surface.Clone ();
+		UserLayer layer = document.Layers.CurrentUserLayer;
+		undo_surface = layer.Surface.Clone ();
+		undo_transform = layer.Transform.Clone ();
+		ExpandLayerToCanvas (document, layer);
 		mouse_button = e.MouseButton;
 
 		OnMouseMove (document, e);
@@ -85,12 +89,33 @@ public abstract class BaseBrushTool : BaseTool
 	protected override void OnMouseUp (Document document, ToolMouseEventArgs e)
 	{
 		if (undo_surface != null && surface_modified) {
-			document.History.PushNewItem (new SimpleHistoryItem (Icon, Name, undo_surface, document.Layers.CurrentUserLayer));
+			document.History.PushNewItem (new SimpleHistoryItem (Icon, Name, undo_surface, document.Layers.CurrentUserLayer, undo_transform!));
+		} else if (undo_surface != null) {
+			document.Layers.CurrentUserLayer.Surface = undo_surface;
+			document.Layers.CurrentUserLayer.Transform = undo_transform!;
 		}
 
 		surface_modified = false;
 		undo_surface = null;
+		undo_transform = null;
 		mouse_button = MouseButton.None;
+	}
+
+	private static void ExpandLayerToCanvas (Document document, UserLayer layer)
+	{
+		Matrix transform = layer.Transform.Clone ();
+		bool identity = transform.TransformPoint (PointD.Zero) == PointD.Zero
+			&& transform.TransformPoint (new PointD (1, 0)) == new PointD (1, 0)
+			&& transform.TransformPoint (new PointD (0, 1)) == new PointD (0, 1);
+		if (identity && layer.Surface.Width == document.ImageSize.Width && layer.Surface.Height == document.ImageSize.Height)
+			return;
+
+		ImageSurface expanded = CairoExtensions.CreateImageSurface (Format.Argb32, document.ImageSize.Width, document.ImageSize.Height);
+		using (Context context = new (expanded))
+			layer.DrawWithOperator (context, Operator.Over);
+
+		layer.Surface = expanded;
+		layer.Transform.InitIdentity ();
 	}
 
 	protected override bool OnKeyDown (Document document, ToolKeyEventArgs e)
