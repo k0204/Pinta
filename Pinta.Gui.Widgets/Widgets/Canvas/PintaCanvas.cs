@@ -189,8 +189,12 @@ internal sealed partial class PintaCanvas
 
 	private void DrawCanvasTexture (Gtk.Snapshot snapshot, RectangleI? modifiedArea, Graphene.Rect canvasViewBounds)
 	{
-		// Update the texture if the canvas contents have changed.
-		if (modifiedArea.HasValue) {
+		// Update the texture if the canvas contents have changed. If the texture
+		// has not been created yet (e.g. the first update is for a selection
+		// change before the initial canvas invalidation), render the whole image.
+		if (modifiedArea.HasValue || canvas_texture is null) {
+			if (!modifiedArea.HasValue)
+				modifiedArea = new RectangleI (PointI.Zero, document.ImageSize);
 			// Compute the flattened image for the modified region.
 			if (canvas_surface is null ||
 			    canvas_surface.Width != document.ImageSize.Width ||
@@ -216,9 +220,6 @@ internal sealed partial class PintaCanvas
 				: null;
 			canvas_texture = canvas_surface.ToTexture (updateTexture, updateRegion);
 		}
-
-		if (canvas_texture is null)
-			throw new InvalidOperationException ("Canvas was never invalidated!");
 
 		// Scale to fit the view size (when zooming in or out).
 		Gsk.ScalingFilter scalingFilter = (document.Workspace.Scale >= 1.0) ?
