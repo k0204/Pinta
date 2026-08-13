@@ -21,8 +21,7 @@ internal static class AutoSplitDetection
 		ImageSurface surface,
 		byte alphaThreshold = 8,
 		int minimumWidth = 4,
-		int minimumHeight = 4,
-		int minimumPixels = 16)
+		int minimumHeight = 4)
 	{
 		ReadOnlySpan<ColorBgra> pixels = surface.GetReadOnlyPixelData ();
 		bool[] visited = new bool[surface.Width * surface.Height];
@@ -34,8 +33,10 @@ internal static class AutoSplitDetection
 				if (visited[index] || pixels[index].A < alphaThreshold)
 					continue;
 
-				RectangleI bounds = FloodFill (pixels, surface.Width, surface.Height, x, y, alphaThreshold, visited);
-				if (bounds.Width >= minimumWidth && bounds.Height >= minimumHeight && bounds.Width * (long) bounds.Height >= minimumPixels)
+				(RectangleI bounds, int pixelCount) = FloodFill (pixels, surface.Width, surface.Height, x, y, alphaThreshold, visited);
+				if (bounds.Width >= minimumWidth
+					&& bounds.Height >= minimumHeight
+					&& pixelCount >= minimumWidth * (long) minimumHeight)
 					regions.Add (bounds);
 			}
 		}
@@ -43,7 +44,7 @@ internal static class AutoSplitDetection
 		return [.. regions.OrderBy (region => region.Y).ThenBy (region => region.X)];
 	}
 
-	private static RectangleI FloodFill (
+	private static (RectangleI Bounds, int PixelCount) FloodFill (
 		ReadOnlySpan<ColorBgra> pixels,
 		int width,
 		int height,
@@ -59,8 +60,10 @@ internal static class AutoSplitDetection
 		int right = startX;
 		int top = startY;
 		int bottom = startY;
+		int pixelCount = 0;
 
 		while (pending.Count > 0) {
+			pixelCount++;
 			int index = pending.Dequeue ();
 			int x = index % width;
 			int y = index / width;
@@ -78,7 +81,7 @@ internal static class AutoSplitDetection
 			}
 		}
 
-		return RectangleI.FromLTRB (left, top, right, bottom);
+		return (RectangleI.FromLTRB (left, top, right, bottom), pixelCount);
 	}
 
 	private static void EnqueueNeighbor (

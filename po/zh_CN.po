@@ -4707,5 +4707,27 @@ msgid "No document open"
 msgstr "未打开文档"
 
 #: ../Pinta.Gui.Widgets/Widgets/Layers/LayerAlignmentWindow.cs:74
+msgid "Minimum Tile Size:"
+msgstr "最小图块："
+
+#: ../Pinta.Core/Actions/AutoSplitDialog.cs
+msgid "Export All Regions"
+msgstr "导出全部区域"
+
+#: ../Pinta.Core/Actions/AutoSplitDialog.Export.cs
+msgid "Choose export folder"
+msgstr "选择导出目录"
+
+#: ../Pinta.Core/Actions/AutoSplitDialog.Export.cs
+#, csharp-format
+msgid "Exported {0} regions."
+msgstr "已导出 {0} 个区域。"
+
+#: ../Pinta.Core/Actions/AutoSplitDialog.Export.cs
+#, csharp-format
+msgid "Failed to export regions: {0}"
+msgstr "导出区域失败：{0}"
+
+#: ../Pinta.Gui.Widgets/Widgets/Layers/LayerAlignmentWindow.cs:74
 msgid "Snap to guides and canvas"
 msgstr "吸附到参考线和画布"

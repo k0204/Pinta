@@ -26,6 +26,29 @@ public sealed partial class LayerActions
 		IProgress<double>? progress = null)
 		=> RenderLayers (layers, progress, useSurfaceBounds: false, out _);
 
+	public static ImageSurface RenderThumbnail (
+		IEnumerable<Layer> layers,
+		int width,
+		int height)
+	{
+		List<Layer> paintLayers = [.. layers];
+		ImageSurface image = CairoExtensions.CreateImageSurface (Format.Argb32, width, height);
+		if (!TryGetRenderBounds (paintLayers, useSurfaceBounds: false, out RectangleD bounds))
+			return image;
+
+		double scale = Math.Min (width / bounds.Width, height / bounds.Height);
+		double offsetX = (width - bounds.Width * scale) / 2;
+		double offsetY = (height - bounds.Height * scale) / 2;
+		using Context context = new (image);
+		context.Translate (offsetX, offsetY);
+		context.Scale (scale, scale);
+		context.Translate (-bounds.X, -bounds.Y);
+		foreach (Layer paintLayer in paintLayers)
+			paintLayer.Draw (context);
+		image.MarkDirty ();
+		return image;
+	}
+
 	private static ImageSurface RenderLayers (
 		IEnumerable<Layer> layers,
 		IProgress<double>? progress,
@@ -39,23 +62,16 @@ public sealed partial class LayerActions
 			return CairoExtensions.CreateImageSurface (Format.Argb32, 1, 1);
 		}
 
-		double left = double.PositiveInfinity;
-		double top = double.PositiveInfinity;
-		double right = double.NegativeInfinity;
-		double bottom = double.NegativeInfinity;
-		bool hasContent = false;
-		foreach (Layer paintLayer in paintLayers)
-			hasContent |= ExpandBounds (paintLayer, useSurfaceBounds, ref left, ref top, ref right, ref bottom);
-		if (!hasContent) {
+		if (!TryGetRenderBounds (paintLayers, useSurfaceBounds, out RectangleD bounds)) {
 			progress?.Report (1);
 			return CairoExtensions.CreateImageSurface (Format.Argb32, 1, 1);
 		}
 
-		double originX = Math.Floor (left);
-		double originY = Math.Floor (top);
+		double originX = Math.Floor (bounds.Left);
+		double originY = Math.Floor (bounds.Top);
 		origin = new PointD (originX, originY);
-		int width = GetRenderDimension (Math.Ceiling (right) - originX, "width");
-		int height = GetRenderDimension (Math.Ceiling (bottom) - originY, "height");
+		int width = GetRenderDimension (Math.Ceiling (bounds.Right) - originX, "width");
+		int height = GetRenderDimension (Math.Ceiling (bounds.Bottom) - originY, "height");
 		ImageSurface image = CairoExtensions.CreateImageSurface (Format.Argb32, width, height);
 		progress?.Report (0.1);
 		try {
@@ -120,5 +136,24 @@ public sealed partial class LayerActions
 		}
 
 		return true;
+	}
+
+	private static bool TryGetRenderBounds (
+		IEnumerable<Layer> layers,
+		bool useSurfaceBounds,
+		out RectangleD bounds)
+	{
+		double left = double.PositiveInfinity;
+		double top = double.PositiveInfinity;
+		double right = double.NegativeInfinity;
+		double bottom = double.NegativeInfinity;
+		bool hasContent = false;
+		foreach (Layer layer in layers)
+			hasContent |= ExpandBounds (layer, useSurfaceBounds, ref left, ref top, ref right, ref bottom);
+
+		bounds = hasContent
+			? new RectangleD (left, top, right - left, bottom - top)
+			: RectangleD.Zero;
+		return hasContent;
 	}
 }

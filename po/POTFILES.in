@@ -13,6 +13,7 @@ Pinta.Core/Actions/AppActions.cs
 Pinta.Core/Actions/AutoSplitDetection.cs
 Pinta.Core/Actions/AutoSplitDialog.cs
 Pinta.Core/Actions/AutoSplitDialog.Analysis.cs
+Pinta.Core/Actions/AutoSplitDialog.Export.cs
 Pinta.Core/Actions/AutoSplitDialog.Preview.cs
 Pinta.Core/Actions/LayerActions.AutoSplit.cs
 Pinta.Core/Actions/Command.cs

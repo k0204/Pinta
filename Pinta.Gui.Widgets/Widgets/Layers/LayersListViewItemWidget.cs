@@ -72,7 +72,7 @@ public sealed partial class LayersListViewItem
 		if (UserLayer == document.Layers.CurrentUserLayer && document.Layers.ShowSelectionLayer)
 			layers.Add (document.Layers.SelectionLayer);
 
-		return LayerActions.RenderLayers (layers);
+		return LayerActions.RenderThumbnail (layers, widthRequest, heightRequest);
 	}
 
 	public void HandleVisibilityToggled (bool visible)

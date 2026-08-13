@@ -4484,3 +4484,25 @@ msgstr ""
 #: ../Pinta.Gui.Widgets/Widgets/Layers/LayerAlignmentWindow.cs:390
 msgid "Position: {0}, {1}"
 msgstr ""
+
+#: ../Pinta.Core/Actions/AutoSplitDialog.cs
+msgid "Minimum Tile Size:"
+msgstr ""
+
+#: ../Pinta.Core/Actions/AutoSplitDialog.cs
+msgid "Export All Regions"
+msgstr ""
+
+#: ../Pinta.Core/Actions/AutoSplitDialog.Export.cs
+msgid "Choose export folder"
+msgstr ""
+
+#: ../Pinta.Core/Actions/AutoSplitDialog.Export.cs
+#, csharp-format
+msgid "Exported {0} regions."
+msgstr ""
+
+#: ../Pinta.Core/Actions/AutoSplitDialog.Export.cs
+#, csharp-format
+msgid "Failed to export regions: {0}"
+msgstr ""

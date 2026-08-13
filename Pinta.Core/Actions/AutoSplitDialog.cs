@@ -21,6 +21,7 @@ internal sealed partial class AutoSplitDialog : IDisposable
 	private readonly Gtk.Button detect_button = Gtk.Button.NewWithLabel (Translations.GetString ("Check Image"));
 	private readonly Gtk.Button add_button = Gtk.Button.NewFromIconName (Resources.Icons.LayerNew);
 	private readonly Gtk.Button delete_button = Gtk.Button.NewFromIconName (Resources.Icons.LayerDelete);
+	private readonly Gtk.Button export_button = Gtk.Button.NewFromIconName (Resources.StandardIcons.Folder);
 	private readonly Gtk.Button zoom_out_button = Gtk.Button.NewFromIconName (Resources.StandardIcons.ValueDecrease);
 	private readonly Gtk.Button zoom_fit_button = Gtk.Button.NewFromIconName (Resources.StandardIcons.ZoomFitBest);
 	private readonly Gtk.Button zoom_in_button = Gtk.Button.NewFromIconName (Resources.StandardIcons.ValueIncrease);
@@ -28,6 +29,7 @@ internal sealed partial class AutoSplitDialog : IDisposable
 	private readonly Gtk.SpinButton y_spinner;
 	private readonly Gtk.SpinButton width_spinner;
 	private readonly Gtk.SpinButton height_spinner;
+	private readonly Gtk.SpinButton minimum_tile_size_spinner;
 	private readonly Gtk.Label status_label = Gtk.Label.New (string.Empty);
 	private readonly Gtk.Label count_label = Gtk.Label.New (string.Empty);
 	private readonly Gtk.Widget submit_button;
@@ -67,6 +69,7 @@ internal sealed partial class AutoSplitDialog : IDisposable
 		y_spinner = CreateSpinner (0, source.Surface.Height, 0);
 		width_spinner = CreateSpinner (1, source.Surface.Width, Math.Min (source.Surface.Width, 1));
 		height_spinner = CreateSpinner (1, source.Surface.Height, Math.Min (source.Surface.Height, 1));
+		minimum_tile_size_spinner = CreateSpinner (1, Math.Min (source.Surface.Width, source.Surface.Height), 4);
 
 		BuildDialogContent ();
 		ConnectEvents ();
@@ -144,6 +147,7 @@ internal sealed partial class AutoSplitDialog : IDisposable
 		detection_mode.AppendText (Translations.GetString ("Manual Selection"));
 		detection_mode.Active = 0;
 		method_card.Append (CreateFormRow (Translations.GetString ("Method:"), detection_mode));
+		method_card.Append (CreateFormRow (Translations.GetString ("Minimum Tile Size:"), minimum_tile_size_spinner));
 
 		foreach (AI.AiProviderInfo provider in providers)
 			api_provider.AppendText (provider.Name);
@@ -186,8 +190,11 @@ internal sealed partial class AutoSplitDialog : IDisposable
 		regions_header.Append (count_label);
 		add_button.SetTooltipText (Translations.GetString ("Add Region"));
 		delete_button.SetTooltipText (Translations.GetString ("Delete Region"));
+		export_button.SetTooltipText (Translations.GetString ("Export All Regions"));
 		add_button.AddCssClass (AdwaitaStyles.Flat);
 		delete_button.AddCssClass (AdwaitaStyles.Flat);
+		export_button.AddCssClass (AdwaitaStyles.Flat);
+		regions_header.Append (export_button);
 		regions_header.Append (add_button);
 		regions_header.Append (delete_button);
 		regions_card.Append (regions_header);
@@ -218,9 +225,14 @@ internal sealed partial class AutoSplitDialog : IDisposable
 	private void ConnectEvents ()
 	{
 		detection_mode.OnChanged += (_, _) => ChangeDetectionMode ();
+		minimum_tile_size_spinner.OnValueChanged += (_, _) => {
+			if (detection_mode.Active == 0 && !analysis_running)
+				ApplyLocalDetection ();
+		};
 		detect_button.OnClicked += async (_, _) => await RunDetectionAsync ();
 		add_button.OnClicked += (_, _) => AddDefaultRegion ();
 		delete_button.OnClicked += (_, _) => DeleteSelectedRegion ();
+		export_button.OnClicked += async (_, _) => await ExportAllRegionsAsync ();
 		region_list.OnRowSelected += (_, args) => {
 			if (!syncing_list_selection && args.Row is not null && row_indices.TryGetValue (args.Row, out int index))
 				SelectRegion (index);
@@ -379,6 +391,7 @@ internal sealed partial class AutoSplitDialog : IDisposable
 	{
 		submit_button.Sensitive = regions.Count > 0 && !analysis_running;
 		delete_button.Sensitive = selected_regions.Count > 0 && !analysis_running;
+		export_button.Sensitive = regions.Count > 0 && !analysis_running;
 		add_button.Sensitive = !analysis_running;
 		detect_button.Sensitive = detection_mode.Active != 2
 			&& (detection_mode.Active != 1 || providers.Count > 0)

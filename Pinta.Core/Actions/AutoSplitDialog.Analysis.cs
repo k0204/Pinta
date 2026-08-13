@@ -17,8 +17,9 @@ internal sealed partial class AutoSplitDialog
 		detect_button.Sensitive = false;
 		try {
 			if (detection_mode.Active == 0) {
+				int minimumSize = minimum_tile_size_spinner.GetValueAsInt ();
 				ApplyRegions (
-					AutoSplitDetection.DetectLocal (source.Surface),
+					AutoSplitDetection.DetectLocal (source.Surface, minimumWidth: minimumSize, minimumHeight: minimumSize),
 					count => Translations.GetString ("Local pixel scan found {0} regions.", count));
 			} else if (providers.Count == 0) {
 				status_label.SetText (Translations.GetString ("No API provider is available."));
@@ -49,8 +50,9 @@ internal sealed partial class AutoSplitDialog
 
 	private void ApplyLocalDetection ()
 	{
+		int minimumSize = minimum_tile_size_spinner.GetValueAsInt ();
 		ApplyRegions (
-			AutoSplitDetection.DetectLocal (source.Surface),
+			AutoSplitDetection.DetectLocal (source.Surface, minimumWidth: minimumSize, minimumHeight: minimumSize),
 			count => Translations.GetString ("Local pixel scan found {0} regions.", count));
 	}
 
