@@ -4710,6 +4710,10 @@ msgstr "未打开文档"
 msgid "Minimum Tile Size:"
 msgstr "最小图块："
 
+#: ../Pinta.Tools/Tools/DetectBorderTool.cs
+msgid "Minimum Region Area (%):"
+msgstr "最小区域面积 (%)："
+
 #: ../Pinta.Core/Actions/AutoSplitDialog.cs
 msgid "Export All Regions"
 msgstr "导出全部区域"

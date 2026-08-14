@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Cairo;
+using OpenCvSharp;
 
 namespace Pinta.Core;
 
@@ -24,84 +25,33 @@ internal static class AutoSplitDetection
 		int minimumHeight = 4)
 	{
 		ReadOnlySpan<ColorBgra> pixels = surface.GetReadOnlyPixelData ();
-		bool[] visited = new bool[surface.Width * surface.Height];
+		byte[] alpha = new byte[surface.Width * surface.Height];
+		for (int index = 0; index < alpha.Length; index++)
+			alpha[index] = pixels[index].A >= alphaThreshold ? (byte) 255 : (byte) 0;
+
+		using Mat mask = Mat.FromPixelData (surface.Height, surface.Width, MatType.CV_8UC1, alpha);
+		using Mat labels = new ();
+		using Mat stats = new ();
+		using Mat centroids = new ();
+		int componentCount = Cv2.ConnectedComponentsWithStats (
+			mask,
+			labels,
+			stats,
+			centroids,
+			PixelConnectivity.Connectivity8);
+		int minimumComponentArea = minimumWidth * minimumHeight;
 		List<RectangleI> regions = [];
 
-		for (int y = 0; y < surface.Height; y++) {
-			for (int x = 0; x < surface.Width; x++) {
-				int index = y * surface.Width + x;
-				if (visited[index] || pixels[index].A < alphaThreshold)
-					continue;
-
-				(RectangleI bounds, int pixelCount) = FloodFill (pixels, surface.Width, surface.Height, x, y, alphaThreshold, visited);
-				if (bounds.Width >= minimumWidth
-					&& bounds.Height >= minimumHeight
-					&& pixelCount >= minimumWidth * (long) minimumHeight)
-					regions.Add (bounds);
-			}
+		for (int component = 1; component < componentCount; component++) {
+			int x = stats.Get<int> (component, (int) ConnectedComponentsTypes.Left);
+			int y = stats.Get<int> (component, (int) ConnectedComponentsTypes.Top);
+			int width = stats.Get<int> (component, (int) ConnectedComponentsTypes.Width);
+			int height = stats.Get<int> (component, (int) ConnectedComponentsTypes.Height);
+			int area = stats.Get<int> (component, (int) ConnectedComponentsTypes.Area);
+			if (width >= minimumWidth && height >= minimumHeight && area >= minimumComponentArea)
+				regions.Add (new RectangleI (x, y, width, height));
 		}
 
 		return [.. regions.OrderBy (region => region.Y).ThenBy (region => region.X)];
-	}
-
-	private static (RectangleI Bounds, int PixelCount) FloodFill (
-		ReadOnlySpan<ColorBgra> pixels,
-		int width,
-		int height,
-		int startX,
-		int startY,
-		byte alphaThreshold,
-		bool[] visited)
-	{
-		Queue<int> pending = new ();
-		pending.Enqueue (startY * width + startX);
-		visited[startY * width + startX] = true;
-		int left = startX;
-		int right = startX;
-		int top = startY;
-		int bottom = startY;
-		int pixelCount = 0;
-
-		while (pending.Count > 0) {
-			pixelCount++;
-			int index = pending.Dequeue ();
-			int x = index % width;
-			int y = index / width;
-			left = Math.Min (left, x);
-			right = Math.Max (right, x);
-			top = Math.Min (top, y);
-			bottom = Math.Max (bottom, y);
-
-			for (int offsetY = -1; offsetY <= 1; offsetY++) {
-				for (int offsetX = -1; offsetX <= 1; offsetX++) {
-					if (offsetX == 0 && offsetY == 0)
-						continue;
-					EnqueueNeighbor (x + offsetX, y + offsetY, width, height, pixels, alphaThreshold, visited, pending);
-				}
-			}
-		}
-
-		return (RectangleI.FromLTRB (left, top, right, bottom), pixelCount);
-	}
-
-	private static void EnqueueNeighbor (
-		int x,
-		int y,
-		int width,
-		int height,
-		ReadOnlySpan<ColorBgra> pixels,
-		byte alphaThreshold,
-		bool[] visited,
-		Queue<int> pending)
-	{
-		if (x < 0 || y < 0 || x >= width || y >= height)
-			return;
-
-		int index = y * width + x;
-		if (visited[index] || pixels[index].A < alphaThreshold)
-			return;
-
-		visited[index] = true;
-		pending.Enqueue (index);
 	}
 }

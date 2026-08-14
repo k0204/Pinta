@@ -4489,6 +4489,10 @@ msgstr ""
 msgid "Minimum Tile Size:"
 msgstr ""
 
+#: ../Pinta.Tools/Tools/DetectBorderTool.cs
+msgid "Minimum Region Area (%):"
+msgstr ""
+
 #: ../Pinta.Core/Actions/AutoSplitDialog.cs
 msgid "Export All Regions"
 msgstr ""

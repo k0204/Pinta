@@ -8,6 +8,12 @@
 
   <ItemGroup>
     <PackageReference Include="NGettext" />
+    <PackageReference Include="OpenCvSharp4" />
+    <PackageReference Include="OpenCvSharp4.official.runtime.linux-x64" Condition="$([MSBuild]::IsOSPlatform('Linux'))" />
+    <PackageReference Include="OpenCvSharp4.runtime.osx.arm64" Condition="$([MSBuild]::IsOSPlatform('OSX'))" />
+    <PackageReference Include="OpenCvSharp4.runtime.osx.x64" Condition="$([MSBuild]::IsOSPlatform('OSX'))" />
+    <PackageReference Include="OpenCvSharp4.runtime.win-arm64" Condition="$([MSBuild]::IsOSPlatform('Windows')) and '$(RuntimeIdentifier)' == 'win-arm64'" />
+    <PackageReference Include="OpenCvSharp4.runtime.win" Condition="$([MSBuild]::IsOSPlatform('Windows')) and '$(RuntimeIdentifier)' != 'win-arm64'" />
     <PackageReference Include="ParagonClipper" />
     <PackageReference Include="Mono.Addins" />
   </ItemGroup>

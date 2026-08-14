@@ -7,6 +7,7 @@ namespace Pinta.Tools;
 public sealed partial class DetectBorderTool : SelectTool
 {
 	private readonly RecognitionButtonsHandle recognition_buttons;
+	private Gtk.SpinButton? minimum_area_spinner;
 	private RecognitionAction pressed_action;
 
 	public DetectBorderTool (IServiceProvider services) : base (services)
@@ -24,6 +25,22 @@ public sealed partial class DetectBorderTool : SelectTool
 	public override Gdk.Cursor DefaultCursor { get; }
 	public override int Priority => 1;
 	public override IEnumerable<IToolHandle> Handles => [.. base.Handles, recognition_buttons];
+
+	protected override void OnBuildToolBar (Gtk.Box toolbar)
+	{
+		base.OnBuildToolBar (toolbar);
+		toolbar.Append (GtkExtensions.CreateToolBarSeparator ());
+		toolbar.Append (Gtk.Label.New ($" {Translations.GetString ("Minimum Region Area (%):")} "));
+		minimum_area_spinner = GtkExtensions.CreateToolBarSpinButton (
+			1,
+			100,
+			1,
+			Settings.GetSetting (Pinta.Core.SettingNames.DETECT_BORDER_MINIMUM_AREA_PERCENT, 1));
+		minimum_area_spinner.OnValueChanged += (_, _) => Settings.PutSetting (
+			Pinta.Core.SettingNames.DETECT_BORDER_MINIMUM_AREA_PERCENT,
+			minimum_area_spinner.GetValueAsInt ());
+		toolbar.Append (minimum_area_spinner);
+	}
 
 	protected override void DrawShape (Document document, RectangleD rectangle, Layer layer)
 	{
@@ -66,9 +83,11 @@ public sealed partial class DetectBorderTool : SelectTool
 			pressed_action = RecognitionAction.None;
 
 			if (released_action == action) {
-				if (action == RecognitionAction.Recognize)
+				if (action == RecognitionAction.Recognize) {
+					recognition_buttons.Active = false;
+					document.Workspace.Invalidate ();
 					PintaCore.Actions.Layers.DetectBorder.Activate ();
-				else {
+				} else {
 					recognition_buttons.Active = false;
 					PintaCore.Actions.Edit.Deselect.Activate ();
 				}

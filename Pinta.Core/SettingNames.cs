@@ -1,7 +1,9 @@
 namespace Pinta.Core;
 
-internal static class SettingNames
+public static class SettingNames
 {
+	public const string DETECT_BORDER_MINIMUM_AREA_PERCENT = "detect-border-minimum-area-percent";
+
 	internal const string DEFAULT_IMAGE_TYPE = "default-image-type";
 
 	internal const string JPG_QUALITY = "jpg-quality";

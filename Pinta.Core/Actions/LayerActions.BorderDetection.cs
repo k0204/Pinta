@@ -38,12 +38,15 @@ public sealed partial class LayerActions
 		chrome.SetStatusBarText (Translations.GetString ("Detecting border..."));
 
 		try {
+			int minimumAreaPercent = PintaCore.Settings.GetSetting (
+				SettingNames.DETECT_BORDER_MINIMUM_AREA_PERCENT,
+				1);
 			using Cairo.ImageSurface source = doc.GetFlattenedImage ();
 			using Cairo.ImageSurface overlay = CairoExtensions.CreateImageSurface (
 				Cairo.Format.Argb32,
 				doc.ImageSize.Width,
 				doc.ImageSize.Height);
-			BorderDetectionAnalysis.Render (source, overlay, box);
+			BorderDetectionAnalysis.Render (source, overlay, box, minimumAreaPercent / 100.0);
 
 			UserLayer layer = doc.Layers.AddNewLayer (Translations.GetString ("Detected Border"));
 			using (Cairo.Context context = new (layer.Surface)) {

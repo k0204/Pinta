@@ -177,7 +177,7 @@ public sealed class ActionHandlers
 			&& document.Layers.GetSiblingBelow (document.Layers.CurrentUserLayer).IsEditable;
 		PintaCore.Actions.Layers.MergeLayerDown.Sensitive = canMergeDown;
 		PintaCore.Actions.Layers.ImportFromFile.Sensitive = enable;
-		PintaCore.Actions.Layers.DetectBorder.Sensitive = editableLayer;
+		PintaCore.Actions.Layers.DetectBorder.Sensitive = hasSelectedLayer;
 		PintaCore.Actions.Layers.Cutout.Sensitive = editableLayer;
 		PintaCore.Actions.Layers.FlipHorizontal.Sensitive = editableLayer;
 		PintaCore.Actions.Layers.FlipVertical.Sensitive = editableLayer;
