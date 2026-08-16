@@ -68,12 +68,13 @@ internal sealed class ResizeLayerAction : IActionHandler
 		Document doc = workspace.ActiveDocument;
 		tools.Commit ();
 		UserLayer layer = doc.Layers.CurrentUserLayer;
+		// Animation layers keep their own canvas geometry and are not resizable.
+		if (layer is AnimationOutputLayer)
+			return;
 		if (!TryGetLayerSize (layer, out Size layerSize))
 			return;
 
-		Size canvasSize = layer is AnimationOutputLayer animation
-			? new Size (animation.CanvasWidth, animation.CanvasHeight)
-			: doc.ImageSize;
+		Size canvasSize = doc.ImageSize;
 		ResizeLayerOptions? response = await PromptResize (layerSize, canvasSize);
 		if (!response.HasValue) return;
 
@@ -169,6 +170,7 @@ internal sealed class ResizeLayerAction : IActionHandler
 	{
 		SpriteSheetLayerSnapshot oldSnapshot = layer.CaptureSnapshot ();
 		layer.Resize (resizing.NewSize, resizing.ResamplingMode);
+		layer.UpdateTransforms (document.ImageSize);
 		SpriteSheetLayerSnapshot newSnapshot = layer.CaptureSnapshot ();
 		return new AnimationLayerResizeHistoryItem (
 			Translations.GetString ("Resize Layer"),
@@ -180,6 +182,7 @@ internal sealed class ResizeLayerAction : IActionHandler
 	{
 		SingleDirectionAnimationLayerSnapshot oldSnapshot = layer.CaptureSnapshot ();
 		layer.Resize (resizing.NewSize, resizing.ResamplingMode);
+		layer.UpdateTransforms (document.ImageSize);
 		SingleDirectionAnimationLayerSnapshot newSnapshot = layer.CaptureSnapshot ();
 		return new AnimationLayerResizeHistoryItem (
 			Translations.GetString ("Resize Layer"),

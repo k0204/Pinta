@@ -52,6 +52,7 @@ public sealed class ViewActions
 	public ToggleCommand Rulers { get; }
 	public Gio.SimpleAction RulerMetric { get; }
 	public Gio.SimpleAction ColorScheme { get; }
+	public Gio.SimpleAction ZoomStep { get; }
 	public Command Fullscreen { get; }
 
 	public ToolBarComboBox ZoomComboBox { get; }
@@ -195,6 +196,11 @@ public sealed class ViewActions
 			GtkExtensions.IntVariantType,
 			GLib.Variant.NewInt32 (0));
 
+		ZoomStep = Gio.SimpleAction.NewStateful ( // TODO: Make `Command`
+			"zoomstep",
+			GtkExtensions.IntVariantType,
+			GLib.Variant.NewInt32 (DefaultZoomStepIndex ()));
+
 		Fullscreen = new Command (
 			"Fullscreen",
 			Translations.GetString ("Fullscreen"),
@@ -247,6 +253,23 @@ public sealed class ViewActions
 		Translations.GetString ("Window")
 	];
 
+	/// <summary>
+	/// Zoom percent applied per scroll step when zooming with Ctrl + mouse wheel
+	/// (or Ctrl + two-finger scroll). The actual zoom factor is 1 + percent/100.
+	/// </summary>
+	public static readonly int[] ZoomStepPercents = [10, 15, 20, 25, 33, 50];
+
+	public const int DefaultZoomStepPercent = 25;
+
+	/// <summary>
+	/// The currently configured zoom step (percent per scroll step), loaded from settings.
+	/// </summary>
+	public int ZoomStepPercent
+		=> PintaCore.Settings.GetSetting (SettingNames.ZOOM_STEP, DefaultZoomStepPercent);
+
+	private static int DefaultZoomStepIndex ()
+		=> Array.IndexOf (ZoomStepPercents, DefaultZoomStepPercent);
+
 	#region Initialization
 
 	public void RegisterActions (Gtk.Application app, Gio.Menu menu)
@@ -257,6 +280,13 @@ public sealed class ViewActions
 		zoom_section.AppendItem (ActualSize.CreateMenuItem ());
 		zoom_section.AppendItem (ZoomToWindow.CreateMenuItem ());
 		zoom_section.AppendItem (Fullscreen.CreateMenuItem ());
+
+		Gio.Menu zoom_step_menu = Gio.Menu.New ();
+		for (int i = 0; i < ZoomStepPercents.Length; i++)
+			zoom_step_menu.Append (Translations.GetString ("{0}%", ZoomStepPercents[i]), $"app.{ZoomStep.Name}({i})");
+
+		Gio.Menu zoom_step_section = Gio.Menu.New ();
+		zoom_step_section.AppendSubmenu (Translations.GetString ("Zoom Step"), zoom_step_menu);
 
 		Gio.Menu grid_section = Gio.Menu.New ();
 		grid_section.AppendItem (EditCanvasGrid.CreateMenuItem ());
@@ -298,6 +328,7 @@ public sealed class ViewActions
 		color_scheme_section.AppendSubmenu (Translations.GetString ("Color Scheme"), color_scheme_menu);
 
 		menu.AppendSection (null, zoom_section);
+		menu.AppendSection (null, zoom_step_section);
 		menu.AppendSection (null, grid_section);
 		menu.AppendSection (null, metric_section);
 		menu.AppendSection (null, show_hide_section);
@@ -326,6 +357,7 @@ public sealed class ViewActions
 		// TODO: Make `Command`s
 		app.AddAction (RulerMetric);
 		app.AddAction (ColorScheme);
+		app.AddAction (ZoomStep);
 
 		if (mainToolbarPresent)
 			app.AddCommand (ToolBar);
@@ -343,6 +375,8 @@ public sealed class ViewActions
 		ZoomIn.Activated += HandlePintaCoreActionsViewZoomInActivated;
 		ZoomOut.Activated += HandlePintaCoreActionsViewZoomOutActivated;
 		ZoomComboBox.ComboBox.OnChanged += HandlePintaCoreActionsViewZoomComboBoxComboBoxChanged;
+
+		ZoomStep.OnActivate += (_, args) => ZoomStep.ChangeState (args.Parameter!);
 
 		Gtk.EventControllerFocus focus_controller = Gtk.EventControllerFocus.New ();
 		focus_controller.OnEnter += Entry_FocusInEvent;

@@ -19,7 +19,7 @@ internal sealed partial class AutoSplitDialog
 		try {
 			Directory.CreateDirectory (directory);
 			for (int index = 0; index < regions.Count; index++)
-				ExportRegion (directory, regions[index].Bounds, index);
+				ExportRegion (directory, regions[index], index);
 
 			status_label.RemoveCssClass (AdwaitaStyles.Error);
 			status_label.SetText (Translations.GetString ("Exported {0} regions.", regions.Count));
@@ -29,13 +29,11 @@ internal sealed partial class AutoSplitDialog
 		}
 	}
 
-	private void ExportRegion (string directory, RectangleI bounds, int index)
+	private void ExportRegion (string directory, AutoSplitRegion region, int index)
 	{
+		RectangleI bounds = region.Bounds;
 		using ImageSurface output = CairoExtensions.CreateImageSurface (Format.Argb32, bounds.Width, bounds.Height);
-		using (Context context = new (output)) {
-			context.SetSourceSurface (source.Surface, -bounds.X, -bounds.Y);
-			context.Paint ();
-		}
+		region.CopyTo (source.Surface, output);
 
 		output.SaveToPng (System.IO.Path.Combine (directory, $"region-{index + 1:D3}.png"));
 	}

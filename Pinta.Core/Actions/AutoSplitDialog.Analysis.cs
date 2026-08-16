@@ -34,11 +34,11 @@ internal sealed partial class AutoSplitDialog
 				PintaCore.Settings.DoSaveSettingsBeforeQuit ();
 				AI.SpriteSegmentationAnalysis analysis = await analyze (provider);
 				ApplyRegions (
-					[.. analysis.Items.Select (item => new RectangleI (
+					[.. analysis.Items.Select (item => new AutoSplitRegion (new RectangleI (
 						item.Bbox.X,
 						item.Bbox.Y,
 						item.Bbox.Width,
-						item.Bbox.Height))],
+						item.Bbox.Height)))],
 					count => Translations.GetString ("API pixel analysis found {0} regions.", count));
 			}
 		} catch (Exception ex) {
@@ -62,12 +62,15 @@ internal sealed partial class AutoSplitDialog
 			count => Translations.GetString ("Local pixel scan found {0} regions.", count));
 	}
 
-	private void ApplyRegions (IReadOnlyList<RectangleI> bounds, Func<int, string> status_factory)
+	private void ApplyRegions (IReadOnlyList<AutoSplitRegion> detectedRegions, Func<int, string> status_factory)
 	{
 		regions.Clear ();
-		foreach (RectangleI bound in bounds) {
-			if (TryNormalizeBounds (bound, out RectangleI normalized))
-				regions.Add (new AutoSplitRegion (normalized));
+		foreach (AutoSplitRegion region in detectedRegions) {
+			if (TryNormalizeBounds (region.Bounds, out RectangleI normalized)) {
+				if (normalized != region.Bounds)
+					region.SetBounds (normalized);
+				regions.Add (region);
+			}
 		}
 
 		selected_regions.Clear ();

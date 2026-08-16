@@ -72,6 +72,7 @@ public sealed partial class MoveLayerTool : BaseTool
 	// Translators: {0} is 'Ctrl', or a platform-specific key such as 'Command' on macOS.
 	public override string StatusBarText => Translations.GetString (
 		"Left click and drag to move the layer." +
+		"\nHold Shift while dragging a transform handle to resize proportionally." +
 		"\nHold Shift or drag on empty canvas to select multiple layers." +
 		"\nUse arrow keys to move the layer by a single pixel." +
 		"\nHold {0} while using arrow keys to move ten pixels.",
@@ -141,14 +142,17 @@ public sealed partial class MoveLayerTool : BaseTool
 			return;
 
 		last_window_point = e.WindowPoint;
+
+		// Dragging a transform handle takes priority over Shift-marquee selection, so that
+		// Shift + dragging a corner/edge handle resizes the layer proportionally.
+		if (StartResize (document, e))
+			return;
+
 		bool select_multiple = shift_pressed || e.IsShiftPressed;
 		if (select_multiple) {
 			StartLayerMarquee (document, e.PointDouble);
 			return;
 		}
-
-		if (StartResize (document, e))
-			return;
 
 		if (!document.Workspace.PointInCanvas (e.PointDouble)) {
 			document.Layers.ClearCurrentUserLayer ();
@@ -531,13 +535,23 @@ public sealed partial class MoveLayerTool : BaseTool
 
 	private void UpdateCursor (in PointD windowPoint, bool shiftModifier = false)
 	{
-		if (marquee_active || shift_pressed || shiftModifier) {
+		if (marquee_active) {
 			SetCursor (marquee_cursor);
 			return;
 		}
 
-		SetCursor (transform_handle.Active
-			? transform_handle.GetCursorAtPoint (windowPoint) ?? DefaultCursor
-			: DefaultCursor);
+		// Show the resize cursor over a transform handle even while Shift is held,
+		// since Shift + dragging a handle resizes proportionally.
+		if (transform_handle.Active && transform_handle.GetCursorAtPoint (windowPoint) is { } cursor) {
+			SetCursor (cursor);
+			return;
+		}
+
+		if (shift_pressed || shiftModifier) {
+			SetCursor (marquee_cursor);
+			return;
+		}
+
+		SetCursor (DefaultCursor);
 	}
 }

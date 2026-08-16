@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using Cairo;
 
@@ -150,13 +151,14 @@ internal sealed partial class AutoSplitDialog
 			DrawRegion (
 				context,
 				regions[index].Bounds,
+				regions[index].Outline,
 				selected_regions.Contains (index),
 				index == selected_region,
 				imageX,
 				imageY,
 				scale);
 		if (manual_preview is RectangleI bounds)
-			DrawRegion (context, bounds, true, true, imageX, imageY, scale);
+			DrawRegion (context, bounds, [], true, true, imageX, imageY, scale);
 	}
 
 	private static void DrawCheckerboard (Context context, int width, int height)
@@ -182,6 +184,7 @@ internal sealed partial class AutoSplitDialog
 	private static void DrawRegion (
 		Context context,
 		RectangleI bounds,
+		IReadOnlyList<PointI> outline,
 		bool selected,
 		bool current,
 		double imageX,
@@ -194,12 +197,31 @@ internal sealed partial class AutoSplitDialog
 		double height = bounds.Height * scale;
 		context.Save ();
 		context.SetSourceColor (new Color (selected ? 1.0 : 0.15, selected ? 0.67 : 0.72, 0.08, 0.16));
-		context.Rectangle (x, y, width, height);
+		AppendRegionPath (context, bounds, outline, imageX, imageY, scale);
 		context.FillPreserve ();
 		context.SetSourceColor (new Color (selected ? 1.0 : 0.12, selected ? 0.67 : 0.63, 0.08, 0.95));
 		context.LineWidth = current ? 3 : selected ? 2.5 : 1.5;
 		context.Stroke ();
 		context.Restore ();
+	}
+
+	private static void AppendRegionPath (
+		Context context,
+		RectangleI bounds,
+		IReadOnlyList<PointI> outline,
+		double imageX,
+		double imageY,
+		double scale)
+	{
+		if (outline.Count < 3) {
+			context.Rectangle (imageX + bounds.X * scale, imageY + bounds.Y * scale, bounds.Width * scale, bounds.Height * scale);
+			return;
+		}
+
+		context.MoveTo (imageX + outline[0].X * scale, imageY + outline[0].Y * scale);
+		for (int index = 1; index < outline.Count; index++)
+			context.LineTo (imageX + outline[index].X * scale, imageY + outline[index].Y * scale);
+		context.ClosePath ();
 	}
 
 	private (double Scale, double X, double Y) GetPreviewPlacement (
@@ -284,7 +306,7 @@ internal sealed partial class AutoSplitDialog
 	private int FindRegionAtPoint (PointD imagePoint, bool preferUnselected)
 	{
 		for (int index = regions.Count - 1; index >= 0; index--)
-			if (Contains (regions[index].Bounds, imagePoint)
+			if (Contains (regions[index], imagePoint)
 				&& (!preferUnselected || !selected_regions.Contains (index)))
 				return index;
 
@@ -292,16 +314,26 @@ internal sealed partial class AutoSplitDialog
 			return -1;
 
 		for (int index = regions.Count - 1; index >= 0; index--)
-			if (Contains (regions[index].Bounds, imagePoint))
+			if (Contains (regions[index], imagePoint))
 				return index;
 
 		return -1;
 	}
 
-	private static bool Contains (RectangleI bounds, PointD point)
-		=> point.X >= bounds.X && point.Y >= bounds.Y
-			&& point.X < bounds.X + bounds.Width
-			&& point.Y < bounds.Y + bounds.Height;
+	private static bool Contains (AutoSplitRegion region, PointD point)
+	{
+		RectangleI bounds = region.Bounds;
+		if (point.X < bounds.X || point.Y < bounds.Y
+			|| point.X >= bounds.X + bounds.Width || point.Y >= bounds.Y + bounds.Height)
+			return false;
+
+		if (region.PixelMask is null)
+			return true;
+
+		int x = (int) point.X - bounds.X;
+		int y = (int) point.Y - bounds.Y;
+		return region.PixelMask[y * bounds.Width + x] != 0;
+	}
 
 	private bool TryGetImagePoint (double x, double y, out PointD imagePoint)
 	{

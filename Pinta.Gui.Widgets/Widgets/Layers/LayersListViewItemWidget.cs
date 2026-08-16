@@ -469,9 +469,10 @@ public sealed partial class LayersListViewItemWidget
 		}
 
 		Document doc = PintaCore.Workspace.ActiveDocument;
-		// Ensure this is the current layer before opening the menu, since the menu actions
-		// apply to the current layer.
-		if (doc.Layers.CurrentUserLayer != item.UserLayer)
+		// Keep the current multi-selection when the right-clicked layer is already part of
+		// it, so that a context-menu action (e.g. merge or delete) applies to all selected
+		// layers. Only switch the selection when the right-clicked layer is not selected.
+		if (!doc.Layers.SelectedUserLayers.Contains (item.UserLayer))
 			doc.Layers.SetCurrentUserLayer (item.UserLayer);
 
 		LayerActions actions = PintaCore.Actions.Layers;

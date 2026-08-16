@@ -41,6 +41,9 @@ public sealed class DocumentWorkspace
 		ZoomManually,
 	}
 
+	private const double MIN_ZOOM_SCALE = 0.05; // 5%
+	private const double MAX_ZOOM_SCALE = 36.0; // 3600%
+
 	internal DocumentWorkspace (
 		ActionManager actions,
 		Document document)
@@ -327,16 +330,22 @@ public sealed class DocumentWorkspace
 	private void ZoomAroundCenter (ZoomType zoomType)
 	{
 		Gtk.Viewport view = Viewport;
+
+		// Convert the viewport center to canvas-widget coordinates, since ZoomAndRecenterView
+		// expects the zoom center in that coordinate space.
+		GetCanvasPositionInContainer (view, out double canvas_x, out double canvas_y);
+
 		PointD center = new (
-			view.Hadjustment!.Value + (view.Hadjustment.PageSize / 2.0),
-			view.Vadjustment!.Value + (view.Vadjustment.PageSize / 2.0));
+			view.Hadjustment!.Value + (view.Hadjustment.PageSize / 2.0) - canvas_x,
+			view.Vadjustment!.Value + (view.Vadjustment.PageSize / 2.0) - canvas_y);
+
 		ZoomAndRecenterView (zoomType, center);
 	}
 
 	/// <summary>
 	/// Zoom in/out around a specific point.
 	/// </summary>
-	/// <param name="center_point">Center point to zoom around, in view coordinates</param>
+	/// <param name="center_point">Center point to zoom around, in canvas-widget coordinates</param>
 	private void ZoomAndRecenterView (ZoomType zoomType, PointD center_point)
 	{
 		if (zoomType == ZoomType.ZoomOut && (ViewSize.Width == 1 || ViewSize.Height == 1))
@@ -350,11 +359,7 @@ public sealed class DocumentWorkspace
 		actions.View.SuspendZoomUpdate ();
 
 		Gtk.Viewport view = Viewport;
-
-		double scroll_offset_x = center_point.X - view.Hadjustment!.Value;
-		double scroll_offset_y = center_point.Y - view.Vadjustment!.Value;
-
-		PointD canvas_point = ViewPointToCanvas (center_point);
+		PrepareRecenter (view, center_point, out PointD scroll_offset, out PointD canvas_point);
 
 		if (zoomType == ZoomType.ZoomIn || zoomType == ZoomType.ZoomOut) {
 
@@ -401,19 +406,108 @@ public sealed class DocumentWorkspace
 
 		actions.View.UpdateCanvasScale ();
 
+		ApplyRecenter (view, scroll_offset, canvas_point);
+
+		actions.View.ResumeZoomUpdate ();
+	}
+
+	/// <summary>
+	/// Zoom in/out by a continuous factor around a specific point, instead of snapping
+	/// to the preset zoom levels. The zoom percentage shown in the toolbar is updated
+	/// to the resulting scale.
+	/// </summary>
+	/// <param name="factor">Scale multiplier, e.g. 1.25 to zoom in 25%, or 1/1.25 to zoom out</param>
+	/// <param name="view_point">Center point to zoom around, in canvas-widget coordinates</param>
+	public void ZoomByFactorAroundViewPoint (double factor, in PointD view_point)
+	{
+		if (ViewSize.Width == 1 || ViewSize.Height == 1)
+			return; //Can't zoom in past a 1x1 px canvas
+
+		double new_scale = Math.Clamp (Scale * factor, MIN_ZOOM_SCALE, MAX_ZOOM_SCALE);
+
+		if (new_scale == Scale)
+			return;
+
+		actions.View.SuspendZoomUpdate ();
+
+		Gtk.Viewport view = Viewport;
+		PrepareRecenter (view, view_point, out PointD scroll_offset, out PointD canvas_point);
+
+		actions.View.ZoomComboBox.ComboBox.GetEntry ().SetText (ViewActions.ToPercent (new_scale));
+		actions.View.UpdateCanvasScale ();
+
+		ApplyRecenter (view, scroll_offset, canvas_point);
+
+		actions.View.ResumeZoomUpdate ();
+	}
+
+	/// <summary>
+	/// Zoom in/out by a continuous factor around a point given in viewport coordinates,
+	/// e.g. the mouse pointer position reported by a scroll event.
+	/// </summary>
+	public void ZoomByFactorAroundViewportPoint (double factor, double viewport_x, double viewport_y)
+	{
+		Gtk.Viewport view = Viewport;
+
+		// Viewport coordinates -> canvas-widget coordinates: account for both the scroll
+		// offset (adjustment values) and the canvas position inside its container.
+		GetCanvasPositionInContainer (view, out double canvas_x, out double canvas_y);
+
+		PointD view_point = new (
+			viewport_x + view.Hadjustment!.Value - canvas_x,
+			viewport_y + view.Vadjustment!.Value - canvas_y);
+
+		ZoomByFactorAroundViewPoint (factor, view_point);
+	}
+
+	/// <summary>
+	/// Calculates the offset of the canvas widget inside its container, matching the
+	/// positioning logic used by <see cref="PositionCanvas"/>. The zoom-center math needs
+	/// this offset to convert between canvas-widget and viewport coordinates.
+	/// </summary>
+	private void GetCanvasPositionInContainer (Gtk.Viewport view, out double x, out double y)
+	{
+		double pageWidth = view.Hadjustment!.PageSize;
+		double pageHeight = view.Vadjustment!.PageSize;
+
+		x = (ViewSize.Width <= pageWidth ? Math.Max (0, pageWidth - ViewSize.Width) / 2 : 0) + canvas_offset.X;
+		y = (ViewSize.Height <= pageHeight ? Math.Max (0, pageHeight - ViewSize.Height) / 2 : 0) + canvas_offset.Y;
+	}
+
+	/// <summary>
+	/// Records the scroll offset and canvas point under the zoom center, so that the
+	/// canvas position under the center stays fixed on screen after zooming.
+	/// </summary>
+	private void PrepareRecenter (Gtk.Viewport view, in PointD center_point, out PointD scroll_offset, out PointD canvas_point)
+	{
+		GetCanvasPositionInContainer (view, out double canvas_x, out double canvas_y);
+
+		scroll_offset = new PointD (
+			(center_point.X + canvas_x) - view.Hadjustment!.Value,
+			(center_point.Y + canvas_y) - view.Vadjustment!.Value);
+
+		canvas_point = ViewPointToCanvas (center_point);
+	}
+
+	/// <summary>
+	/// After the zoom has been applied (and the canvas resized), scrolls so that the
+	/// canvas position under the zoom center remains at the same viewport location.
+	/// </summary>
+	private void ApplyRecenter (Gtk.Viewport view, in PointD scroll_offset, in PointD canvas_point)
+	{
+		// Reposition the canvas, since ViewSize changed and centering may differ now.
+		PositionCanvas ();
+
+		GetCanvasPositionInContainer (view, out double new_canvas_x, out double new_canvas_y);
+
 		// Quick fix : need to manually update Upper limit because the value is not changing after updating the canvas scale.
 		// TODO : I think there is an event need to be fired so that those values updated automatically.
 		view.Hadjustment!.Upper = ViewSize.Width < view.Hadjustment.PageSize ? view.Hadjustment.PageSize : ViewSize.Width;
 		view.Vadjustment!.Upper = ViewSize.Height < view.Vadjustment.PageSize ? view.Vadjustment.PageSize : ViewSize.Height;
 
-		// Scroll so that the canvas position under 'center_point' is still the same after zooming.
-		// Note that the canvas widget might not have resized yet, so using Offset is important for taking
-		// the size difference into account.
 		PointD new_center_point = CanvasPointToView (canvas_point);
-		view.Hadjustment.Value = new_center_point.X - scroll_offset_x;
-		view.Vadjustment.Value = new_center_point.Y - scroll_offset_y;
-
-		actions.View.ResumeZoomUpdate ();
+		view.Hadjustment.Value = (new_center_point.X + new_canvas_x) - scroll_offset.X;
+		view.Vadjustment.Value = (new_center_point.Y + new_canvas_y) - scroll_offset.Y;
 	}
 
 	#endregion

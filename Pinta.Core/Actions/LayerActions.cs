@@ -458,7 +458,9 @@ public sealed partial class LayerActions
 		bool currentEditable = hasSelectedLayer && activeDoc!.Layers.CurrentUserLayer.IsEditable;
 		ImageSplit.Sensitive = currentEditable && !cutout_running;
 		AutoSplit.Sensitive = currentEditable && !cutout_running && !auto_split_running;
-		bool currentResizable = currentEditable || activeDoc?.Layers.CurrentUserLayer is AnimationOutputLayer;
+		// Animation layers keep their own canvas geometry (CanvasWidth/Height, frame
+		// transforms), so resizing them is not supported; keep the command disabled.
+		bool currentResizable = currentEditable;
 		bool canMergeDown = activeDoc?.Layers.CanMoveCurrentLayerDown () ?? false;
 		MergeLayerDown.Sensitive = canMergeDown && currentEditable && activeDoc!.Layers.GetSiblingBelow (activeDoc.Layers.CurrentUserLayer).IsEditable;
 		MoveLayerDown.Sensitive = canMergeDown;

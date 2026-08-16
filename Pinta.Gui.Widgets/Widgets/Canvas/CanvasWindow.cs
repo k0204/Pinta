@@ -392,15 +392,20 @@ public sealed partial class CanvasWindow
 		if (!controller.GetCurrentEventState ().IsControlPressed ())
 			return false;
 
+		// Zoom around the pointer position reported by the scroll event itself (in viewport
+		// coordinates), falling back to the last known cursor position if unavailable.
+		PointD? viewport_point = GetScrollPointerViewportPoint (controller);
+		double zoom_step = GetScrollZoomStep ();
+
 		// "clicky" scroll wheels generate 1 or -1
 
 		if (args.Dy == -1) {
-			document.Workspace.ZoomInAroundCanvasPoint (current_canvas_pos);
+			ZoomCanvasByFactor (zoom_step, viewport_point);
 			return true;
 		}
 
 		if (args.Dy == 1) {
-			document.Workspace.ZoomOutAroundCanvasPoint (current_canvas_pos);
+			ZoomCanvasByFactor (1.0 / zoom_step, viewport_point);
 			return true;
 		}
 
@@ -412,7 +417,7 @@ public sealed partial class CanvasWindow
 
 			cumulative_zoom_amount += args.Dy;
 			if (cumulative_zoom_amount <= -ZOOM_THRESHOLD_SCROLL) {
-				document.Workspace.ZoomInAroundCanvasPoint (current_canvas_pos);
+				ZoomCanvasByFactor (zoom_step, viewport_point);
 				cumulative_zoom_amount = 0;
 			}
 
@@ -422,7 +427,7 @@ public sealed partial class CanvasWindow
 
 			cumulative_zoom_amount += args.Dy;
 			if (cumulative_zoom_amount >= ZOOM_THRESHOLD_SCROLL) {
-				document.Workspace.ZoomOutAroundCanvasPoint (current_canvas_pos);
+				ZoomCanvasByFactor (1.0 / zoom_step, viewport_point);
 				cumulative_zoom_amount = 0;
 			}
 
@@ -430,6 +435,41 @@ public sealed partial class CanvasWindow
 
 		return true;
 	}
+
+	/// <summary>
+	/// Gets the pointer position (in viewport coordinates) associated with the scroll event.
+	/// The scroll signal itself only provides deltas, so the position is read from the
+	/// underlying Gdk event, which is relative to the widget the controller is attached to.
+	/// </summary>
+	private static PointD? GetScrollPointerViewportPoint (Gtk.EventControllerScroll controller)
+	{
+		if (controller.GetCurrentEvent () is Gdk.Event scroll_event && scroll_event.GetPosition (out double x, out double y))
+			return new PointD (x, y);
+
+		return null;
+	}
+
+	/// <summary>
+	/// Zoom the canvas by a continuous factor, centered on the given viewport point
+	/// (or the last known cursor position if no point is available).
+	/// </summary>
+	private void ZoomCanvasByFactor (double factor, PointD? viewport_point)
+	{
+		DocumentWorkspace workspace = document.Workspace;
+
+		if (viewport_point.HasValue) {
+			workspace.ZoomByFactorAroundViewportPoint (factor, viewport_point.Value.X, viewport_point.Value.Y);
+		} else {
+			workspace.ZoomByFactorAroundViewPoint (factor, workspace.CanvasPointToView (current_canvas_pos));
+		}
+	}
+
+	/// <summary>
+	/// Returns the zoom factor applied per scroll step (e.g. 1.25 = zoom 25% per step).
+	/// The configured value is a percentage, adjustable from the View menu.
+	/// </summary>
+	private static double GetScrollZoomStep ()
+		=> 1.0 + PintaCore.Actions.View.ZoomStepPercent / 100.0;
 
 	private void OnDragBegin (Gtk.GestureDrag gesture, Gtk.GestureDrag.DragBeginSignalArgs args)
 	{

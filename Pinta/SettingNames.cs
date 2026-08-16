@@ -8,6 +8,7 @@ internal static class SettingNames
 
 	internal const string RULER_METRIC = "ruler-metric";
 	internal const string COLOR_SCHEME = "color-scheme";
+	internal const string ZOOM_STEP = "zoom-scroll-step";
 	internal const string WINDOW_MAXIMIZED = "window-maximized";
 #if WINDOWS
 	internal const string WINDOW_POSITION_X = "window-position-x";

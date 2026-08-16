@@ -34,7 +34,7 @@ public sealed partial class LayerActions
 					splitSource.Surface.Height,
 					provider),
 				EnsureAiLoggedIn);
-			IReadOnlyList<RectangleI>? regions = await dialog.RunAsync ();
+			IReadOnlyList<AutoSplitRegion>? regions = await dialog.RunAsync ();
 			if (regions is not null)
 				ApplyAutoSplit (document, source, splitSurface, regions);
 		} catch (Exception ex) {
@@ -53,15 +53,15 @@ public sealed partial class LayerActions
 		Document document,
 		UserLayer source,
 		ImageSurface splitSurface,
-		IReadOnlyList<RectangleI> regions)
+		IReadOnlyList<AutoSplitRegion> regions)
 	{
 		CompoundHistoryItem history = new (
 			Resources.Icons.ImageCrop,
 			Translations.GetString ("Split Image"));
 		ImageSurface original = splitSurface.Clone ();
 		for (int index = 0; index < regions.Count; index++) {
-			RectangleI bounds = regions[index];
-			UserLayer child = CreateAutoSplitChild (document, source, original, bounds, index);
+			AutoSplitRegion region = regions[index];
+			UserLayer child = CreateAutoSplitChild (document, source, original, region, index);
 			LayerPosition position = new (source, source.Children.Count);
 			document.Layers.Insert (child, position);
 			history.Push (new AddLayerHistoryItem (
@@ -82,17 +82,15 @@ public sealed partial class LayerActions
 		Document document,
 		UserLayer source,
 		ImageSurface original,
-		RectangleI bounds,
+		AutoSplitRegion region,
 		int index)
 	{
+		RectangleI bounds = region.Bounds;
 		UserLayer child = document.Layers.CreateLayer (
 			Translations.GetString ("Split {0}", index + 1),
 			bounds.Width,
 			bounds.Height);
-		using (Context context = new (child.Surface)) {
-			context.SetSourceSurface (original, -bounds.X, -bounds.Y);
-			context.Paint ();
-		}
+		region.CopyTo (original, child.Surface);
 
 		Matrix transform = source.Transform.Clone ();
 		transform.Translate (bounds.X, bounds.Y);

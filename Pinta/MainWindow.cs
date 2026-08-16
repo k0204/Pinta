@@ -640,6 +640,10 @@ internal sealed partial class MainWindow
 
 		int color_scheme = PintaCore.Settings.GetSetting (SettingNames.COLOR_SCHEME, 0);
 		PintaCore.Actions.View.ColorScheme.Activate (GLib.Variant.NewInt32 (color_scheme));
+
+		int zoom_step = PintaCore.Settings.GetSetting (SettingNames.ZOOM_STEP, ViewActions.DefaultZoomStepPercent);
+		int zoom_step_index = Math.Max (0, Array.IndexOf (ViewActions.ZoomStepPercents, zoom_step));
+		PintaCore.Actions.View.ZoomStep.Activate (GLib.Variant.NewInt32 (zoom_step_index));
 	}
 
 	private static async Task RestoreAiAccountAsync ()
@@ -677,6 +681,7 @@ internal sealed partial class MainWindow
 
 		PintaCore.Settings.PutSetting (SettingNames.RULER_METRIC, (int) GetCurrentRulerMetric ());
 		PintaCore.Settings.PutSetting (SettingNames.COLOR_SCHEME, PintaCore.Actions.View.ColorScheme.GetState ()!.GetInt32 ());
+		PintaCore.Settings.PutSetting (SettingNames.ZOOM_STEP, ViewActions.ZoomStepPercents[PintaCore.Actions.View.ZoomStep.GetState ()!.GetInt32 ()]);
 		PintaCore.Settings.PutSetting (SettingNames.WINDOW_MAXIMIZED, window_shell.Window.IsMaximized ());
 		PintaCore.Settings.PutSetting (SettingNames.RULER_SHOWN, PintaCore.Actions.View.Rulers.Value);
 		PintaCore.Settings.PutSetting (SettingNames.IMAGE_TABS_SHOWN, PintaCore.Actions.View.ImageTabs.Value);

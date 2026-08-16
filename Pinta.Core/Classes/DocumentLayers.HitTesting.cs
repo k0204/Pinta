@@ -8,7 +8,9 @@ namespace Pinta.Core;
 public sealed partial class DocumentLayers
 {
 	/// <summary>
-	/// Finds the topmost visible user layer with a non-transparent pixel at the specified canvas point.
+	/// Finds the topmost visible user layer whose content bounding rectangle
+	/// contains the specified canvas point. Transparent pixels inside the content
+	/// area do not pass through to lower layers.
 	/// </summary>
 	public UserLayer? FindTopmostLayerAtPoint (PointD point)
 	{
@@ -69,7 +71,7 @@ public sealed partial class DocumentLayers
 			return userLayer;
 
 		return !userLayer.Locked
-			&& userLayer.GetOwnLayersToPaint ().Reverse ().Any (layer => ContainsPixel (layer, point))
+			&& userLayer.GetOwnLayersToPaint ().Reverse ().Any (layer => LayerContainsPoint (layer, point))
 			? userLayer
 			: null;
 	}
@@ -115,6 +117,18 @@ public sealed partial class DocumentLayers
 		return true;
 	}
 
+	/// <summary>
+	/// Returns true if the point lies within the layer's content bounding rectangle.
+	/// Transparent holes inside the content area are still considered part of the layer.
+	/// </summary>
+	private static bool LayerContainsPoint (Layer layer, PointD point)
+		=> TryGetLayerBounds (layer, out RectangleD bounds)
+			&& bounds.ContainsPoint (point);
+
+	/// <summary>
+	/// Returns true if the layer has a non-transparent pixel at the specified canvas point.
+	/// Used to determine whether the selection outline covers the point.
+	/// </summary>
 	private static bool ContainsPixel (Layer layer, PointD point)
 	{
 		if (layer.Opacity <= 0)

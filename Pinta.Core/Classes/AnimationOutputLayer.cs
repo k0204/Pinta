@@ -84,8 +84,14 @@ public abstract class AnimationOutputLayer : GroupLayer
 
 	public override void Resize (Size newSize, ResamplingMode resamplingMode)
 	{
-		foreach (AnimationFrameData frame in GetFrames ())
+		double scaleX = newSize.Width / (double) CanvasWidth;
+		double scaleY = newSize.Height / (double) CanvasHeight;
+		foreach (AnimationFrameData frame in GetFrames ()) {
 			frame.Resize (newSize, resamplingMode);
+			frame.X = (int) Math.Round (frame.X * scaleX);
+			frame.Y = (int) Math.Round (frame.Y * scaleY);
+		}
+		SetOutputGeometry (newSize.Width, newSize.Height, PositionOffset);
 	}
 	public override void ResizeCanvas (Size newSize, Anchor anchor) { }
 	public override void Crop (RectangleI rect, Path? selection) { }

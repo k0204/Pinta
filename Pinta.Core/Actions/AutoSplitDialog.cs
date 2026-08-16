@@ -77,12 +77,12 @@ internal sealed partial class AutoSplitDialog : IDisposable
 		ApplyLocalDetection ();
 	}
 
-	public async Task<IReadOnlyList<RectangleI>?> RunAsync ()
+	public async Task<IReadOnlyList<AutoSplitRegion>?> RunAsync ()
 	{
 		Gtk.ResponseType response = await dialog.RunAsync ();
 		dialog.Close ();
 		return response == Gtk.ResponseType.Ok && regions.Count > 0
-			? [.. regions.Select (region => region.Bounds)]
+			? [.. regions]
 			: null;
 	}
 
@@ -373,7 +373,7 @@ internal sealed partial class AutoSplitDialog : IDisposable
 		int y = Math.Clamp (y_spinner.GetValueAsInt (), 0, source.Surface.Height - 1);
 		int width = Math.Clamp (width_spinner.GetValueAsInt (), 1, source.Surface.Width - x);
 		int height = Math.Clamp (height_spinner.GetValueAsInt (), 1, source.Surface.Height - y);
-		regions[selected_region].Bounds = new RectangleI (x, y, width, height);
+		regions[selected_region].SetBounds (new RectangleI (x, y, width, height));
 		RefreshRegionList ();
 		UpdateEditorValues ();
 		preview.QueueDraw ();

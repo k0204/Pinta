@@ -1,5 +1,15 @@
 # Pinta 项目长期备忘
 
+## 动画图层（AnimationOutputLayer）Resize 陷阱（2026-08-14/15）
+- `AnimationOutputLayer.Resize` 缩小帧时必须**同步**：按比例缩放每帧 `frame.X/Y`、用 `SetOutputGeometry` 更新图层级 `CanvasWidth/Height`，并由调用方（如 `ResizeLayerAction`）在 Resize 后调 `UpdateTransforms (document.ImageSize)` 重建帧 Transform。
+- 原因：帧 Transform（`CreateFrameTransform`）基于 CanvasWidth/Height + frame.X/Y + PositionOffset 计算，只缩帧 surface 会导致帧显示错位、内容被挤出画布。
+- **2026-08-15 起动画图层直接禁用「调整图层大小」**：`LayerActions.currentResizable` 排除 `AnimationOutputLayer`（菜单置灰）+ `ResizeLayerAction.Activated` 防御 return。`ResizeAnimationLayer` 等动画分支为死代码保留。
+
+## 图层命中（hit-test）约定（2026-08-14 确认）
+- 移动工具点击图层时**不穿透**：命中判定 = 图层内容包围矩形（`TryGetLayerBounds` + `ContainsPoint`），透明孔内点击仍属于该图层；仅点击到所有图层内容矩形之外（空白画布）才穿透/取消选择。
+- 隐藏层、锁定层、Opacity=0 层不参与命中；组图层自身无像素（只命中子层）。
+- 选区优先：当前层有活动选区时，选区内点击（即使该点透明）命中当前层。
+
 ## 工作方式约定（用户明确要求）
 - **只修改代码，不要自动编译/构建/运行**。用户自己会用 `./run.bat`（= dev.ps1 -Run，Debug 构建到 `build/bin` 后启动）验证。
 - 编译验证仅在被要求时才做；做之前按 AGENTS.md 停掉残留 Pinta/.NET 进程。
