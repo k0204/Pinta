@@ -48,6 +48,7 @@ public sealed partial class LayerActions
 	public Command DeleteLayer { get; }
 	public Command DuplicateLayer { get; }
 	public Command MergeLayerDown { get; }
+	public Command BlendLowerIntoUpper { get; }
 	public Command MergeSelectedLayers { get; }
 	public Command ImportFromFile { get; }
 	public Command SaveLayerImage { get; }
@@ -198,6 +199,12 @@ public sealed partial class LayerActions
 			null,
 			Resources.Icons.LayerMergeDown,
 			shortcuts: ["<Primary>E"]);
+
+		BlendLowerIntoUpper = new Command (
+			"blendlowerintoupper",
+			Translations.GetString ("Blend Lower into Upper"),
+			Translations.GetString ("Use a brush to blend the lower layer into the selected layer"),
+			Resources.Icons.LayerMergeDown);
 
 		MergeSelectedLayers = new Command (
 			"mergeselectedlayers",
@@ -359,6 +366,7 @@ public sealed partial class LayerActions
 			DeleteLayer,
 			DuplicateLayer,
 			MergeLayerDown,
+			BlendLowerIntoUpper,
 			MergeSelectedLayers,
 			ImportFromFile,
 			SaveLayerImage,
@@ -402,6 +410,7 @@ public sealed partial class LayerActions
 		SetSpritesheetAnchor.Activated += HandleSetSpritesheetAnchorActivated;
 		DuplicateLayer.Activated += HandlePintaCoreActionsLayersDuplicateLayerActivated;
 		MergeLayerDown.Activated += HandlePintaCoreActionsLayersMergeLayerDownActivated;
+		BlendLowerIntoUpper.Activated += HandleBlendLowerIntoUpperActivated;
 		MoveLayerDown.Activated += HandlePintaCoreActionsLayersMoveLayerDownActivated;
 		MoveLayerUp.Activated += HandlePintaCoreActionsLayersMoveLayerUpActivated;
 		ResetLayerPosition.Activated += HandleResetLayerPositionActivated;
@@ -463,6 +472,7 @@ public sealed partial class LayerActions
 		bool currentResizable = currentEditable;
 		bool canMergeDown = activeDoc?.Layers.CanMoveCurrentLayerDown () ?? false;
 		MergeLayerDown.Sensitive = canMergeDown && currentEditable && activeDoc!.Layers.GetSiblingBelow (activeDoc.Layers.CurrentUserLayer).IsEditable;
+		BlendLowerIntoUpper.Sensitive = CanBlendLowerIntoUpper (activeDoc);
 		MoveLayerDown.Sensitive = canMergeDown;
 
 		MoveLayerUp.Sensitive = activeDoc?.Layers.CanMoveCurrentLayerUp () ?? false;

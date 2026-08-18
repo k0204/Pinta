@@ -4735,3 +4735,23 @@ msgstr "导出区域失败：{0}"
 #: ../Pinta.Gui.Widgets/Widgets/Layers/LayerAlignmentWindow.cs:74
 msgid "Snap to guides and canvas"
 msgstr "吸附到参考线和画布"
+
+#: ../Pinta.Core/Actions/LayerActions.cs:203
+msgid "Blend Lower into Upper"
+msgstr "将下层融合到上层"
+
+#: ../Pinta.Core/Actions/LayerActions.cs:205
+msgid "Use a brush to blend the lower layer into the selected layer"
+msgstr "使用画笔将下层融合到选中的图层"
+
+#: ../Pinta.Tools/Tools/LayerBlendTool.cs:25
+msgid "Lower layer blend percentage."
+msgstr "下层融合百分比。"
+
+#: ../Pinta.Tools/Tools/LayerBlendTool.cs:30
+msgid "Paint over the canvas to blend the lower layer into the selected layer."
+msgstr "在画布上涂抹，将下层融合到选中的图层。"
+
+#: ../Pinta.Tools/Tools/LayerBlendTool.cs:53
+msgid "Blend (%)"
+msgstr "融合 (%)"

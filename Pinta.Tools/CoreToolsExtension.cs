@@ -59,6 +59,7 @@ public sealed class CoreToolsExtension : IExtension
 		PintaCore.Tools.AddTool (new LassoSelectTool (services));
 		PintaCore.Tools.AddTool (new MagicWandTool (services));
 		PintaCore.Tools.AddTool (new PaintBrushTool (services));
+		PintaCore.Tools.AddTool (new LayerBlendTool (services));
 		PintaCore.Tools.AddTool (new PencilTool (services));
 		PintaCore.Tools.AddTool (new EraserTool (services));
 		PintaCore.Tools.AddTool (new PaintBucketTool (services));
@@ -91,6 +92,7 @@ public sealed class CoreToolsExtension : IExtension
 		PintaCore.Tools.RemoveInstanceOfTool<LassoSelectTool> ();
 		PintaCore.Tools.RemoveInstanceOfTool<MagicWandTool> ();
 		PintaCore.Tools.RemoveInstanceOfTool<PaintBrushTool> ();
+		PintaCore.Tools.RemoveInstanceOfTool<LayerBlendTool> ();
 		PintaCore.Tools.RemoveInstanceOfTool<PencilTool> ();
 		PintaCore.Tools.RemoveInstanceOfTool<EraserTool> ();
 		PintaCore.Tools.RemoveInstanceOfTool<PaintBucketTool> ();

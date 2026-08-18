@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="AI asset extraction and compositing workbench">
+  <title>AI Asset Workbench</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand-lockup">
+        <span class="brand-mark" aria-hidden="true">✦</span>
+        <div>
+          <strong data-i18n="app_name"></strong>
+          <span class="eyebrow" data-i18n="app_eyebrow"></span>
+        </div>
+      </div>
+      <div class="topbar-actions">
+        <button class="ghost-button" id="save-workspace" data-i18n="save_workspace"></button>
+        <button class="primary-button" id="export-png" data-i18n="export_png"></button>
+      </div>
+    </header>
+
+    <main class="workspace-grid">
+      <aside class="panel left-rail">
+        <section class="rail-section">
+          <div class="section-heading">
+            <h2 data-i18n="project"></h2>
+            <span class="status-dot" id="project-status"></span>
+          </div>
+          <label class="upload-zone" for="scene-input">
+            <span class="upload-icon" aria-hidden="true">↑</span>
+            <span data-i18n="upload_scene"></span>
+            <small data-i18n="upload_scene_hint"></small>
+          </label>
+          <input id="scene-input" type="file" accept="image/png,image/jpeg,image/webp" hidden>
+          <div class="asset-row active" id="scene-row" role="button" tabindex="0" data-i18n-aria="scene_preview">
+            <img id="scene-thumb" alt="">
+            <div>
+              <strong id="scene-name">scene.png</strong>
+              <span id="scene-meta">—</span>
+            </div>
+            <button class="icon-button" id="clear-scene" aria-label="" data-i18n-aria="remove_scene">×</button>
+          </div>
+          <div class="asset-row layer-row" id="foreground-row" role="button" tabindex="0" hidden data-i18n-aria="foreground_preview">
+            <img id="foreground-thumb" alt="">
+            <div>
+              <strong data-i18n="generation_source_foreground"></strong>
+              <span id="foreground-meta">—</span>
+            </div>
+          </div>
+          <label class="upload-zone compact" for="reference-input">
+            <span class="upload-icon" aria-hidden="true">+</span>
+            <span data-i18n="add_reference"></span>
+            <small data-i18n="add_reference_hint"></small>
+          </label>
+          <input id="reference-input" type="file" accept="image/png,image/jpeg,image/webp" hidden>
+          <div class="asset-row" id="reference-row" hidden>
+            <img id="reference-thumb" alt="">
+            <div>
+              <strong id="reference-name"></strong>
+              <span id="reference-meta"></span>
+            </div>
+            <button class="icon-button" id="clear-reference" aria-label="" data-i18n-aria="remove_reference">×</button>
+          </div>
+        </section>
+
+        <section class="rail-section">
+          <div class="section-heading"><h2 data-i18n="workflow"></h2><span class="step-count" id="step-count">1/5</span></div>
+          <ol class="step-list">
+            <li class="active" data-step="1"><span>01</span><div><strong data-i18n="step_sam2"></strong><small data-i18n="step_sam2_hint"></small></div></li>
+            <li data-step="2"><span>02</span><div><strong data-i18n="step_matte"></strong><small data-i18n="step_matte_hint"></small></div></li>
+            <li data-step="3"><span>03</span><div><strong data-i18n="step_foreground"></strong><small data-i18n="step_foreground_hint"></small></div></li>
+            <li data-step="4"><span>04</span><div><strong data-i18n="step_nano"></strong><small data-i18n="step_nano_hint"></small></div></li>
+            <li data-step="5"><span>05</span><div><strong data-i18n="step_depth"></strong><small data-i18n="step_depth_hint"></small></div></li>
+          </ol>
+        </section>
+
+        <section class="rail-section compact-section">
+          <div class="section-heading"><h2 data-i18n="quality"></h2><span class="quality-pill" data-i18n="local"></span></div>
+          <div class="metric-row"><span data-i18n="edge_quality"></span><strong id="edge-quality">78%</strong></div>
+          <div class="meter"><span id="quality-meter"></span></div>
+          <p class="muted" data-i18n="quality_hint"></p>
+        </section>
+      </aside>
+
+      <section class="canvas-panel panel">
+        <div class="canvas-toolbar">
+          <div class="toolbar-group">
+            <button class="tool-button active" data-tool="mask" data-i18n="tool_mask"></button>
+            <button class="tool-button" data-tool="composite" data-i18n="tool_composite"></button>
+            <button class="tool-button" data-tool="compare" data-i18n="tool_compare"></button>
+          </div>
+          <div class="toolbar-group right">
+            <button class="icon-button" id="undo-mask" aria-label="" data-i18n-aria="undo">↶</button>
+            <button class="icon-button" id="redo-mask" aria-label="" data-i18n-aria="redo">↷</button>
+            <button class="icon-button" id="delete-mask" aria-label="" data-i18n-aria="delete_mask">×</button>
+            <button class="icon-button" id="zoom-out" aria-label="" data-i18n-aria="zoom_out">−</button>
+            <span class="zoom-label" id="zoom-label">100%</span>
+            <button class="icon-button" id="zoom-in" aria-label="" data-i18n-aria="zoom_in">+</button>
+            <button class="icon-button" id="reset-view" aria-label="" data-i18n-aria="reset_view">⌂</button>
+          </div>
+        </div>
+        <div class="canvas-stage" id="canvas-stage">
+          <div class="canvas-content" id="canvas-content">
+            <canvas id="scene-canvas" aria-label=""></canvas>
+            <canvas id="mask-canvas" aria-hidden="true"></canvas>
+          </div>
+          <div id="selection-box" class="selection-box" hidden></div>
+          <div class="empty-state" id="empty-state">
+            <span class="empty-mark" aria-hidden="true">◎</span>
+            <strong data-i18n="empty_title"></strong>
+            <span data-i18n="empty_hint"></span>
+            <button class="primary-button" id="load-demo" data-i18n="load_demo"></button>
+          </div>
+          <div class="canvas-hud" id="canvas-hud" hidden>
+            <span class="hud-chip" id="selection-chip"></span>
+            <span class="hud-chip" id="coords-chip">0 × 0 px</span>
+          </div>
+        </div>
+        <div class="canvas-footer">
+          <div class="legend"><span class="legend-swatch selection"></span><span data-i18n="legend_selection"></span><span class="legend-swatch feather"></span><span data-i18n="legend_feather"></span></div>
+          <span class="muted" id="canvas-status"></span>
+        </div>
+      </section>
+
+      <aside class="panel inspector">
+        <section class="inspector-section">
+          <div class="section-heading"><h2 data-i18n="sam2_section"></h2><span class="ai-badge" id="sam2-status" data-i18n="sam2_checking"></span></div>
+          <div class="segmented selection-mode" role="group" aria-label="" data-i18n-aria="selection_mode">
+            <button class="segment active" data-selection="box" data-i18n="selection_box"></button>
+            <button class="segment" data-selection="point" data-i18n="selection_point"></button>
+          </div>
+          <p class="muted selection-hint" id="selection-hint" data-i18n="selection_hint"></p>
+          <button class="primary-button full" id="sam2-select"><span aria-hidden="true">◌</span><span data-i18n="sam2_select"></span></button>
+          <button class="primary-button full" id="auto-isolate"><span aria-hidden="true">✦</span><span data-i18n="auto_isolate"></span></button>
+          <div class="button-grid">
+            <button class="secondary-button" id="clear-mask" data-i18n="clear_mask"></button>
+            <button class="secondary-button" id="invert-mask" data-i18n="invert_mask"></button>
+          </div>
+          <div class="control-block">
+            <div class="control-label"><span data-i18n="brush_size"></span><output id="brush-size-value">36 px</output></div>
+            <input id="brush-size" type="range" min="8" max="160" value="36">
+          </div>
+          <div class="control-block">
+            <div class="control-label"><span data-i18n="edge_feather"></span><output id="feather-value">6 px</output></div>
+            <input id="feather" type="range" min="0" max="32" value="6">
+          </div>
+          <div class="segmented" role="group" aria-label="" data-i18n-aria="brush_mode">
+            <button class="segment active" data-brush="add" data-i18n="brush_add"></button>
+            <button class="segment" data-brush="remove" data-i18n="brush_remove"></button>
+          </div>
+          <button class="secondary-button full spaced-button" id="matte-refine"><span aria-hidden="true">◒</span><span data-i18n="matte_refine"></span></button>
+        </section>
+
+        <section class="inspector-section">
+          <div class="section-heading"><h2 data-i18n="foreground_section"></h2><span class="quality-pill" data-i18n="pixel_locked"></span></div>
+          <p class="muted" data-i18n="foreground_hint"></p>
+          <button class="secondary-button full" id="extract-foreground" data-i18n="extract_foreground"></button>
+        </section>
+
+        <section class="inspector-section">
+          <div class="section-heading"><h2 data-i18n="generation"></h2><span class="muted" data-i18n="optional"></span></div>
+          <label class="field-label" for="generation-source" data-i18n="generation_source_label"></label>
+          <select id="generation-source" disabled>
+            <option value="" data-i18n="generation_source_none"></option>
+            <option value="foreground" data-i18n="generation_source_foreground"></option>
+            <option value="reference" data-i18n="generation_source_reference"></option>
+          </select>
+          <label class="field-label" for="generation-prompt" data-i18n="prompt_label"></label>
+          <textarea id="generation-prompt" rows="3" data-i18n-placeholder="prompt_placeholder"></textarea>
+          <div class="field-row"><label class="field-label" for="generation-size" data-i18n="size_label"></label><select id="generation-size"><option value="1:1" data-i18n="size_square"></option><option value="16:9" data-i18n="size_wide"></option></select></div>
+          <button class="secondary-button full" id="generate-image"><span aria-hidden="true">✧</span><span data-i18n="generate_image"></span></button>
+          <div class="generated-preview" id="generated-preview" hidden><img id="generated-image" alt=""><div><strong data-i18n="generated_ready"></strong><button class="text-button" id="use-generated" data-i18n="use_generated"></button></div></div>
+        </section>
+
+        <section class="inspector-section">
+          <div class="section-heading"><h2 data-i18n="nano_section"></h2><span class="muted" data-i18n="local_fallback"></span></div>
+          <label class="field-label" for="nano-prompt" data-i18n="nano_prompt_label"></label>
+          <textarea id="nano-prompt" rows="2" data-i18n-placeholder="nano_prompt_placeholder"></textarea>
+          <div class="field-row"><label class="field-label" for="nano-provider" data-i18n="nano_provider_label"></label><select id="nano-provider"><option value="tokenx24" data-i18n="provider_tokenx24"></option><option value="visionary" data-i18n="provider_visionary"></option></select></div>
+          <button class="secondary-button full" id="nano-repair"><span aria-hidden="true">▧</span><span data-i18n="nano_repair"></span></button>
+        </section>
+
+        <section class="inspector-section">
+          <div class="section-heading"><h2 data-i18n="composite"></h2><span class="muted" data-i18n="non_destructive"></span></div>
+          <div class="control-block"><div class="control-label"><span data-i18n="opacity"></span><output id="opacity-value">100%</output></div><input id="opacity" type="range" min="0" max="100" value="100"></div>
+          <div class="control-block"><div class="control-label"><span data-i18n="blend_mode"></span></div><select id="blend-mode"><option value="source-over" data-i18n="blend_normal"></option><option value="multiply" data-i18n="blend_multiply"></option><option value="screen" data-i18n="blend_screen"></option></select></div>
+          <div class="control-block"><div class="control-label"><span data-i18n="depth_order"></span></div><select id="depth-order"><option value="background,foreground" data-i18n="depth_background_first"></option><option value="foreground,background" data-i18n="depth_foreground_first"></option></select></div>
+          <button class="primary-button full" id="composite-export"><span aria-hidden="true">↗</span><span data-i18n="composite_export"></span></button>
+        </section>
+
+        <section class="inspector-section chat-section">
+          <div class="section-heading"><h2 data-i18n="assistant"></h2><span class="online-dot" data-i18n="local_ready"></span></div>
+          <div class="chat-log" id="chat-log"><div class="chat-bubble assistant" data-i18n="assistant_welcome"></div></div>
+          <div class="chat-compose"><textarea id="chat-input" rows="2" data-i18n-placeholder="chat_placeholder"></textarea><button class="icon-button send-button" id="send-chat" aria-label="" data-i18n-aria="send_message">↑</button></div>
+        </section>
+
+        <section class="inspector-section settings-section">
+          <button class="disclosure" id="settings-toggle"><span data-i18n="api_settings"></span><span aria-hidden="true">⌄</span></button>
+          <div class="settings-body" id="settings-body" hidden>
+            <label class="field-label" for="api-base" data-i18n="api_base_label"></label><input id="api-base" type="url" value="http://localhost:8080/" data-i18n-placeholder="api_base_placeholder">
+            <label class="field-label" for="api-key" data-i18n="api_key_label"></label><input id="api-key" type="password" data-i18n-placeholder="api_key_placeholder">
+            <p class="muted" data-i18n="api_settings_hint"></p>
+          </div>
+        </section>
+      </aside>
+    </main>
+  </div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="app.js" defer></script>
+</body>
+</html>

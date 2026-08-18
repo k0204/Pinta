@@ -40,3 +40,4 @@ xdg/pinta.appdata.xml
 /output
 /ffmpeg-8.1-full_build-shared
 /tmp
+.playwright-cli/

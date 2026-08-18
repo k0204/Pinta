@@ -85,6 +85,38 @@ All requests in this section include `Authorization: Bearer <token>`.
 - It analyzes luminance gradients without checking for any specific color. The client smooths image noise, applies a Sobel gradient, derives a threshold from the selected area's gradient distribution, and removes small disconnected responses.
 - The operation creates one transparent `Detected Border` layer with a purple overlay. It does not require authentication or make an API request.
 
+## Local SAM 2 Workbench Service
+
+The optional browser workbench service runs separately from the main API at
+`http://127.0.0.1:8765`. It requires no authentication and is only bound to
+loopback. The browser sends an explicit box or positive click prompt; it does
+not send unprompted full-image segmentation requests.
+
+### Service Health
+
+- Method: `GET`
+- Path: `/health`
+- Auth: none
+- Response JSON: `status`, the configured checkpoint path, and active device
+  (`cuda` when available, otherwise `cpu`).
+
+### Segment Image from User Prompt
+
+- Method: `POST`
+- Path: `/segment`
+- Auth: none
+- Content type: `multipart/form-data`
+- Form fields:
+  - `file`: required image file, sent as PNG by the browser workbench
+  - `box`: optional comma-separated source-pixel rectangle `x1,y1,x2,y2`
+  - `point_x`, `point_y`: optional source-pixel positive click coordinates;
+    both are required when `box` is omitted
+- Response JSON: `mask_base64` (a grayscale PNG where white is foreground),
+  SAM 2 confidence `score`, and source `width` and `height`.
+- Client behavior: decodes `mask_base64` to the editable local alpha mask. If
+  the service is unavailable, it displays `本地 fallback` and keeps the user
+  workflow operational with the browser mask implementation.
+
 ## Image Editing
 
 All requests in this section include `Authorization: Bearer <token>`.

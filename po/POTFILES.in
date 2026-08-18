@@ -25,6 +25,7 @@ Pinta.Core/Actions/ImageActions.cs
 Pinta.Core/Actions/LayerActions.AiPreview.cs
 Pinta.Core/Actions/LayerActions.AiProviders.cs
 Pinta.Core/Actions/LayerActions.Background.cs
+Pinta.Core/Actions/LayerActions.BlendLowerIntoUpper.cs
 Pinta.Core/Actions/LayerActions.BorderDetection.cs
 Pinta.Core/Actions/LayerActions.BorderDetection.Mask.cs
 Pinta.Core/Actions/LayerActions.cs
@@ -434,6 +435,7 @@ Pinta.Tools/Tools/EraserTool.cs
 Pinta.Tools/Tools/FloodTool.cs
 Pinta.Tools/Tools/FreeformShapeTool.cs
 Pinta.Tools/Tools/GradientTool.cs
+Pinta.Tools/Tools/LayerBlendTool.cs
 Pinta.Tools/Tools/LassoSelectTool.cs
 Pinta.Tools/Tools/LineCurveTool.cs
 Pinta.Tools/Tools/MagicWandTool.cs

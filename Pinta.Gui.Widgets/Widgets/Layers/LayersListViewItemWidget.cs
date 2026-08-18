@@ -500,6 +500,7 @@ public sealed partial class LayersListViewItemWidget
 		operationsSection.AppendItem (actions.DeleteLayer.CreateMenuItem ());
 		operationsSection.AppendItem (actions.DuplicateLayer.CreateMenuItem ());
 		operationsSection.AppendItem (actions.MergeLayerDown.CreateMenuItem ());
+		operationsSection.AppendItem (actions.BlendLowerIntoUpper.CreateMenuItem ());
 		operationsSection.AppendItem (actions.MergeSelectedLayers.CreateMenuItem ());
 		operationsSection.AppendItem (actions.MoveLayerUp.CreateMenuItem ());
 		operationsSection.AppendItem (actions.MoveLayerDown.CreateMenuItem ());

@@ -118,6 +118,7 @@ internal sealed class LayersPad : IDockPad
 		hamburger_menu.AppendItem (layer_actions.CreateSingleDirectionAnimation.CreateMenuItem ());
 		hamburger_menu.AppendItem (layer_actions.EditSpritesheet.CreateMenuItem ());
 		hamburger_menu.AppendItem (layer_actions.SetSpritesheetAnchor.CreateMenuItem ());
+		hamburger_menu.AppendItem (layer_actions.BlendLowerIntoUpper.CreateMenuItem ());
 		hamburger_menu.AppendSubmenu (Translations.GetString ("Align Layers"), alignment_menu);
 		hamburger_menu.AppendSection (null, flip_section);
 		hamburger_menu.AppendSection (null, prop_section);

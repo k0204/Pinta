@@ -4673,6 +4673,26 @@ msgstr ""
 msgid "Snap to guides and canvas"
 msgstr ""
 
+#: Pinta.Core/Actions/LayerActions.cs:203
+msgid "Blend Lower into Upper"
+msgstr ""
+
+#: Pinta.Core/Actions/LayerActions.cs:205
+msgid "Use a brush to blend the lower layer into the selected layer"
+msgstr ""
+
+#: Pinta.Tools/Tools/LayerBlendTool.cs:25
+msgid "Lower layer blend percentage."
+msgstr ""
+
+#: Pinta.Tools/Tools/LayerBlendTool.cs:30
+msgid "Paint over the canvas to blend the lower layer into the selected layer."
+msgstr ""
+
+#: Pinta.Tools/Tools/LayerBlendTool.cs:53
+msgid "Blend (%)"
+msgstr ""
+
 #: Pinta.Gui.Widgets/Widgets/Layers/LayerAlignmentWindow.cs:380
 msgid "No document open"
 msgstr ""
