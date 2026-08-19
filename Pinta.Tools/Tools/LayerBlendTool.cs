@@ -29,7 +29,7 @@ public sealed class LayerBlendTool : BaseBrushTool
 	}
 
 	public override string Name => Translations.GetString ("Blend Lower into Upper");
-	public override string Icon => Pinta.Resources.Icons.ToolPaintBrush;
+	public override string Icon => Pinta.Resources.Icons.LayerMergeDown;
 	public override string StatusBarText => Translations.GetString ("Paint over the canvas to blend the lower layer into the selected layer.");
 	public override Gdk.Key ShortcutKey => Gdk.Key.Invalid;
 	public override int Priority => 22;

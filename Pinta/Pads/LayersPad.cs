@@ -144,6 +144,7 @@ internal sealed class LayersPad : IDockPad
 			layer_actions.DuplicateLayer.CreateDockToolBarItem (),
 			layer_actions.UnlockReference.CreateDockToolBarItem (),
 			layer_actions.MergeLayerDown.CreateDockToolBarItem (),
+			layer_actions.BlendLowerIntoUpper.CreateDockToolBarItem (),
 			layer_actions.MoveLayerUp.CreateDockToolBarItem (),
 			layer_actions.MoveLayerDown.CreateDockToolBarItem (),
 			hamburger_button

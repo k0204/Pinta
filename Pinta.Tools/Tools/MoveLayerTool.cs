@@ -38,6 +38,7 @@ public sealed partial class MoveLayerTool : BaseTool
 	private Gtk.CheckButton? show_transform_controls;
 	private readonly List<UserLayer> dragged_layers = [];
 	private readonly List<UserLayer> resized_layers = [];
+	private readonly Dictionary<Layer, Matrix> resize_initial_transforms = [];
 	private readonly Gdk.Cursor marquee_cursor;
 	private PointD drag_start_point;
 	private PointD applied_drag_delta;
@@ -209,7 +210,7 @@ public sealed partial class MoveLayerTool : BaseTool
 		foreach (UserLayer layer in dragged_layers)
 			document.Layers.TranslateLayerTree (layer, delta);
 		applied_drag_delta = totalDelta;
-		TranslateTransformHandle (delta);
+		UpdateTransformHandle (document);
 	}
 
 	protected override void OnMouseUp (Document document, ToolMouseEventArgs e)
@@ -259,7 +260,7 @@ public sealed partial class MoveLayerTool : BaseTool
 		foreach (UserLayer layer in layers)
 			document.Layers.TranslateLayerTree (layer, delta);
 		PushMoveHistory (document, layers, delta);
-		TranslateTransformHandle (delta);
+		UpdateTransformHandle (document);
 		return true;
 	}
 
@@ -286,6 +287,7 @@ public sealed partial class MoveLayerTool : BaseTool
 		document.FinishSelection ();
 		resized_layers.Clear ();
 		resized_layers.AddRange (document.Layers.GetSelectedLayerRoots ());
+		CaptureResizeTransforms ();
 		resize_current_bounds = resize_start_bounds;
 		return true;
 	}
@@ -297,8 +299,9 @@ public sealed partial class MoveLayerTool : BaseTool
 		if (target.Width < 1 || target.Height < 1)
 			return;
 
+		RestoreResizeTransforms ();
 		foreach (UserLayer layer in resized_layers)
-			document.Layers.ResizeLayerTree (layer, resize_current_bounds, target);
+			document.Layers.ResizeLayerTree (layer, resize_start_bounds, target);
 		resize_current_bounds = target;
 	}
 
@@ -314,10 +317,33 @@ public sealed partial class MoveLayerTool : BaseTool
 			PushResizeHistory (document);
 
 		resized_layers.Clear ();
+		resize_initial_transforms.Clear ();
 		resize_start_bounds = RectangleD.Zero;
 		resize_current_bounds = RectangleD.Zero;
 		if (document is not null)
 			UpdateTransformHandle (document);
+	}
+
+	private void CaptureResizeTransforms ()
+	{
+		resize_initial_transforms.Clear ();
+		foreach (UserLayer root in resized_layers)
+			CaptureResizeTransforms (root);
+	}
+
+	private void CaptureResizeTransforms (UserLayer node)
+	{
+		foreach (Layer layer in node.GetLayersToPaint ())
+			resize_initial_transforms[layer] = layer.Transform.Clone ();
+
+		foreach (UserLayer child in node.Children)
+			CaptureResizeTransforms (child);
+	}
+
+	private void RestoreResizeTransforms ()
+	{
+		foreach ((Layer layer, Matrix transform) in resize_initial_transforms)
+			layer.Transform = transform.Clone ();
 	}
 
 	private void StartLayerDrag (Document document, PointD point)
@@ -519,15 +545,6 @@ public sealed partial class MoveLayerTool : BaseTool
 
 		transform_handle.Rectangle = bounds;
 		transform_handle.Active = bounds.Width > 0 && bounds.Height > 0;
-	}
-
-	private void TranslateTransformHandle (PointD delta)
-	{
-		if (!transform_handle.Active)
-			return;
-
-		RectangleD bounds = transform_handle.Rectangle;
-		transform_handle.Rectangle = bounds with { X = bounds.X + delta.X, Y = bounds.Y + delta.Y };
 	}
 
 	private static bool IsShiftKey (Gdk.Key key)
