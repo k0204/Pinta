@@ -26,6 +26,8 @@ public sealed partial class LayerActions
 		private bool gptSelected;
 		private bool nanoBananaSelected;
 		private bool updating;
+		private string? configuredService;
+		private string? configuredProvider;
 
 		public AiImageSizePicker ()
 		{
@@ -89,6 +91,8 @@ public sealed partial class LayerActions
 
 		public void SetService (string imageService, string? provider = null)
 		{
+			bool preserveSelection = configuredService == imageService && configuredProvider == provider;
+			Size? previousSize = preserveSelection ? SelectedSize : null;
 			updating = true;
 			gptSelected = imageService == AI.AiRequestSettings.GptImageService;
 			nanoBananaSelected = imageService == AI.AiRequestSettings.NanoBananaService;
@@ -115,9 +119,44 @@ public sealed partial class LayerActions
 				if (presetCombobox.Active < 0)
 					presetCombobox.Active = 0;
 			}
+			if (previousSize is Size selectedSize)
+				RestoreSelection (selectedSize);
 			updating = false;
+			configuredService = imageService;
+			configuredProvider = provider;
 			Refresh ();
 			Changed?.Invoke (this, EventArgs.Empty);
+		}
+
+		private void RestoreSelection (Size size)
+		{
+			if (nanoBananaSelected) {
+				List<string> resolutions = [.. nanoBananaOptions.Select (option => option.Resolution).Distinct ()];
+				int resolutionIndex = resolutions.FindIndex (resolution => nanoBananaOptions.Any (
+					option => option.Resolution == resolution && option.Size == size));
+				if (resolutionIndex < 0)
+					return;
+				resolutionCombobox.Active = resolutionIndex;
+				UpdateNanoBananaAspectRatios ();
+				AI.NanoBananaImageOption[] options = [.. nanoBananaOptions.Where (
+					option => option.Resolution == resolutions[resolutionIndex])];
+				aspectRatioCombobox.Active = Array.FindIndex (options, option => option.Size == size);
+				return;
+			}
+
+			if (gptSelected) {
+				string tier = GetGptResolutionTier (size);
+				int tierIndex = gptResolutionTiers.IndexOf (tier);
+				if (tierIndex < 0)
+					return;
+				resolutionCombobox.Active = tierIndex;
+				UpdateGptAspectRatios ();
+				Size[] options = [.. presets.Where (preset => GetGptResolutionTier (preset) == tier)];
+				aspectRatioCombobox.Active = Array.IndexOf (options, size);
+				return;
+			}
+
+			presetCombobox.Active = presets.IndexOf (size);
 		}
 
 		private void HandleChanged ()

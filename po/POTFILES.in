@@ -363,6 +363,7 @@ Pinta.Gui.Widgets/Widgets/AnglePickerGraphic.cs
 Pinta.Gui.Widgets/Widgets/AnglePickerWidget.cs
 Pinta.Gui.Widgets/Widgets/Canvas/CanvasRenderer.cs
 Pinta.Gui.Widgets/Widgets/Canvas/CanvasWindow.cs
+Pinta.Gui.Widgets/Widgets/Canvas/MarkToolbarWidget.cs
 Pinta.Gui.Widgets/Widgets/Canvas/PintaCanvas.cs
 Pinta.Gui.Widgets/Widgets/ColorGradientWidget.cs
 Pinta.Gui.Widgets/Widgets/ColorPanelWidget.cs
@@ -439,6 +440,7 @@ Pinta.Tools/Tools/LayerBlendTool.cs
 Pinta.Tools/Tools/LassoSelectTool.cs
 Pinta.Tools/Tools/LineCurveTool.cs
 Pinta.Tools/Tools/MagicWandTool.cs
+Pinta.Tools/Tools/MarkTool.cs
 Pinta.Tools/Tools/MoveLayerTool.cs
 Pinta.Tools/Tools/PaintBrushTool.cs
 Pinta.Tools/Tools/PaintBucketTool.cs

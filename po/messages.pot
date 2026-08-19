@@ -1562,6 +1562,19 @@ msgstr ""
 msgid "Magic Wand Select"
 msgstr ""
 
+#: ../Pinta.Tools/Tools/MarkTool.cs
+msgid "Mark"
+msgstr ""
+
+#: ../Pinta.Tools/Tools/MarkTool.cs
+#: ../Pinta.Gui.Widgets/Widgets/Canvas/MarkToolbarWidget.cs
+msgid "Circle"
+msgstr ""
+
+#: ../Pinta.Tools/Tools/MarkTool.cs
+msgid "Drag to draw a rectangle or circle. Drag around the outline to draw a polygon."
+msgstr ""
+
 #: ../Pinta/MainWindow.cs:441
 msgid "Main Menu"
 msgstr ""
@@ -2008,6 +2021,7 @@ msgid "Polar Inversion"
 msgstr ""
 
 #: ../Pinta.Tools/Tools/LassoSelectTool.cs:221
+#: ../Pinta.Gui.Widgets/Widgets/Canvas/MarkToolbarWidget.cs
 msgid "Polygon"
 msgstr ""
 
@@ -2173,6 +2187,7 @@ msgid "Recolor"
 msgstr ""
 
 #: ../Pinta.Tools/Tools/RectangleTool.cs:42
+#: ../Pinta.Gui.Widgets/Widgets/Canvas/MarkToolbarWidget.cs
 msgid "Rectangle"
 msgstr ""
 

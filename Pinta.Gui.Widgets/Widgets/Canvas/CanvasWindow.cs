@@ -42,7 +42,8 @@ public sealed partial class CanvasWindow
 
 	private PintaCanvas canvas;
 	private Gtk.Fixed canvas_container;
-        private Gtk.DrawingArea guide_overlay;
+	private Gtk.DrawingArea guide_overlay;
+	private MarkToolbarWidget? mark_toolbar;
 	private Ruler horizontal_ruler;
 	private Ruler vertical_ruler;
 	private Gtk.ScrolledWindow scrolled_window;
@@ -150,9 +151,9 @@ public sealed partial class CanvasWindow
 		ColumnHomogeneous = false;
 		RowHomogeneous = false;
 
-		Attach (horizontalRuler, 1, 0, 1, 1);
-		Attach (verticalRuler, 0, 1, 1, 1);
-                Attach (canvasOverlay, 1, 1, 1, 1);
+		Attach (horizontalRuler, 1, 0, 2, 1);
+		Attach (verticalRuler, 1, 1, 1, 1);
+		Attach (canvasOverlay, 2, 1, 1, 1);
 
 		// --- References to keep
 
@@ -200,6 +201,8 @@ public sealed partial class CanvasWindow
 		this.chrome = chrome;
 		this.tools = tools;
 		this.document = document;
+		mark_toolbar = new MarkToolbarWidget (tools);
+		Attach (mark_toolbar.Widget, 0, 1, 1, 1);
 		document.Workspace.Viewport = (Gtk.Viewport) scrolled_window.Child!;
 		document.Workspace.CanvasContainer = canvas_container;
 	}

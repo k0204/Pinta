@@ -2058,6 +2058,7 @@ msgid "Polar Inversion"
 msgstr "极性反转"
 
 #: ../Pinta.Tools/Tools/LassoSelectTool.cs:221
+#: ../Pinta.Gui.Widgets/Widgets/Canvas/MarkToolbarWidget.cs
 msgid "Polygon"
 msgstr "多边形"
 
@@ -2223,6 +2224,7 @@ msgid "Recolor"
 msgstr "重新着色"
 
 #: ../Pinta.Tools/Tools/RectangleTool.cs:42
+#: ../Pinta.Gui.Widgets/Widgets/Canvas/MarkToolbarWidget.cs
 msgid "Rectangle"
 msgstr "矩形"
 
@@ -4755,3 +4757,16 @@ msgstr "在画布上涂抹，将下层融合到选中的图层。"
 #: ../Pinta.Tools/Tools/LayerBlendTool.cs:53
 msgid "Blend (%)"
 msgstr "融合 (%)"
+
+#: ../Pinta.Tools/Tools/MarkTool.cs
+msgid "Mark"
+msgstr "标记"
+
+#: ../Pinta.Tools/Tools/MarkTool.cs
+#: ../Pinta.Gui.Widgets/Widgets/Canvas/MarkToolbarWidget.cs
+msgid "Circle"
+msgstr "圆形"
+
+#: ../Pinta.Tools/Tools/MarkTool.cs
+msgid "Drag to draw a rectangle or circle. Drag around the outline to draw a polygon."
+msgstr "拖动绘制矩形或圆形，沿轮廓拖动绘制多边形。"
