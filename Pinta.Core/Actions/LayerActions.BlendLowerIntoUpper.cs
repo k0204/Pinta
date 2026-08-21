@@ -20,10 +20,11 @@ public sealed partial class LayerActions
 		if (document is null || !document.Layers.HasSelectedLayer)
 			return false;
 
-		UserLayer upper = document.Layers.CurrentUserLayer;
-		if (!upper.IsEditable || !document.Layers.CanMoveCurrentLayerDown ())
+		UserLayer lower = document.Layers.CurrentUserLayer;
+		if (!document.Layers.TryGetIntersectingLayerPair (lower, out _, out UserLayer upper)
+			|| !upper.IsEditable)
 			return false;
 
-		return !document.Layers.GetSiblingBelow (upper).Hidden;
+		return true;
 	}
 }

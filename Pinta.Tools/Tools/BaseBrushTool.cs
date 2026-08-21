@@ -101,7 +101,7 @@ public abstract class BaseBrushTool : BaseTool
 		mouse_button = MouseButton.None;
 	}
 
-	private static void ExpandLayerToCanvas (Document document, UserLayer layer)
+	protected static void ExpandLayerToCanvas (Document document, UserLayer layer)
 	{
 		Matrix transform = layer.Transform.Clone ();
 		bool identity = transform.TransformPoint (PointD.Zero) == PointD.Zero

@@ -23,6 +23,59 @@ public sealed partial class DocumentLayers
 		return null;
 	}
 
+	/// <summary>
+	/// Finds the first visible layer whose rendered content bounds intersect the target.
+	/// </summary>
+	public UserLayer? FindIntersectingLayer (UserLayer target)
+	{
+		if (!ContainsLayer (target) || target.Hidden || !TryGetResizableLayerTreeBounds (target, out RectangleD targetBounds))
+			return null;
+
+		IReadOnlyList<UserLayer> layers = AllLayers;
+		int targetIndex = -1;
+		for (int i = 0; i < layers.Count; i++) {
+			if (layers[i] == target) {
+				targetIndex = i;
+				break;
+			}
+		}
+		if (targetIndex < 0)
+			return null;
+
+		for (int i = 0; i < layers.Count; i++) {
+			if (i == targetIndex)
+				continue;
+
+			UserLayer layer = layers[i];
+			if (layer.Hidden || !TryGetResizableLayerTreeBounds (layer, out RectangleD layerBounds))
+				continue;
+
+			if (Intersects (layerBounds, targetBounds))
+				return layer;
+		}
+
+		return null;
+	}
+
+	public bool TryGetIntersectingLayerPair (UserLayer selected, out UserLayer lower, out UserLayer upper)
+	{
+		lower = null!;
+		upper = null!;
+		UserLayer? other = FindIntersectingLayer (selected);
+		if (other is null)
+			return false;
+
+		IReadOnlyList<UserLayer> layers = AllLayers;
+		int selectedIndex = IndexOf (layers, selected);
+		int otherIndex = IndexOf (layers, other);
+		if (selectedIndex < 0 || otherIndex < 0)
+			return false;
+
+		lower = selectedIndex < otherIndex ? selected : other;
+		upper = selectedIndex < otherIndex ? other : selected;
+		return true;
+	}
+
 	public IReadOnlyList<UserLayer> FindLayersInSelection (RectangleD selection, bool requireFullyContained)
 	{
 		if (selection.Width <= 0 || selection.Height <= 0)
@@ -81,11 +134,24 @@ public sealed partial class DocumentLayers
 		if (!TryGetLayerBounds (layer, out RectangleD bounds))
 			return false;
 
-		return bounds.X < selection.X + selection.Width
+		return Intersects (bounds, selection);
+	}
+
+	private static bool Intersects (RectangleD bounds, RectangleD selection)
+		=> bounds.X < selection.X + selection.Width
 			&& bounds.X + bounds.Width > selection.X
 			&& bounds.Y < selection.Y + selection.Height
 			&& bounds.Y + bounds.Height > selection.Y;
+
+	private static int IndexOf (IReadOnlyList<UserLayer> layers, UserLayer target)
+	{
+		for (int i = 0; i < layers.Count; i++)
+			if (layers[i] == target)
+				return i;
+
+		return -1;
 	}
+
 
 	private static bool IsFullyContained (Layer layer, RectangleD selection)
 	{
