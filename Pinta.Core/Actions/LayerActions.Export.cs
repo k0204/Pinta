@@ -60,7 +60,9 @@ public sealed partial class LayerActions
 			chrome.MainWindowBusy = true;
 			try {
 				IProgress<double> progress = new Progress<double> (value => progressDialog.Progress = Math.Clamp (value, 0, 1));
-				await Task.Run (() => SaveLayerPng (layer, file, progress));
+				using ImageSurface image = RenderLayerContent (layer, out _);
+				progress.Report (0.85);
+				await Task.Run (() => SaveLayerPng (image, file, progress));
 			} finally {
 				progressDialog.Cancellable = true;
 				progressDialog.Hide ();
@@ -88,12 +90,10 @@ public sealed partial class LayerActions
 	}
 
 	private static void SaveLayerPng (
-		UserLayer layer,
+		ImageSurface image,
 		Gio.File file,
 		IProgress<double> progress)
 	{
-		using ImageSurface image = RenderLayerContent (layer, out _);
-		progress.Report (0.85);
 		string temporaryFile = System.IO.Path.GetTempFileName ();
 		try {
 			CairoExtensions.SaveToPng (image, temporaryFile);
